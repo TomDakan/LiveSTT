@@ -47,6 +47,17 @@ bandit-check *args:
 export-docs-reqs *args:
     @pdm export --group docs --without-hashes -o docs-requirements.txt {{ args }}
 
+# --- Development ---
+# Build the docker images.
+build:
+    @docker compose up -d --build
+# Run the docker containers.
+up:
+    @docker compose up -d
+# Stop the docker containers.
+down:
+    @docker compose down
+
 # Create a new Architecture Decision Record.
 adr *args:
     @python scripts/new_adr.py {{ args }}
