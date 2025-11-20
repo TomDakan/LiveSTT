@@ -1,53 +1,66 @@
-#!/bin/bash
+# scripts/setup_dev.py
+import os
+import secrets
+from pathlib import Path
 
-# ==============================================================================
-# SETUP_DEV.SH
-# bootstraps the local environment for the STT Kiosk Monorepo.
-# Usage: ./scripts/setup_dev.sh
-# ==============================================================================
 
-set -e # Exit immediately if a command exits with a non-zero status.
+def setup() -> None:
+    # 1. Resolve Paths (OS-agnostic)
+    # This file is in /scripts, so parent.parent is the Project Root
+    root_dir = Path(__file__).resolve().parent.parent
 
-# 1. Get the Project Root (assuming script is in /scripts)
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$PROJECT_ROOT"
+    print(f"📍 Project Root: {root_dir}")
 
-echo "📍 Project Root identified as: $PROJECT_ROOT"
+    # 2. Define Directories to Create
+    # (pathlib handles / vs \ automatically)
+    dirs_to_create = [
+        root_dir / "data" / "db",
+        root_dir / "data" / "buffer",
+        root_dir / "data" / "review",
+        root_dir / "data" / "enrollment",
+        root_dir / "secrets",
+    ]
 
-# 2. Create Data Volume Directories (Mocking NVMe storage)
-echo "📂 Creating data volume structure..."
-mkdir -p data/db
-mkdir -p data/buffer
-mkdir -p data/review
-mkdir -p data/enrollment
+    print("📂 Creating directory structure...")
+    for d in dirs_to_create:
+        d.mkdir(parents=True, exist_ok=True)
+        print(f"   - Created: {d.relative_to(root_dir)}")
 
-# 3. Create Secrets Directory
-echo "🔐 Creating secrets directory..."
-mkdir -p secrets
+    # 3. Generate Secrets
+    print("🔐 Checking secrets...")
 
-# 4. Generate Dummy Secrets (if they don't exist)
-# NOTE: These are for local dev only. Production uses real keys.
+    # Deepgram Key (Dummy)
+    deepgram_file = root_dir / "secrets" / "deepgram_key.txt"
+    if not deepgram_file.exists():
+        print("   - Generating dummy Deepgram API Key...")
+        deepgram_file.write_text("INSERT_REAL_DEEPGRAM_KEY_HERE", encoding="utf-8")
+    else:
+        print("   - Deepgram key exists. Skipping.")
 
-# Deepgram Key
-if [ ! -f secrets/deepgram_key.txt ]; then
-    echo "   - Generating dummy Deepgram API Key..."
-    echo "INSERT_REAL_DEEPGRAM_KEY_HERE" > secrets/deepgram_key.txt
-else
-    echo "   - Deepgram key already exists. Skipping."
-fi
+    # Master Encryption Key (32 random bytes)
+    master_key_file = root_dir / "secrets" / "master_encryption_key.bin"
+    if not master_key_file.exists():
+        print("   - Generating 32-byte Master Encryption Key...")
+        # Replaces 'openssl rand 32'
+        key_bytes = secrets.token_bytes(32)
+        master_key_file.write_bytes(key_bytes)
+    else:
+        print("   - Master key exists. Skipping.")
 
-# Master Encryption Key (32 bytes for AES-256)
-if [ ! -f secrets/master_encryption_key.bin ]; then
-    echo "   - Generating random 32-byte Master Encryption Key..."
-    openssl rand -out secrets/master_encryption_key.bin 32
-else
-    echo "   - Master key already exists. Skipping."
-fi
+    # 4. Permissions (Best Effort)
+    # On Linux/Mac, this restricts access. On Windows, this is often ignored
+    # or handled by ACLs, but os.chmod won't crash the script.
+    try:
+        if os.name == "posix":
+            os.chmod(root_dir / "secrets", 0o700)
+            os.chmod(deepgram_file, 0o600)
+            os.chmod(master_key_file, 0o600)
+            print("🔒 Restricted file permissions (Unix/Linux only).")
+    except Exception as e:
+        print(f"⚠️  Could not set permissions: {e}")
 
-# 5. Set Permissions
-# Ensure strictly private permissions for secrets
-chmod 700 secrets
-chmod 600 secrets/*
+    print("\n✅ Setup Complete! You can now run: docker-compose up")
 
-echo "✅ Setup Complete! You can now run:"
-echo "   docker-compose up --build"
+
+if __name__ == "__main__":
+    setup()

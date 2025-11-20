@@ -1,5 +1,8 @@
 # live-stt - Task Runner
 
+# Use PowerShell on Windows, default to sh on Linux
+set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+
 # --- Environment ---
 
 # Bootstrap the local dev environment (secrets, data dirs).
@@ -10,43 +13,43 @@ setup:
 
 # Check if code formatting is correct (Ruff).
 format-check *args:
-    @ruff format . --diff {{ just_args }}
+    @ruff format . --diff {{ args }}
 
 # Apply code formatting (Ruff).
 format *args:
-    @ruff format . {{ just_args }}
+    @ruff format . {{ args }}
 
 # Run the linter and import sorter (Ruff).
 lint *args:
-    @ruff check . --fix {{ just_args }}
+    @ruff check . --fix {{ args }}
 
 # Run static type checking (MyPy).
 type-check *args:
-    @mypy . {{ just_args }}
+    @mypy . {{ args }}
 
 # Run the test suite (pytest).
 test *args:
-    @pytest {{ just_args }}
+    @pytest {{ args }}
 
 # Placeholder for deployment tasks.
 deploy *args:
-    @echo 'Deploying...' {{ just_args }}
+    @echo 'Deploying...' {{ args }}
 
 # Check for known security vulnerabilities in dependencies.
 safety-check *args:
-    @safety check {{ just_args }}
+    @safety check {{ args }}
 
 # Run Bandit security linter.
 bandit-check *args:
-    @bandit -r services {{ just_args }}
+    @bandit -r services {{ args }}
 
 # Export documentation dependencies for Read the Docs.
 export-docs-reqs *args:
-    @pdm export --group docs --without-hashes -o docs-requirements.txt {{ just_args }}
+    @pdm export --group docs --without-hashes -o docs-requirements.txt {{ args }}
 
 # Create a new Architecture Decision Record.
 adr *args:
-    @{{ _copier_python }} scripts/new_adr.py {{ just_args }}
+    @python scripts/new_adr.py {{ args }}
 
 # Run the full quality assurance suite.
 qa:
