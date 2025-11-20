@@ -1,0 +1,19 @@
+[project]
+name = "stt-provider"
+version = "0.1.0"
+description = "Speech-to-Text Provider Service using Deepgram"
+authors = [
+    {name = "Engineering Team", email = "dev@example.com"},
+]
+dependencies = [
+    "pyzmq>=25.1.1",
+    "deepgram-sdk>=3.2.0",
+    "python-dotenv>=1.0.0",
+    "asyncio>=3.4.3",
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "MIT"}
+
+[tool.pdm]
+distribution = false
