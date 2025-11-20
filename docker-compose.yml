@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  audio-broker:
+    build: ./services/audio-broker
+    container_name: audio-broker
+    restart: always
+    networks:
+      - internal_overlay
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    container_name: api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      # Connects to the Broker's OUTPUT (XPUB) port
+      - ZMQ_SUB_URL=tcp://audio-broker:5556
+    secrets:
+      - deepgram_key
+      - master_encryption_key
+    volumes:
+      - ./data/db:/data/db
+      - ./data/review:/data/review
+    networks:
+      - internal_overlay
+    depends_on:
+      - audio-broker
+
+  mock-audio-producer:
+    build:
+      context: ./services/audio-producer
+      dockerfile: Dockerfile.mock
+    container_name: audio-producer
+    environment:
+      # Connects to the Broker's INPUT (XSUB) port
+      - ZMQ_BROKER_URL_INPUT=tcp://audio-broker:5555
+      - ZMQ_SNDHWM=1000
+    networks:
+      - internal_overlay
+    depends_on:
+      - audio-broker
+
+networks:
+  internal_overlay:
+    driver: bridge
+    internal: true
+
+secrets:
+  deepgram_key:
+    file: ./secrets/deepgram_key.txt
+  master_encryption_key:
+    file: ./secrets/master_encryption_key.bin

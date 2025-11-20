@@ -1,0 +1,11 @@
+# services/audio-broker/Dockerfile
+FROM alpine:3.18
+
+# Install libzmq utility
+RUN apk add --no-cache libzmq
+
+# The Broker Proxy:
+# - Binds XSUB (Input) to 5555
+# - Binds XPUB (Output) to 5556
+# - Verbose mode (-v) for Phase 0 debugging
+CMD ["/usr/bin/zmq_proxy", "-s", "tcp://*:5555", "-p", "tcp://*:5556"]

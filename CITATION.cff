@@ -1,0 +1,12 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Dakan"
+given-names: "Tom"
+orcid: "https://orcid.org/0000-0000-0000-0000"
+title: "live-stt"
+version: 0.1.0
+date-released:
+
+    {{ release_date | default("YYYY-MM-DD") }}
+

@@ -1,0 +1,37 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  qa:
+    name: "QA"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Test on the version you specified, plus one older stable version.
+        python-version: ["3.13", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PDM
+        uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: 3.13
+          cache: true
+
+      - name: Install dependencies
+        run: pdm install --dev
+
+     # Conditionally add safety check
+      - name: Check for vulnerable dependencies
+        run: pdm run safety-check
+    
+      - name: Run QA Suite (Format, Lint, Types, Tests)
+        run: pdm run qa
+    
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+    

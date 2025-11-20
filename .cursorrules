@@ -1,0 +1,11 @@
+# Cursor Rules
+
+## Context
+- **Architecture:** `GEMINI.md`
+- **Tasks:** `task.md`
+- **Documentation:** `docs/`
+
+## Behavior
+- Always check `task.md` for current status.
+- Update `task.md` when completing items.
+- Refer to `docs/` for detailed specifications.

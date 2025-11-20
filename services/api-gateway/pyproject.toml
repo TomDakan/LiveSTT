@@ -1,0 +1,36 @@
+[project]
+name = "api-gateway"
+version = "0.1.0"
+description = "UI Server and Orchestrator for STT Kiosk"
+authors = [
+    { name = "Tom Dakan", email = "" },
+]
+# We stick to >=3.10 to match the Jetson (Tier 1) constraint,
+# even though this specific service could run on 3.13.
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "GPL-3.0"}
+
+dependencies = [
+    # --- Core Web Framework (M1) ---
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "python-multipart",       # Required for Voiceprint Uploads (M10)
+
+    # --- Configuration (User Request) ---
+    "typed-settings>=24.0.0", # For strongly typed env var loading
+
+    # --- Messaging (M1) ---
+    "pyzmq>=25.1.2",          # Critical: Talks to the C++ Broker
+    "asyncio-zmq>=1.0.0",     # Optional: Helper for async loops, or just use raw pyzmq with asyncio
+
+    # --- Database & Admin (M8) ---
+    "sqlalchemy>=2.0.0",
+    "aiosqlite>=0.19.0",      # Async SQLite driver
+    "sqladmin>=0.16.0",       # The Admin Dashboard
+    "wtforms",                # underlying dep for sqladmin
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"

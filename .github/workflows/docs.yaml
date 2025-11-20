@@ -1,0 +1,30 @@
+name: Deploy Documentation
+on:
+  push:
+    branches:
+      - main
+      - master # Include 'master' for older repositories
+
+# Allow this job to push to the gh-pages branch
+permissions:
+  contents: write
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PDM
+        uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: "3.13"
+          cache: true
+
+      - name: Install dependencies
+        # Ensure the docs group is installed
+        run: pdm install --dev --group docs
+
+      - name: Deploy to GitHub Pages
+        # This command builds the site and pushes it to the gh-pages branch
+        run: pdm run mkdocs gh-deploy --force

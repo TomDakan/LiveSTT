@@ -1,0 +1,180 @@
+# ==============================================================================
+# SECTION 1: SECURITY & PRIVACY (CRITICAL)
+# ==============================================================================
+# DIRECTIVE: Never commit keys, secrets, or PII.
+
+# The local secrets directory (Docker Secrets mount source)
+secrets/
+!secrets/.gitkeep
+
+# Environment variable overrides
+.env
+.env.production
+.env.local
+
+# The local data volume mounts (Mock NVMe storage)
+# Contains: Audio buffers, encrypted snippets, and local databases
+data/
+!data/.gitkeep
+
+# Deepgram/API specific key files if misplaced
+*.key
+*.pem
+*.pfx
+
+# ==============================================================================
+# SECTION 2: BUILD ARTIFACTS & DEPENDENCIES
+# ==============================================================================
+
+# --- Python (api-gateway, stt-provider, identifier) ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+# Coverage reports
+htmlcov/
+.coverage
+
+# --- Node / Frontend (api-gateway/frontend) ---
+node_modules/
+npm-debug.log
+yarn-error.log
+dist/
+build/
+
+# --- C++ (audio-producer, audio-broker) ---
+# Ignore generic build folders in service roots
+services/*/build/
+services/*/bin/
+*.o
+*.obj
+*.dylib
+*.so
+*.dll
+
+# ==============================================================================
+# SECTION 3: DOCKER & BALENA
+# ==============================================================================
+.docker/
+docker-compose.override.yml
+# Balena CLI localized files
+balena-*.yml
+.balena/
+
+# ==============================================================================
+# SECTION 4: IDE & OS
+# ==============================================================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Environment
+
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.db
+
+# Coverage
+.coverage
+coverage.xml
+
+# Byte-compiled / optimized / DLL files
+*.py[codz]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+*.cover
+*.py.cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# IPython
+profile_default/
+ipython_config.py
+
+# uv
+uv.lock
+
+# pdm
+pdm.lock
+pdm.toml
+.pdm-python
+.pdm-build/
+
+# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+__pypackages__/
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff stuff:
+.ruff_cache/
+
+# copier
+.copier-answers.yml

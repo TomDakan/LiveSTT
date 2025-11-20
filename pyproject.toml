@@ -1,0 +1,119 @@
+[project]
+name = "stt-kiosk-monorepo"
+version = "0.1.0"
+description = "Monorepo for High-Reliability STT Kiosk (v6.1)"
+authors = [
+    { name = "Tom Dakan", email = "" },
+]
+requires-python = ">=3.10"
+readme = "README.md"
+license = {text = "GPL-3.0"}
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+]
+# The root has NO runtime dependencies.
+# Dependencies (like typed-settings) belong in services/*/pyproject.toml
+dependencies = []
+
+[tool.pdm]
+# CRITICAL: This defines the monorepo structure
+workspace = ["services/*"]
+distribution = false
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "commitizen",
+    "mypy",
+    "safety",
+    "bandit",
+    "python-semantic-release",
+    # Add type stubs here if needed (e.g. types-requests)
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]
+
+# ==============================================================================
+# SHARED TOOL CONFIGURATION (Applies to all services)
+# ==============================================================================
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --cov=services --cov-report=term-missing"
+testpaths = [
+    "services/api-gateway/tests",
+    "services/stt-provider/tests",
+    "services/identifier/tests",
+    "services/audio-classifier/tests",
+]
+markers = [
+    "unit: Marks fast, self-contained unit tests.",
+    "integration: Marks tests that require external resources.",
+    "slow: Marks tests that are slow to run.",
+    "network: Marks tests that require a live network connection.",
+]
+env = ["PDM_IGNORE_ACTIVE_VENV=1"]
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "services"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[tool.ruff]
+line-length = 90
+target-version = "py310"
+src = ["services"]
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "migrations",
+]
+
+[tool.ruff.lint]
+select = [
+    "A", "E", "F", "W", "I", "UP", "B", "C90", "SIM", "PERF", "RUF"
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B018", "S101"]
+
+[tool.ruff.format]
+quote-style = "double"
+docstring-code-format = true
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "semver2"
+version_provider = "pep621"
+update_changelog_on_bump = true
+changelog_file = "CHANGELOG.md"
+
+[tool.bandit]
+targets = ["services"]
+exclude_dirs = ["tests", ".venv"]
+level = "MEDIUM"
+confidence = "MEDIUM"
+
+[tool.coverage.run]
+source = ["services"]
+omit = ["tests*", "*/__main__.py"]

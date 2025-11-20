@@ -1,0 +1,19 @@
+# services/api-gateway/Dockerfile
+
+FROM python:3.11-slim
+WORKDIR /app
+
+# Install PDM
+RUN pip install pdm
+
+# Copy ONLY this service's config
+COPY pyproject.toml pdm.lock* ./
+
+# Install dependencies
+# --check: fail if lockfile is out of sync
+# --prod: don't install dev deps
+# --no-editable: don't install the project itself as editable
+RUN pdm install --check --prod --no-editable
+
+COPY app/ ./app
+CMD ["pdm", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0"]

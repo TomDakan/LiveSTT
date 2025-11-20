@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main # Or your primary branch
+
+# Required for semantic-release to push tags/commits and PyPI OIDC
+permissions:
+  contents: write # Allow tagging and pushing changes (like CHANGELOG.md)
+  id-token: write # Allow OIDC token generation for PyPI
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    # Configure PyPI OIDC publishing environment (if needed)
+    environment:
+      name: pypi
+      url: https://pypi.org/p/live-stt
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch all history so semantic-release can analyze commits
+          fetch-depth: 0
+          # Use a token with write permissions to push tags/changelog updates
+          
+
+      - name: Set up PDM
+        uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies (including semantic-release)
+        run: pdm install --dev
+
+      # Configure git user for semantic-release commits (e.g., updating changelog)
+      - name: Configure Git User
+        run: |
+          
+          git config user.name "local-dev"
+          git config user.email "local-dev@example.com"
+          
+
+      - name: Run Semantic Release
+        # Publishes to PyPI using trusted OIDC if configured
+        run: pdm run semantic-release publish
+        env:
+           # Use the default GitHub token for authentication with GitHub
+           
+           # PyPI token is handled by OIDC - no PYPI_TOKEN needed here

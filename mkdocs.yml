@@ -1,0 +1,22 @@
+site_name: live-stt
+theme:
+name: material
+plugins:
+- search
+- mkdocstrings:
+handlers:
+python:
+options:
+show_root_heading: yes
+nav:
+  - Home: index.md
+  - Project Context:
+    - Meta: 00_meta/
+    - Requirements: 10_requirements/
+    - Architecture: 20_architecture/
+    - Data: 30_data/
+    
+    
+    - Ops: 60_ops/
+    
+  - API Reference: api.md

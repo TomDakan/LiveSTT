@@ -1,0 +1,18 @@
+# services/audio-producer/Dockerfile.mock
+FROM python:3.11-slim
+
+# Install ZMQ
+RUN pip install pyzmq
+
+WORKDIR /app
+COPY . /app
+
+# Simple script to blast noise or read a file
+CMD ["python", "-c", "import zmq, time, os; \
+    ctx = zmq.Context(); \
+    sock = ctx.socket(zmq.PUB); \
+    sock.connect(os.environ['ZMQ_BROKER_URL_INPUT']); \
+    print(f'Connected to {os.environ.get('ZMQ_BROKER_URL_INPUT')}'); \
+    while True: \
+    sock.send(b'MOCK_AUDIO_FRAME'); \
+    time.sleep(0.1);"]

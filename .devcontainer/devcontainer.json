@@ -1,0 +1,23 @@
+{
+  "name": "Copier Template Test Environment",
+  // Use a pre-built image with Python and common tools
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+
+  "features": {
+    // Automatically install mise and just into the container
+    "ghcr.io/jdx/mise/mise:1": {},
+    "ghcr.io/devcontainers/features/just:1": {}
+  },
+
+  // This command runs AFTER the container is created.
+  // It's the perfect place to test your setup instructions.
+  "postCreateCommand": "mise install && pdm config python.installer uv && pdm install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ]
+    }
+  }
+}

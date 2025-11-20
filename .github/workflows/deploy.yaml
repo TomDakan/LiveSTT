@@ -1,0 +1,29 @@
+name: Publish to PyPI
+on:
+  workflow_dispatch: # Allows manual trigger from the Actions tab
+
+# Required for passwordless (OIDC) publishing
+permissions:
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # Configures OIDC publishing to PyPI
+    environment:
+      name: pypi
+      url: https://pypi.org/p/live-stt # Link to the project on PyPI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PDM
+        uses: pdm-project/setup-pdm@v4
+        with:
+          python-version: "3.13"
+
+      - name: Build package
+        run: pdm build
+
+      - name: Publish package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
