@@ -72,6 +72,33 @@ Development is organized into 4 phases with 13 milestones:
 - SQLAdmin integration
 - PhraseSet management UI
 
+#### Milestone 8.5: Maintainer/DevOps Tooling ⭐ *New*
+**Purpose**: Developer/maintainer operations via CLI (separate from end-user admin UI)
+
+**Validation Commands** (Pre-Deployment):
+- `just burn-in-test` - 60-minute thermal stability test with temperature monitoring
+- `just validate-network` - 10-minute offline buffering test
+- `just validate-gold-corpus` - Run WER regression test (< 5% pass criteria)
+- `just validate-security` - TPM sealing verification (Tier 1) or encryption key audit (Tier 2/3)
+
+**Diagnostic Commands** (Troubleshooting):
+- `just health-check` - All service + hardware status report
+- `just gpu-info` - CUDA/cuDNN availability check
+- `just disk-usage` - Storage utilization by service/volume
+- `just temp-monitor` - Real-time CPU/GPU temperature logging
+
+**Operational Commands** (Maintenance):
+- `just logs-aggregate` - Tail all service logs in single view
+- `just backup-config` - Export PhraseSets and settings
+- `just restore-config` - Import configuration from backup
+- `just reset-buffers` - Clear /data/buffer (recovery troubleshooting)
+
+**Access Method**: CLI via Balena SSH (`balena ssh <device-uuid>`)
+
+**Optional Future Enhancement**: Barebones web dashboard on port `:9000` for visual feedback during long-running tests (burn-in progress bars, live log tailing)
+
+**See**: [ADR-0006](docs/20_architecture/adrs/0006-maintainer-tooling.md)
+
 #### Milestone 9: The Review Queue
 - Low-confidence snippet capture
 - Admin playback interface

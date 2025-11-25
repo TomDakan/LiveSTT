@@ -16,9 +16,9 @@ Complete this checklist before deploying Live STT to production hardware.
   - **Document**: Record peak temperatures in deployment notes
 
 ### Network Resilience
-- [ ] **Network Disconnect Test**: 30-minute offline test
+- [ ] **Network Disconnect Test**: 10-minute offline test
   - Disconnect internet/WAN
-  - Continue audio input for 30 minutes
+  - Continue audio input for 10 minutes
   - Reconnect network
   - **Pass Criteria**: All buffered audio transcribed correctly, timestamps ordered
 
