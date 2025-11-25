@@ -68,8 +68,9 @@ C4Container
 | **stt-provider** | Python/Deepgram | Cloud STT client | On-disk buffering, catch-up on reconnect |
 | **api-gateway** | FastAPI | Web UI, config | Decoupled from audio path, always responsive |
 | **audio-classifier** | TFLite/YAMNet | Music detection | Pause STT during music |
-| **identifier** | PyTorch/SpeechBrain | Speaker ID | GPU-accelerated, optional (M12+) |
-| **health-watchdog** | Python | Service monitoring | Pings all services, exposes /status |
+| **identifier** | PyTorch/GPU | Speaker ID | Local biometric matching |
+| **health-watchdog** | Python | Service monitor | Exposes /status for dashboard |
+| **data-sweeper** | Python/cron | Data retention | Automated compliance (deletes review files >24h) |
 
 ## 5. Deployment View
 

@@ -1,203 +1,117 @@
-High-Reliability Real-Time STT Kiosk
+System Design Document (v6.2)
 
-System Design Document (v6.0)
-
-Date: November 19, 2025 Status: GOLDEN MASTER / DECOUPLED UI Target Platforms: Tier 1 (Jetson ARM64) / Tier 2 (Desktop GPU) / Tier 3 (Generic CPU) Architecture Pattern: Event-Driven Microservices (ZMQ Broker)
+Date: November 20, 2025 Status: GOLDEN MASTER / DECOUPLED UI Target Platforms: Tier 1 (Jetson ARM64) / Tier 2 (Desktop GPU) / Tier 3 (Generic CPU) Architecture Pattern: Event-Driven Microservices (ZMQ Broker)
 
 1. Executive Summary
 
 This document defines the architecture for a standalone, high-availability Speech-to-Text (STT) kiosk. The system uses a Multi-Architecture, Decoupled strategy.
 
-Key Change (v6.0): Failure Domain Isolation. The "Brain" is split into two services: api-gateway (UI/Orchestration) and stt-provider (Deepgram/Resilience). This ensures the Kiosk UI remains live and manageable even if the transcription engine encounters a fatal error or network block.
+Key Change (v6.0): Failure Domain Isolation. The "Brain" is split into api-gateway (UI) and stt-provider (Deepgram). Key Change (v6.2): Stratified QA Strategy. Formalizes the use of "Silver" (Auto-caption) and "Gold" (Human-verified) datasets for regression testing.
 
 2. System Architecture
 
 2.1 High-Level Topology
 
-The system runs on BalenaOS (or standard Docker) using a Reliable Broker topology.
-
-    Router: A central C++ ZMQ Broker handles bidirectional traffic (Audio ->, Metadata <-).
+    Router: A central C++ ZMQ Broker handles bidirectional traffic (tcp://broker:5555 IN, :5556 OUT).
 
     Isolation: Audio processing (stt-provider, identifier) is strictly separated from User Interaction (api-gateway).
 
-    Discovery: Balena Public Device URL (HTTPS/WSS) + Travel Router Fallback.
+    Discovery: Balena Public Device URL (HTTPS/WSS).
 
 2.2 Hardware Tiers
 
-(Unchanged from v5.2: Tier 1 Jetson, Tier 2 BYOD GPU, Tier 3 CPU).
-
-2.3 Messaging Core (The "Broker" Pattern)
-
-    Protocol: ZeroMQ (XPUB/XSUB).
-
-    Topology:
-
-        Producers (Mic, STT, AI) publish events to the Broker.
-
-        Broker broadcasts events to all subscribers.
-
-        Consumers subscribe to specific topics (e.g., audio, transcript, alert).
-
-    Topics:
-
-        audio.raw: Binary PCM chunks.
-
-        text.transcript: Finalized JSON transcripts.
-
-        system.alert: Clipping, Music Detection, or Health alerts.
-
-        identity.event: Biometric matches.
+(Tier 1 Jetson, Tier 2 BYOD GPU, Tier 3 CPU).
 
 3. Component Design (Microservices)
 
 3.1 Service: audio-producer
 
-    Role: Audio Capture & Signal Monitoring.
+    Role: Audio Capture.
 
-    Logic: Captures raw PCM (16kHz). Monitors RMS. Publishes audio.raw and system.alert (Clipping).
-
-    DX: Accepts MOCK_FILE env var.
+    Safety: Enforces ZMQ_SNDHWM=1000. Drops frames on backpressure.
 
 3.2 Service: broker
 
-    Role: Central Event Bus.
+    Role: Central Event Bus (zmq_proxy).
 
-    Implementation: C++ zmq_proxy binary (scratch container).
+3.3 Service: stt-provider (The Worker)
 
-    Resilience: restart: always. Zero application logic.
-
-3.3 Service: stt-provider (The "Worker")
-
-    Role: Cloud Integration, Resilience, & QA.
-
-    Input: Subscribes to audio.raw.
+    Role: Deepgram Integration & Resilience.
 
     Logic:
 
-        Deepgram Client: Manages WebSocket streaming (with endpointing).
+        Stream: Sends audio to Deepgram.
 
-        Resilience: Handles On-Disk Buffering and "Catch Up" logic during internet outages.
+        Resilience: Buffers to NVMe/RAM on network loss.
 
-        Sanitizer: Applies Profanity Filters and PhraseSet logic.
+        PhraseSet: Injects vocabulary mined from "Silver" datasets.
 
-        QA Loop: Maintains Ring Buffer. If confidence < 0.85, saves encrypted snippet to /data/review/.
-
-    Output: Publishes text.transcript to Broker.
-
-3.4 Service: api-gateway (The "Face")
+3.4 Service: api-gateway (The Face)
 
     Role: UI Server, Auth, Config.
 
-    Input: Subscribes to text.transcript, system.alert, identity.event.
+    Logic:
+
+        Backfill Sort: Sorts transcripts by timestamp_utc to handle recovery bursts.
+
+        Admin UI: sqladmin for managing PhraseSets.
+
+3.5 Service: data-sweeper
+
+    Role: Compliance.
+
+    Policy: cron deletes /data/review files older than 24h.
+
+3.6 Service: identifier (GPU)
+
+    Role: Biometric ID (Tier 1/2 only).
+
+4. Data Strategy (v6.2)
+
+4.1 The "Silver Standard" (Mining)
+
+    Source: YouTube Auto-Captions (JSON3 format).
+
+    Volume: ~20 hours.
+
+    Purpose: Phrase Mining.
+
+    Logic: Automated script scans for High-Frequency Proper Nouns (e.g., "Pastor Tom", "Corinthians") to seed the initial_phrases.json.
+
+    Constraint: Never used for accuracy scoring (WER) due to inherent AI errors.
+
+4.2 The "Gold Standard" (Validation)
+
+    Source: Manual Correction of audio slices.
+
+    Volume: ~1 Hour (20 x 3-minute clips).
+
+    Composition: Stratified Sampling (30% Sermon, 30% Liturgy, 20% Announcements, 20% Transitions).
+
+    Purpose: Regression Testing.
 
     Logic:
 
-        Web Server: Serves Frontend and Admin UI (FastAPI).
+        Human corrects the text using Subtitle Edit.
 
-        Socket Manager: Broadcasts transcripts to connected clients.
+        CI Pipeline runs these clips through stt-provider.
 
-        Correlation Engine: Maps Speaker 0 to Tom based on ID events.
+        Pass Criteria: Word Error Rate (WER) < 5% against Gold text.
 
-        State Machine: Maintains system status (Live, Paused, Reconnecting) based on event stream.
+5. Security & Compliance
 
-        Persistence: Manages SQLite config.db.
+    Encryption: AES-256 Per-File for /data/review.
 
-    Benefit: Does not touch raw audio. Impossible to crash via audio buffer overflow.
+    Key Mgmt: TPM (Tier 1) or Volatile Injection (Tier 2/3).
 
-3.5 Service: audio-classifier
+    Physical: USB ports disabled. ZMQ bound to internal Docker network only.
 
-    Role: Context Awareness (YAMNet).
+6. Pre-Flight Checklist
 
-    Input: Subscribes to audio.raw.
+    Thermal: 60min Burn-in.
 
-    Output: Publishes system.alert (Music Detected).
+    Leak: 30min Network Disconnect Test.
 
-3.6 Service: identifier
+    Compliance: Data retention script verified.
 
-    Role: Biometric ID (GPU).
-
-    Input: Subscribes to audio.raw.
-
-    Output: Publishes identity.event.
-
-3.7 Service: health-watchdog
-
-    Role: Sidecar Monitor.
-
-    Logic: Pings Broker, Provider, and Identifier. Exposes /status to Gateway.
-
-4. Build Strategy
-
-Unified Dockerfile Strategy applies to identifier and stt-provider.
-
-    stt-provider is built on a lightweight Python base.
-
-    identifier uses the ARG BASE_IMAGE strategy for Multi-Arch GPU support.
-
-5. Data Flow & Resilience
-
-5.1 The "Decoupled" Resilience Model
-
-Scenario: Deepgram API Fails / Internet Cut.
-
-    Failure: stt-provider detects disconnect.
-
-    Action (Worker): stt-provider buffers audio.raw to NVMe.
-
-    Action (UI): stt-provider publishes system.alert -> {"status": "RECONNECTING"}.
-
-    Reaction (Gateway): api-gateway receives alert, broadcasts to Clients. UI shows "Reconnecting..." banner. The Gateway remains 100% responsive.
-
-    Recovery: stt-provider reconnects, catches up, and resumes publishing text.transcript.
-
-6. Security Architecture (Hardened Edge)
-
-6.1 PII & Key Management
-
-    TPM 2.0 (Tier 1): Keys sealed to hardware.
-
-    Crypto-Shredding: Per-file encryption for Voiceprints AND Audio Snippets.
-
-    Scope: stt-provider handles encryption (writing snippets). api-gateway handles decryption (streaming to Admin UI). Both containers share the Master Key (injected via Supervisor).
-
-7. Deployment & DevOps
-
-7.1 Configuration
-
-    docker-compose.yml: Defines the 7-service mesh.
-
-    restart: always: Applied to Broker, Gateway, and Provider.
-
-8. Development Roadmap (v6.0)
-
-    Phase 0: Factory Setup: Base Images, Data Harvest (initial_phrases.json).
-
-    Phase 1: Infrastructure (M0-M2):
-
-        ZMQ Broker (XPUB/XSUB).
-
-        audio-producer (Microphone).
-
-        api-gateway (Skeleton UI).
-
-    Phase 2: Core STT (M3-M6):
-
-        stt-provider implementation (Deepgram).
-
-        Inter-Service Comms: Verify text.transcript flows from Provider -> Broker -> Gateway.
-
-        Resilience (On-Disk Buffer).
-
-    Phase 3: Security & Admin (M7-M11):
-
-        Admin Dashboard (sqladmin).
-
-        QA Loop (Ring Buffer in stt-provider).
-
-        Secure Streaming (api-gateway reads encrypted files).
-
-    Phase 4: Local AI (M12):
-
-        identifier Service (GPU).
-
-        Correlation Engine (in api-gateway).
+    Accuracy (New): Regression Test Suite (Gold Corpus) returns < 5% WER.

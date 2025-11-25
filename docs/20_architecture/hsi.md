@@ -15,6 +15,7 @@ services:
   audio-classifier:   # Optional: Music detection
   identifier:         # Optional: Speaker ID (GPU required)
   health-watchdog:    # Optional: Service monitoring
+  data-sweeper:       # Optional: Automated data retention compliance
 ```
 
 ### 2.2 Network Configuration
@@ -184,6 +185,27 @@ services:
             - driver: nvidia
               capabilities: [gpu]
 ```
+
+### 8.X Service: data-sweeper (Optional - Compliance)
+
+**Purpose**: Automated data retention compliance  
+**Schedule**: Daily cron job
+
+```yaml
+data-sweeper:
+  build: ./services/data-sweeper
+  container_name: data-sweeper
+  volumes:
+    - ./data/review:/data/review:rw
+  environment:
+    - RETENTION_HOURS=24
+    - CRON_SCHEDULE=0 0 * * *  # Daily at midnight UTC
+  restart: unless-stopped
+```
+
+**Logic**: Deletes encrypted audio snippets in `/data/review/` older than `RETENTION_HOURS`
+
+---
 
 ## 9. Health Checks
 ```yaml

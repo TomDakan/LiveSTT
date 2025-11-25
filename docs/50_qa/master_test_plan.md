@@ -20,7 +20,37 @@ This document outlines the testing strategy for the Live STT system, covering un
 
 ---
 
-## 3. Testing Levels
+## 3. Data Strategy (v6.2)
+
+### 3.1 Silver Standard (Phrase Mining)
+- **Source**: YouTube Auto-Captions (~20 hours of church services)
+- **Purpose**: Extract high-frequency proper nouns for `initial_phrases.json`
+- **Tool**: `scripts/mine_phrases.py`
+- **Output**: PhraseSet seed file (staff names, liturgical terms, locations)
+- **Constraint**: Never used for WER calculation (AI-generated, contains inherent errors)
+
+### 3.2 Gold Standard (Regression Testing)
+- **Source**: Manually corrected transcripts (Human-in-the-Loop)
+- **Volume**: ~1 hour (20 × 3-minute clips)
+- **Composition**: Stratified sampling
+  - 30% Sermon (main teaching content)
+  - 30% Liturgy (responsive readings, prayers)
+  - 20% Announcements (community updates)
+  - 20% Transitions (worship team, scene changes)
+- **Purpose**: CI regression testing  
+- **Pass Criteria**: Word Error Rate (WER) < 5%
+- **Location**: `tests/data/gold_standard/`
+
+**Workflow**:
+1. Download service recordings
+2. Extract representative clips using ffmpeg
+3. Use Subtitle Edit for manual transcript correction
+4. Commit `.wav` + `.txt` pairs to Git
+5. CI pipeline runs Gold clips through `stt-provider` and calculates WER
+
+---
+
+## 4. Testing Levels
 
 ### 3.1 Unit Testing (Tier 3)
 - **Focus**: Individual functions and classes
@@ -160,6 +190,7 @@ pytest tests/unit/test_audio_producer.py
 - [ ] All unit tests pass (100%)
 - [ ] Integration tests pass (100%)
 - [ ] Code coverage > 80%
+- [ ] **Gold Standard regression test: WER < 5%**
 - [ ] No critical/high open defects
 - [ ] Successful 1-hour stability run on Tier 1 hardware
 - [ ] Security scan (Bandit/Safety) clean

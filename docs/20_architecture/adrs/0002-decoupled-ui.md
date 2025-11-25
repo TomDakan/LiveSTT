@@ -24,9 +24,9 @@ We will **split transcription logic into a separate `stt-provider` service** (Ve
 
 ### New Architecture
 ```
-audio-producer → audio-broker → stt-provider (Deepgram client)
-                                    ↓ (publishes text.transcript)
-                              audio-broker → api-gateway (UI)
+audio-producer → broker → stt-provider (Deepgram client)
+                                ↓ (publishes text.transcript)
+                          broker → api-gateway (UI)
 ```
 
 ### Responsibilities
