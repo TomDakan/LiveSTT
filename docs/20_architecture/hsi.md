@@ -205,6 +205,10 @@ data-sweeper:
 
 **Logic**: Deletes encrypted audio snippets in `/data/review/` older than `RETENTION_HOURS`
 
+**Configuration**:
+- **MVP**: Environment variable (`RETENTION_HOURS`, default: 24)
+- **Future** (M8+): Configurable via Admin Dashboard (sqladmin interface)
+
 ---
 
 ## 9. Health Checks
