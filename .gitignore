@@ -6,11 +6,13 @@
 # The local secrets directory (Docker Secrets mount source)
 secrets/
 !secrets/.gitkeep
+!secrets/.keep
 
 # Environment variable overrides
 .env
 .env.production
 .env.local
+.env.*.local
 
 # The local data volume mounts (Mock NVMe storage)
 # Contains: Audio buffers, encrypted snippets, and local databases
@@ -47,7 +49,7 @@ yarn-error.log
 dist/
 build/
 
-# --- C++ (audio-producer, audio-broker) ---
+# --- C++ (audio-producer, broker) ---
 # Ignore generic build folders in service roots
 services/*/build/
 services/*/bin/
