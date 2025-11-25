@@ -18,6 +18,14 @@ secrets/
 # Contains: Audio buffers, encrypted snippets, and local databases
 data/
 !data/.gitkeep
+!data/db/
+!data/db/.gitkeep
+!data/buffer/
+!data/buffer/.gitkeep
+!data/review/
+!data/review/.gitkeep
+!data/enrollment/
+!data/enrollment/.gitkeep
 
 # Deepgram/API specific key files if misplaced
 *.key

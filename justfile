@@ -5,9 +5,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # --- Environment ---
 
-# Bootstrap the local dev environment (secrets, data dirs).
-setup:
-@python scripts/setup_dev.py
+
 
 # --- Quality Assurance & Testing ---
 
