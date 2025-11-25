@@ -1,7 +1,14 @@
 # End User License Agreement (EULA)
 
-## 1. Grant of License
-Subject to the terms of this Agreement...
+> [!IMPORTANT]
+> **Status: TODO**
+> This document will be populated prior to the V1.0 production release.
 
-## 2. Restrictions
-You may not reverse engineer...
+## Purpose
+To define terms of use for the appliance.
+
+## Planned Content
+- Grant of license (GPL-3.0)
+- Restrictions on misuse (e.g., surveillance)
+- Warranty disclaimer
+- Liability limitation

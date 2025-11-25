@@ -1,13 +1,14 @@
-# Data Privacy Impact Assessment (DPIA)
+# Data Protection Impact Assessment (DPIA)
 
-## 1. Data Processing
-**What data is collected?**
-- Facial embeddings
-- Voiceprints
+> [!IMPORTANT]
+> **Status: TODO**
+> This document will be populated prior to the V1.0 production release.
 
-**Why is it collected?**
-- Authentication
+## Purpose
+To assess privacy risks associated with biometric voiceprint collection (BIPA/GDPR).
 
-## 2. Risks
-- **Risk:** Data breach.
-- **Mitigation:** Encryption at rest (AES-256).
+## Planned Content
+- Data flow analysis
+- Risk assessment (unauthorized access, misuse)
+- Mitigation strategies (encryption, crypto-shredding)
+- Consultation with stakeholders
