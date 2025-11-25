@@ -1,22 +1,65 @@
 site_name: live-stt
 theme:
-name: material
+    name: material
 plugins:
-- search
-- mkdocstrings:
-handlers:
-python:
-options:
-show_root_heading: yes
+    - search
+    - mkdocstrings:
+          handlers:
+              python:
+                  options:
+                      show_root_heading: yes
 nav:
-  - Home: index.md
-  - Project Context:
-    - Meta: 00_meta/
-    - Requirements: 10_requirements/
-    - Architecture: 20_architecture/
-    - Data: 30_data/
-    
-    
-    - Ops: 60_ops/
-    
-  - API Reference: api.md
+    - Home: index.md
+    - Getting Started:
+          - Quickstart: quickstart.md
+          - System Design: system_design.md
+          - Roadmap: roadmap_draft.md
+    - Meta:
+          - Project Charter: 00_meta/project_charter.md
+          - RACI Matrix: 00_meta/raci_matrix.md
+          - Compliance Matrix: 00_meta/compliance_matrix.md
+    - Requirements:
+          - Product Requirements: 10_requirements/prd.md
+          - User Journey Maps: 10_requirements/user_journey_maps.md
+          - Traceability Matrix: 10_requirements/traceability_matrix.md
+    - Architecture:
+          - Architecture Definition: 20_architecture/architecture_definition.md
+          - Hardware-Software Interface: 20_architecture/hsi.md
+          - Threat Model: 20_architecture/threat_model.md
+          - ADRs:
+                - ADR Template: 20_architecture/adrs/0000-use-record-architecture.md
+                - ZMQ Broker: 20_architecture/adrs/0001-zmq-broker.md
+                - Decoupled UI: 20_architecture/adrs/0002-decoupled-ui.md
+                - Multi-Tier Hardware: 20_architecture/adrs/0003-multi-tier-hardware.md
+                - Deepgram Selection: 20_architecture/adrs/0004-deepgram-selection.md
+                - BalenaOS Deployment: 20_architecture/adrs/0005-balenaos-deployment.md
+    - Data:
+          - Data Dictionary: 30_data/data_dictionary.md
+          - Entity Relationship Diagram: 30_data/erd.md
+          - Biometric Policy: 30_data/biometric_policy.md
+    - Hardware:
+          - Hardware BOM: 40_hardware/hbom.md
+          - Assembly Guide: 40_hardware/assembly_guide.md
+          - Environmental Constraints: 40_hardware/environmental_constraints.md
+          - FRU Guide: 40_hardware/fru_guide.md
+    - QA:
+          - Master Test Plan: 50_qa/master_test_plan.md
+          - Performance Benchmarks: 50_qa/performance_benchmarks.md
+          - Penetration Test Report: 50_qa/penetration_test_report.md
+          - VPAT: 50_qa/vpat.md
+    - Operations:
+          - Runbooks: 60_ops/runbooks.md
+          - CI/CD: 60_ops/cicd.md
+          - SBOM: 60_ops/sbom.md
+          - Secrets Manifest: 60_ops/secrets_manifest.md
+          - Disaster Recovery Plan: 60_ops/drp.md
+          - Air-Gap Updates: 60_ops/air_gap_update.md
+    - Legal:
+          - License Attestation: 70_legal/license_attestation.md
+          - EULA: 70_legal/eula.md
+          - DPIA: 70_legal/dpia.md
+    - Reference:
+          - API Reference: api.md
+          - FAQ: 90_optional/faq.md
+          - Glossary: 90_optional/glossary.md
+          - Troubleshooting: 90_optional/troubleshooting.md
