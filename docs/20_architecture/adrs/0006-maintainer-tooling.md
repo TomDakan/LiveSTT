@@ -53,7 +53,7 @@ Extend `justfile` with maintainer commands:
 ```bash
 # Deployment validation
 just burn-in-test          # 60-min stress-ng + temp monitoring
-just validate-network      # 30-min offline buffer test
+just validate-network      # 10-min offline buffer test
 just validate-gold-corpus  # Run WER regression test
 
 # Diagnostics
