@@ -22,7 +22,6 @@ dependencies = [
 
     # --- Messaging (M1) ---
     "pyzmq>=25.1.2",          # Critical: Talks to the C++ Broker
-    "asyncio-zmq>=1.0.0",     # Optional: Helper for async loops, or just use raw pyzmq with asyncio
 
     # --- Database & Admin (M8) ---
     "sqlalchemy>=2.0.0",

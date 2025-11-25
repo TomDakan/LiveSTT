@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
-  audio-broker:
-    build: ./services/audio-broker
-    container_name: audio-broker
+  broker:
+    build: ./services/broker
+    container_name: broker
     restart: always
     networks:
       - internal_overlay
@@ -16,17 +14,14 @@ services:
       - "8000:8000"
     environment:
       # Connects to the Broker's OUTPUT (XPUB) port
-      - ZMQ_SUB_URL=tcp://audio-broker:5556
-    secrets:
-      - deepgram_key
-      - master_encryption_key
+      - ZMQ_SUB_URL=tcp://broker:5556
     volumes:
       - ./data/db:/data/db
       - ./data/review:/data/review
     networks:
       - internal_overlay
     depends_on:
-      - audio-broker
+      - broker
 
   mock-audio-producer:
     build:
@@ -35,12 +30,27 @@ services:
     container_name: audio-producer
     environment:
       # Connects to the Broker's INPUT (XSUB) port
-      - ZMQ_BROKER_URL_INPUT=tcp://audio-broker:5555
+      - ZMQ_BROKER_URL_INPUT=tcp://broker:5555
       - ZMQ_SNDHWM=1000
     networks:
       - internal_overlay
     depends_on:
-      - audio-broker
+      - broker
+  stt-provider:
+    build: ./services/stt-provider
+    container_name: stt-provider
+    restart: unless-stopped
+    environment:
+      # Connects to Broker Output (XPUB) to hear audio
+      - ZMQ_SUB_URL=tcp://broker:5556
+      # Connects to Broker Input (XSUB) to publish text
+      - ZMQ_PUB_URL=tcp://broker:5555
+      # Fallback if secrets aren't used (optional)
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+    networks:
+      - internal_overlay
+    depends_on:
+      - broker
 
 networks:
   internal_overlay:

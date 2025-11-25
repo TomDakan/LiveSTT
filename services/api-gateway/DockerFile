@@ -7,7 +7,7 @@ WORKDIR /app
 RUN pip install pdm
 
 # Copy ONLY this service's config
-COPY pyproject.toml pdm.lock* ./
+COPY pyproject.toml pdm.lock* README.md ./
 
 # Install dependencies
 # --check: fail if lockfile is out of sync

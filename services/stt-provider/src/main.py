@@ -1,9 +1,6 @@
 import asyncio
 import json
 import logging
-import os
-import sys
-from pathlib import Path
 
 import zmq
 import zmq.asyncio
@@ -13,50 +10,8 @@ from deepgram import (
     LiveOptions,
     LiveTranscriptionEvents,
 )
-from dotenv import load_dotenv
 
-# --- Configuration ---
-LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-logging.basicConfig(level=logging.INFO, format=LOG_FORMAT)
-logger = logging.getLogger("stt-provider")
-
-# Docker Secrets / Env Config
-SECRET_PATH = Path("/run/secrets/deepgram_key")
-ENV_KEY_NAME = "DEEPGRAM_API_KEY"
-
-# ZMQ Config
-ZMQ_SUB_URL = os.getenv("ZMQ_SUB_URL", "tcp://audio-broker:5556")
-ZMQ_PUB_URL = os.getenv("ZMQ_PUB_URL", "tcp://audio-broker:5555")
-TOPIC_INPUT = b"audio.raw"
-TOPIC_OUTPUT = "text.transcript"
-
-# Audio Config (Must match audio-producer)
-SAMPLE_RATE = 16000
-CHANNELS = 1
-ENCODING = "linear16"
-
-
-def get_api_key() -> str:
-    """
-    Retrieves API Key from Docker Secrets first, falls back to Environment Variable.
-    Raises ValueError if neither is found.
-    """
-    if SECRET_PATH.exists():
-        try:
-            key = SECRET_PATH.read_text().strip()
-            if key:
-                logger.info("Loaded Deepgram key from Docker Secret.")
-                return key
-        except Exception as e:
-            logger.warning(f"Failed to read secret file: {e}")
-
-    key = os.getenv(ENV_KEY_NAME)
-    if key:
-        logger.info("Loaded Deepgram key from Environment Variable.")
-        return key
-
-    logger.critical("Deepgram API Key not found in Secrets or ENV.")
-    sys.exit(1)
+# ... (imports remain the same)
 
 
 class STTService:
@@ -66,9 +21,10 @@ class STTService:
         self.running = True
         self.api_key = get_api_key()
 
-        # Initialize Deepgram Client
+        # Initialize Deepgram Client (v3.x)
+        # Note: DeepgramClientOptions is now passed as 'config'
         config = DeepgramClientOptions(
-            verbose=logging.WARNING,  # Reduce noise in logs
+            verbose=logging.WARNING,
         )
         self.dg_client = DeepgramClient(self.api_key, config)
 

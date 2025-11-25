@@ -3,17 +3,17 @@ name = "stt-provider"
 version = "0.1.0"
 description = "Speech-to-Text Provider Service using Deepgram"
 authors = [
-    {name = "Engineering Team", email = "dev@example.com"},
+    {name = "Engineering Team", email = "tomdakan@gmail.com"},
 ]
 dependencies = [
     "pyzmq>=25.1.1",
-    "deepgram-sdk>=3.2.0",
     "python-dotenv>=1.0.0",
     "asyncio>=3.4.3",
+    "deepgram-sdk>=3.2.0",
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
 
 [tool.pdm]
 distribution = false

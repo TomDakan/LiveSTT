@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+# System dependencies:
+# - gcc: often needed for building python extensions
+# - libsndfile1: required by many audio processing libraries
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PDM
+RUN pip install -U pip setuptools wheel
+RUN pip install pdm
+
+WORKDIR /app
+
+# Copy project definition files AND the Readme to satisfy PDM validation
+COPY pyproject.toml pdm.lock* README.md ./
+
+# Install dependencies
+# --prod: skips dev dependencies
+# --no-lock: generates dependencies on the fly if lockfile is missing
+# --no-editable: installs the project as a standard package
+RUN pdm install --prod --no-lock --no-editable
+
+# Copy source code
+COPY src/ ./src/
+
+# Run the application
+CMD ["pdm", "run", "python", "src/main.py"]
