@@ -6,20 +6,87 @@ This document provides step-by-step procedures for common operational tasks acro
 ---
 
 ## Runbook Index
-1. [Initial Deployment (Tier 1 - Balena)](#1-initial-deployment-tier-1---balena)
-2. [Initial Deployment (Tier 2/3 - Docker Compose)](#2-initial-deployment-tier-23---docker-compose)
-3. [Adding Custom Vocabulary](#3-adding-custom-vocabulary)
-4. [Enrolling a Speaker Voiceprint](#4-enrolling-a-speaker-voiceprint)
-5. [Recovering from Internet Outage](#5-recovering-from-internet-outage)
-6. [Debugging Audio Issues](#6-debugging-audio-issues)
-7. [Rotating Deepgram API Key](#7-rotating-deepgram-api-key)
-8. [Backup & Restore](#8-backup--restore)
-9. [Emergency Shutdown](#9-emergency-shutdown)
-10. [Troubleshooting Service Crashes](#10-troubleshooting-service-crashes)
+1. [Data Harvest (M0.5)](#1-data-harvest-m05)
+2. [Initial Deployment (Tier 1 - Balena)](#2-initial-deployment-tier-1---balena)
+3. [Initial Deployment (Tier 2/3 - Docker Compose)](#3-initial-deployment-tier-23---docker-compose)
+4. [Adding Custom Vocabulary](#4-adding-custom-vocabulary)
+5. [Enrolling a Speaker Voiceprint](#5-enrolling-a-speaker-voiceprint)
+6. [Recovering from Internet Outage](#6-recovering-from-internet-outage)
+7. [Debugging Audio Issues](#7-debugging-audio-issues)
+8. [Rotating Deepgram API Key](#8-rotating-deepgram-api-key)
+9. [Backup & Restore](#9-backup--restore)
+10. [Emergency Shutdown](#10-emergency-shutdown)
+11. [Troubleshooting Service Crashes](#11-troubleshooting-service-crashes)
 
 ---
 
-## 1. Initial Deployment (Tier 1 - Balena)
+## 1. Data Harvest (M0.5)
+
+**Purpose**: Create test datasets for phrase mining (Silver) and regression testing (Gold)
+
+### Silver Standard (Phrase Mining)
+**Goal**: Extract high-frequency proper nouns for `initial_phrases.json`
+
+**Steps**:
+1. Download YouTube auto-captions (~20 hours)
+   ```bash
+   # Using yt-dlp
+   yt-dlp --write-auto-sub --skip-download --sub-lang en \
+          --output "data/silver/%(title)s.%(ext)s" \
+          <channel-url>
+   ```
+
+2. Extract phrases using mining script
+   ```bash
+   python scripts/mine_phrases.py data/silver/ \
+          --output=config/initial_phrases.json \
+          --min-frequency=3
+   ```
+
+3. Review and commit
+   ```bash
+   git add config/initial_phrases.json
+   git commit -m "feat(data): update phrase mining results"
+   ```
+
+### Gold Standard (Manual Correction)
+**Goal**: Create human-verified test corpus for WER regression testing
+
+**Steps**:
+1. Download 3 representative service recordings
+
+2. Extract 15 × 3-minute clips (stratified sampling)
+   ```bash
+   # 30% Sermon (clips 1-5)
+   ffmpeg -i service1.mp4 -ss 00:15:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/sermon_01.wav
+  
+   # 30% Liturgy (clips 6-10)
+   ffmpeg -i service2.mp4 -ss 00:05:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/liturgy_01.wav
+   
+   # 20% Announcements (clips 11-13)
+   ffmpeg -i service3.mp4 -ss 00:45:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/announce_01.wav
+   
+   # 20% Transitions (clips 14-15)
+   ffmpeg -i service1.mp4 -ss 00:30:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/transition_01.wav
+   ```
+
+3. Manual correction using Subtitle Edit
+   - Open `.wav` file
+   - Auto-generate transcript (temp)
+   - Manually correct all errors
+   - Export as plain text (`.txt`)
+
+4. Commit paired files
+   ```bash
+   git add tests/data/gold_standard/*.wav tests/data/gold_standard/*.txt
+   git commit -m "test(gold): add regression test clips"
+   ```
+
+**Pass Criteria**: CI regression test must achieve WER < 5%
+
+---
+
+## 2. Initial Deployment (Tier 1 - Balena)
 
 **Prerequisites**:
 - Jetson Orin Nano with BalenaOS flashed

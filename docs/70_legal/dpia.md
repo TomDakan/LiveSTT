@@ -10,5 +10,6 @@ To assess privacy risks associated with biometric voiceprint collection (BIPA/GD
 ## Planned Content
 - Data flow analysis
 - Risk assessment (unauthorized access, misuse)
-- Mitigation strategies (encryption, crypto-shredding)
+- Mitigation strategies (encryption, crypto-shredding, automated retention)
+  - **data-sweeper** service: Automated deletion of review files > RETENTION_HOURS
 - Consultation with stakeholders

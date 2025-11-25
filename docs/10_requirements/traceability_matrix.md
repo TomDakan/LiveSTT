@@ -9,15 +9,15 @@ This document maps functional/non-functional requirements to design decisions an
 
 | Req ID | Requirement | Design Component | Milestone | Test Plan |
 |--------|-------------|------------------|-----------|-----------|
-| **FR-001** | Capture audio from USB audio interface (16kHz PCM) | audio-producer service | M2 | Integration test: Mock audio → broker |
-| **FR-002** | Stream audio to Deepgram via WebSocket | stt-provider service | M3 | Integration test: Live Deepgram connection |
-| **FR-003** | Display transcripts with \<500ms latency | api-gateway WebSocket broadcast | M3 | Performance test: Measure end-to-end latency |
-| **FR-004** | Detect audio clipping and alert | audio-producer RMS monitoring | M1 | Unit test: Inject clipped audio, verify alert |
-| **FR-005** | Buffer audio during internet outages | stt-provider on-disk buffer | M5 | Resilience test: Disconnect network, verify buffer |
-| **FR-006** | Catch up on buffered audio | stt-provider catch-up logic | M5 | Resilience test: Reconnect, verify no data loss |
-| **FR-007** | Admin dashboard for configuration | api-gateway + sqladmin | M8 | Manual test: CRUD on PhraseSet table |
-| **FR-008** | Custom vocabulary upload (PhraseSet JSON) | stt-provider Deepgram keywords | M3 | Integration test: Upload, verify boosted terms |
-| **FR-009** | Save low-confidence snippets (\<0.85) | stt-provider QA loop | M9 | Unit test: Mock low confidence, verify save |
+| **FR-001** | Generate initial phrases from YouTube captions | `scripts/mine_phrases.py` | M0.5 | Manual execution: Output `initial_phrases.json` |
+| **FR-002** | Maintain Gold Standard test corpus (WER < 5%) | Manual transcription | M0.5 | CI: Run clips through stt-provider, measure WER |
+| **FR-003** | Capture audio from USB audio interface (16kHz PCM) | audio-producer service | M2 | Integration test: Mock audio → broker |
+| **FR-004** | Stream audio to Deepgram via WebSocket | stt-provider service | M3 | Integration test: Live Deepgram connection |
+| **FR-005** | Display transcripts with <500ms latency | api-gateway WebSocket broadcast | M3 | Performance test: Measure end-to-end latency |
+| **FR-006** | Detect audio clipping and alert | audio-producer RMS monitoring | M1 | Unit test: Inject clipped audio, verify alert |
+| **FR-007** | Buffer audio during internet outages | stt-provider on-disk buffer | M5 | Resilience test: Disconnect network, verify buffer |
+| **FR-008** | Catch up on buffered audio | stt-provider catch-up logic | M5 | Resilience test: Reconnect, verify no data loss |
+| **FR-009** | Save low-confidence snippets (<0.85) | stt-provider QA loop | M9 | Unit test: Mock low confidence, verify save |
 | **FR-010** | Encrypt saved audio snippets (AES-256) | stt-provider per-file encryption | M7 | Security test: Attempt decrypt without key |
 | **FR-011** | Profanity filtering (blocklist/allowlist) | stt-provider sanitizer | M4 | Unit test: Inject profanity, verify filtered |
 | **FR-012** | Identify enrolled speakers via voiceprint | identifier service (SpeechBrain) | M12 | Integration test: Enroll voiceprint, verify match |
@@ -54,7 +54,8 @@ This document maps functional/non-functional requirements to design decisions an
 | Milestone | Requirements Addressed | Deliverable |
 |-----------|------------------------|-------------|
 | **M0** | FR-015, FR-016 | Docker builds, multi-arch support |
-| **M1** | FR-001, FR-004 | audio-producer, broker, api-gateway skeleton |
+| **M0.5** | FR-001, FR-002 | Data Harvest: Silver (phrase mining), Gold (regression corpus) |
+| **M1** | FR-003, FR-006 | audio-producer, broker, api-gateway skeleton |
 | **M2** | FR-017, NFR-009 | Balena deployment, public URL |
 | **M3** | FR-002, FR-003, FR-008, NFR-001 | stt-provider, end-to-end transcription |
 | **M4** | FR-011 | Profanity filtering (sanitizer) |
