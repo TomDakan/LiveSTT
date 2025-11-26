@@ -26,6 +26,8 @@ data/
 !data/review/.gitkeep
 !data/enrollment/
 !data/enrollment/.gitkeep
+!data/silver/
+!data/silver/.gitkeep
 
 # Deepgram/API specific key files if misplaced
 *.key

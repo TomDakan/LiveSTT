@@ -4,7 +4,6 @@ import platform
 import subprocess
 import sys
 import time
-from typing import List
 
 # --- Configuration (from Copier) ---
 GITHUB_USER = os.getenv("_GITHUB_USER", "TomDakan")
@@ -19,7 +18,8 @@ PUSH_TO_GITHUB = "True" == "True"
 TASK_TRACKING = os.getenv("_TASK_TRACKING", "GitHub Projects")
 REPO_NAME = f"{GITHUB_USER}/{PROJECT_NAME}"
 
-def run_command(command: List[str], check: bool = True) -> subprocess.CompletedProcess:
+
+def run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess:
     """Runs a command from the project's root directory."""
     print(f"\n> {' '.join(command)}")
     use_shell = platform.system() == "Windows"
@@ -44,6 +44,7 @@ def run_command(command: List[str], check: bool = True) -> subprocess.CompletedP
         )
         sys.exit(1)
 
+
 def check_repo_exists(repo_name: str) -> bool:
     """Check if a GitHub repository already exists using 'gh repo view'."""
     print(f"--- Checking if repository '{repo_name}' exists ---")
@@ -65,9 +66,13 @@ def check_repo_exists(repo_name: str) -> bool:
 
     # Handle other errors (like auth failure)
     if "failed to authenticate" in result.stderr.lower():
-        print("Warning: 'gh auth status' failed. Proceeding with create attempt...", file=sys.stderr)
+        print(
+            "Warning: 'gh auth status' failed. Proceeding with create attempt...",
+            file=sys.stderr,
+        )
 
     return False
+
 
 def create_github_repo():
     """Create and push to the GitHub repository."""
@@ -82,10 +87,13 @@ def create_github_repo():
         print(f"--- Creating GitHub repository: {REPO_NAME} ---")
 
         create_command = [
-            "gh", "repo", "create", REPO_NAME,
+            "gh",
+            "repo",
+            "create",
+            REPO_NAME,
             f"--description={DESCRIPTION}",
             "--source=.",  # Use the current directory as the source
-            "--push",       # Push existing commits to the new repo
+            "--push",  # Push existing commits to the new repo
         ]
 
         if IS_PRIVATE:
@@ -100,23 +108,31 @@ def create_github_repo():
     # print("--- Setting default branch protection ---")
     # run_command(["gh", "repo", "edit", REPO_NAME, "--default-branch=main"])
 
+
 def create_github_project_board():
     """Creates a GitHub project board for the repository."""
     print(f"--- Creating GitHub project for {REPO_NAME} ---")
-    result = run_command([
-        "gh", "project", "create", f"{PROJECT_NAME} Roadmap",
-        "--owner", GITHUB_USER,
-    ])
+    result = run_command(
+        [
+            "gh",
+            "project",
+            "create",
+            f"{PROJECT_NAME} Roadmap",
+            "--owner",
+            GITHUB_USER,
+        ]
+    )
     project_url = result.stdout.strip()
     print(f"Successfully created GitHub project: {project_url}")
 
     # Update the ROADMAP.md file
-    with open("ROADMAP.md", "r") as f:
+    with open("ROADMAP.md") as f:
         content = f.read()
     content = content.replace("PROJECT_URL_PLACEHOLDER", project_url)
     with open("ROADMAP.md", "w") as f:
         f.write(content)
     print("Updated ROADMAP.md with project URL.")
+
 
 def check_gh_auth() -> bool:
     """Checks if the user is logged into the correct GitHub account."""
@@ -158,7 +174,9 @@ def main():
         if not os.path.exists(".git"):
             run_command(["git", "init"])
             run_command(["git", "add", "."])
-            run_command(["git", "commit", "-m", "feat: Initial commit from copier template"])
+            run_command(
+                ["git", "commit", "-m", "feat: Initial commit from copier template"]
+            )
         else:
             print("Git repository already initialized.")
 
