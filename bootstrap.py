@@ -155,7 +155,7 @@ def get_workflow_run_id(workflow_name: str) -> str | None:
     return None
 
 
-def main():
+def main() -> None:
     """Main execution flow for initial project setup."""
 
     print("\n--- Installing PDM dependencies ---")
@@ -184,7 +184,8 @@ def main():
             print("--- Checking GitHub Authentication ---")
             if not check_gh_auth():
                 print(
-                    f"Error: Not logged into GitHub as '{GITHUB_USER}'. Please run 'gh auth login'."
+                    f"Error: Not logged into GitHub as '{GITHUB_USER}'. "
+                    "Please run 'gh auth login'."
                 )
                 sys.exit(1)
             print("GitHub auth successful.")

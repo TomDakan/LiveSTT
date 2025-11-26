@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import zmq
@@ -68,7 +69,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # 1. Await ZMQ message
             msg = await socket.recv_multipart()
-            topic = msg[0].decode("utf-8")
+            # topic = msg[0].decode("utf-8")
             payload = msg[1].decode("utf-8")
 
             # 2. Parse JSON to ensure validity before forwarding

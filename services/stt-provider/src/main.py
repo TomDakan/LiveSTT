@@ -1,6 +1,9 @@
+# ruff: noqa: PERF203
 import asyncio
+import contextlib
 import json
 import logging
+import os
 
 import zmq
 import zmq.asyncio
@@ -10,8 +13,29 @@ from deepgram import (
     LiveOptions,
     LiveTranscriptionEvents,
 )
+from dotenv import load_dotenv
 
-# ... (imports remain the same)
+# --- Config ---
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("stt-provider")
+
+ZMQ_SUB_URL = os.getenv("ZMQ_SUB_URL", "tcp://broker:5555")
+ZMQ_PUB_URL = os.getenv("ZMQ_PUB_URL", "tcp://broker:5556")
+TOPIC_INPUT = "audio.raw"
+TOPIC_OUTPUT = "text.transcript"
+
+# Audio Settings
+ENCODING = "linear16"
+CHANNELS = 1
+SAMPLE_RATE = 16000
+
+
+def get_api_key() -> str:
+    key = os.getenv("DEEPGRAM_API_KEY")
+    if not key:
+        logger.error("DEEPGRAM_API_KEY not set.")
+        raise ValueError("DEEPGRAM_API_KEY not set")
+    return key
 
 
 class STTService:
@@ -53,7 +77,8 @@ class STTService:
                 # Receive multipart: [topic, payload]
                 # We assume payload is raw PCM bytes
                 msg = await self.sub_sock.recv_multipart()
-                topic, audio_data = msg[0], msg[1]
+                # topic = msg[0]
+                audio_data = msg[1]
 
                 # Put into buffer. If queue is huge, we might need a drop strategy later.
                 await self.audio_queue.put(audio_data)
@@ -119,10 +144,9 @@ class STTService:
                 await asyncio.sleep(2)
             finally:
                 # Ensure we try to close the connection cleanly if possible
-                try:
+                # Ensure we try to close the connection cleanly if possible
+                with contextlib.suppress(Exception):
                     await dg_connection.finish()
-                except:
-                    pass
 
     async def on_transcript(self, _, result, **kwargs):
         """

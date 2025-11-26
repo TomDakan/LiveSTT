@@ -4,7 +4,9 @@ Script to mine high-frequency proper nouns from caption files (VTT/JSON).
 Used for creating the 'Silver Standard' dataset for Deepgram PhraseSets.
 
 Usage:
-    python scripts/mine_phrases.py data/silver/ --output=config/initial_phrases.json --min-frequency=3
+    python scripts/mine_phrases.py data/silver/
+    --output=config/initial_phrases.json
+    --min-frequency=3
 """
 
 import argparse
@@ -85,7 +87,8 @@ STOP_WORDS = {
     "God",
     "Lord",
     "Jesus",
-    "Christ",  # Common in church context, but maybe we WANT these if they are specific titles?
+    "Christ",
+    # Common in church context, but maybe we WANT these if they are specific titles?
     # Actually, let's keep God/Jesus/Christ as valid phrases if they appear frequently,
     # but maybe filter out generic "God" if it's too common.
     # For now, let's exclude the most generic ones to focus on specific names/places.
@@ -135,7 +138,8 @@ def extract_phrases(text: str) -> list[str]:
     Strategy:
     1. Split into words.
     2. Identify sequences of capitalized words.
-    3. Filter out stop words (unless they are part of a larger phrase? No, keep simple for now).
+    3. Filter out stop words (unless they are part of a larger phrase?
+        No, keep simple for now).
     """
     # Remove punctuation but keep spaces
     text = re.sub(r"[^\w\s]", "", text)
@@ -165,7 +169,7 @@ def extract_phrases(text: str) -> list[str]:
     return candidates
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Mine phrases from caption files.")
     parser.add_argument("input_dir", type=Path, help="Directory containing .vtt files")
     parser.add_argument(
@@ -221,7 +225,8 @@ def main():
     print(f"   Top 10: {', '.join([p for p, c in counts.most_common(10)])}")
 
     # Format for Deepgram (simple list of strings, or object with boost)
-    # Deepgram expects: { "phrases": ["Phrase1", "Phrase2"] } OR { "phrases": [{ "phrase": "Phrase1", "boost": 10 }] }
+    # Deepgram expects: { "phrases": ["Phrase1", "Phrase2"] }
+    # OR { "phrases": [{ "phrase": "Phrase1", "boost": 10 }] }
     # Let's use simple string list for now, user can manually tune boosts later.
 
     output_data = {

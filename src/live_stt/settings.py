@@ -30,5 +30,7 @@ class Settings(BaseSettings):
     # The Optional[X] syntax has been replaced with X | None
     secret_key: SecretStr | None = None
     redis_dsn: str | None = None
-    # Instantiate the settings
-    settings = Settings()
+
+
+# Instantiate the settings
+settings = Settings()
