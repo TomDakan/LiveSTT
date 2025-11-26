@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 import typed_settings as ts
+from dotenv import load_dotenv
 from live_stt import config
 
 
@@ -22,7 +23,9 @@ def patch_project_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 def test_typed_settings_load(patch_project_root: Path) -> None:
     """Test that settings are loaded correctly from the .env file."""
     # Reload settings to pick up the patched root
-    settings = ts.load_settings(config.Settings)
+    load_dotenv(patch_project_root / ".env", override=True)
+    loaders = ts.default_loaders(appname="live_stt", config_files=[])
+    settings = ts.load_settings(config.Settings, loaders=loaders)
     assert settings.log_level == "DEBUG"
 
 
@@ -31,5 +34,6 @@ def test_typed_settings_load_env_var(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LIVE_STT_LOG_LEVEL", "WARNING")
 
     # Reload settings to pick up the env var
-    settings = ts.load_settings(config.Settings)
+    loaders = ts.default_loaders(appname="live_stt", config_files=[])
+    settings = ts.load_settings(config.Settings, loaders=loaders)
     assert settings.log_level == "WARNING"

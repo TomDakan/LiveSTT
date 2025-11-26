@@ -51,14 +51,16 @@ testpaths = [
     "services/stt-provider/tests",
     "services/identifier/tests",
     "services/audio-classifier/tests",
+    "tests",
 ]
+pythonpath = ["src"]
 markers = [
     "unit: Marks fast, self-contained unit tests.",
     "integration: Marks tests that require external resources.",
     "slow: Marks tests that are slow to run.",
     "network: Marks tests that require a live network connection.",
 ]
-env = ["PDM_IGNORE_ACTIVE_VENV=1"]
+
 
 [tool.mypy]
 python_version = "3.10"

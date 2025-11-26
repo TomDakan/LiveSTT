@@ -7,16 +7,15 @@ import logging
 from pathlib import Path
 
 import typed_settings as ts
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Find the project root directory (which contains the .env file)
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
-@ts.settings(
-    appname="live_stt",  # Env var prefix (e.g., LIVE_STT_LOG_LEVEL)
-    config_files=[PROJECT_ROOT / ".env"],  # Load .env file from project root
-)
-@ts.dataclass
+@ts.settings
 class Settings:
     """
     Application settings, loaded from .env files and environment variables.
@@ -32,8 +31,9 @@ class Settings:
 
 # Load the settings instance
 try:
-    settings = ts.load_settings(Settings, loaders=[])
-except (ts.ConfigError, FileNotFoundError) as e:
+    _loaders = ts.default_loaders(appname="live_stt", config_files=[])
+    settings = ts.load_settings(Settings, loaders=_loaders)
+except Exception as e:
     logging.error(f"Error loading configuration: {e}")
     # Fallback to default settings on error
     settings = Settings()
