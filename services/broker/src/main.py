@@ -3,7 +3,7 @@ import sys
 import zmq
 
 
-def main():
+def main() -> None:
     context = zmq.Context()
 
     # XSUB: Receives messages from Publishers (Producers)

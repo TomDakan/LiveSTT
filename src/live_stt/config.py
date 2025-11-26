@@ -32,7 +32,7 @@ class Settings:
 
 # Load the settings instance
 try:
-    settings = ts.load_settings(Settings)
+    settings = ts.load_settings(Settings, loaders=[])
 except (ts.ConfigError, FileNotFoundError) as e:
     logging.error(f"Error loading configuration: {e}")
     # Fallback to default settings on error

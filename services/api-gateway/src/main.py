@@ -45,12 +45,12 @@ app.add_middleware(
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "api-gateway"}
 
 
 @app.websocket("/ws/transcripts")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket) -> None:
     """
     WebSocket endpoint for UI clients.
     Connects to ZMQ and streams transcripts to the browser.

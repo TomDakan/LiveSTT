@@ -1,8 +1,8 @@
 from pydantic import SecretStr
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict  # type: ignore
 
 try:
-    from dotenv import load_dotenv  # type: ignore
+    from dotenv import load_dotenv
 
     _DOTENV_AVAILABLE = True
 except Exception:
@@ -12,7 +12,7 @@ if _DOTENV_AVAILABLE:
     load_dotenv()
 
 
-class Settings(BaseSettings):
+class Settings(BaseSettings):  # type: ignore[misc]
     """
     Settings for the application.
     Reads settings from environment variables.

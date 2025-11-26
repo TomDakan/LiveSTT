@@ -22,8 +22,9 @@ lint *args:
     ruff check . --fix {{ args }}
 
 # Run static type checking (MyPy).
-type-check *args:
-    mypy . {{ args }}
+# Run static type checking (MyPy).
+type-check service="":
+    uv run scripts/type_check.py {{ service }}
 
 # Run the test suite (pytest).
 test *args:

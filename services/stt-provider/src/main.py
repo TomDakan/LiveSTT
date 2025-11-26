@@ -4,6 +4,7 @@ import contextlib
 import json
 import logging
 import os
+from typing import Any
 
 import zmq
 import zmq.asyncio
@@ -41,7 +42,7 @@ def get_api_key() -> str:
 class STTService:
     def __init__(self) -> None:
         self.ctx = zmq.asyncio.Context()
-        self.audio_queue = asyncio.Queue()
+        self.audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self.running = True
         self.api_key = get_api_key()
 
@@ -52,7 +53,7 @@ class STTService:
         )
         self.dg_client = DeepgramClient(self.api_key, config)
 
-    async def setup_zmq(self):
+    async def setup_zmq(self) -> None:
         """Initialize ZMQ Sockets."""
         # Subscriber: Listens for Raw Audio
         self.sub_sock = self.ctx.socket(zmq.SUB)
@@ -65,7 +66,7 @@ class STTService:
         self.pub_sock.connect(ZMQ_PUB_URL)
         logger.info(f"ZMQ Publisher connected to {ZMQ_PUB_URL}")
 
-    async def zmq_ingestion_loop(self):
+    async def zmq_ingestion_loop(self) -> None:
         """
         High-reliability ingestion.
         Reads from ZMQ and buffers into RAM (asyncio.Queue).
@@ -89,7 +90,7 @@ class STTService:
                 logger.error(f"Error in ZMQ Ingestion: {e}")
                 await asyncio.sleep(0.1)
 
-    async def deepgram_sender_loop(self):
+    async def deepgram_sender_loop(self) -> None:
         """
         Consumes the buffer and sends to Deepgram.
         Handles reconnection logic transparently.
@@ -148,7 +149,7 @@ class STTService:
                 with contextlib.suppress(Exception):
                     await dg_connection.finish()
 
-    async def on_transcript(self, _, result, **kwargs):
+    async def on_transcript(self, _: Any, result: Any, **kwargs: Any) -> None:
         """
         Callback when Deepgram returns a transcript.
         Publishes result back to ZMQ.
@@ -181,10 +182,10 @@ class STTService:
         except Exception as e:
             logger.error(f"Error processing transcript: {e}")
 
-    def on_error(self, _, error, **kwargs):
+    def on_error(self, _: Any, error: Any, **kwargs: Any) -> None:
         logger.error(f"Deepgram Error Received: {error}")
 
-    async def run(self):
+    async def run(self) -> None:
         """Main entry point."""
         await self.setup_zmq()
 
@@ -194,7 +195,7 @@ class STTService:
 
         await asyncio.gather(ingestion_task, sender_task)
 
-    async def shutdown(self):
+    async def shutdown(self) -> None:
         self.running = False
         self.ctx.term()
 

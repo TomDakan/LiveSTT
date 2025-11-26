@@ -11,7 +11,7 @@ PROJECT_NAME = os.getenv("_PROJECT_NAME", "live-stt")
 DESCRIPTION = os.getenv("_DESCRIPTION", "")
 IS_PRIVATE = os.getenv("_IS_PRIVATE", "False") == "True"
 
-RUN_QA_CHECKS = "False" == "True"
+RUN_QA_CHECKS = False
 PRECOMMIT_INSTALL = "True" == "True"
 INITIALIZE_GIT = "True" == "True"
 PUSH_TO_GITHUB = "True" == "True"
@@ -19,7 +19,9 @@ TASK_TRACKING = os.getenv("_TASK_TRACKING", "GitHub Projects")
 REPO_NAME = f"{GITHUB_USER}/{PROJECT_NAME}"
 
 
-def run_command(command: list[str], check: bool = True) -> subprocess.CompletedProcess:
+def run_command(
+    command: list[str], check: bool = True
+) -> subprocess.CompletedProcess[str]:
     """Runs a command from the project's root directory."""
     print(f"\n> {' '.join(command)}")
     use_shell = platform.system() == "Windows"
@@ -74,7 +76,7 @@ def check_repo_exists(repo_name: str) -> bool:
     return False
 
 
-def create_github_repo():
+def create_github_repo() -> None:
     """Create and push to the GitHub repository."""
 
     if check_repo_exists(REPO_NAME):
@@ -109,7 +111,7 @@ def create_github_repo():
     # run_command(["gh", "repo", "edit", REPO_NAME, "--default-branch=main"])
 
 
-def create_github_project_board():
+def create_github_project_board() -> None:
     """Creates a GitHub project board for the repository."""
     print(f"--- Creating GitHub project for {REPO_NAME} ---")
     result = run_command(
