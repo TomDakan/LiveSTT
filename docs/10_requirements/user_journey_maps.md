@@ -123,7 +123,7 @@ journey
 
 ---
 
-## Journey 4: System Administrator - Deployment to Jetson
+## Journey 4: System Administrator - Deployment to Industrial NUC
 
 ### Persona
 **Name**: Tom
@@ -133,12 +133,12 @@ journey
 ### Journey
 ```mermaid
 journey
-    title Balena Production Deployment
+    title Balena Production Deployment (x86)
     section Initial Setup
-        Flash Jetson with BalenaOS: 3: Tom
+        Flash NUC with BalenaOS (Generic x86): 3: Tom
         Create Balena fleet: 5: Tom
         Add device to fleet: 5: Tom
-        Provision TPM keys: 2: Tom
+        Configure BIOS (Power/Watchdog): 3: Tom
     section First Deploy
         Set env vars (DEEPGRAM_API_KEY): 4: Tom
         Run balena push live-stt-fleet: 5: Tom
@@ -154,8 +154,8 @@ journey
 | Step | Touchpoint | Experience | Pain Points |
 |------|-----------|------------|-------------|
 | 1 | Flash BalenaOS | Use Balena Etcher GUI | ✅ Standard Balena workflow |
-| 2 | balena CLI | `balena push` command | ✅ Familiar to Balena users |
-| 3 | TPM provisioning | Manual `tpm2-tools` commands | **Pain**: No automated script |
+| 2 | BIOS Config | Manual keyboard/monitor setup | **Pain**: Requires physical access |
+| 3 | balena CLI | `balena push` command | ✅ Familiar to Balena users |
 | 4 | Env variable management | Balena dashboard web UI | ✅ Centralized config |
 | 5 | Public URL | Auto-generated HTTPS endpoint | ✅ Zero network config |
 

@@ -1,7 +1,7 @@
-# API Reference
+# API Reference (v7.3)
 
 ## Overview
-This document documents the internal APIs used for inter-service communication and the external REST API exposed by the `api-gateway`.
+This document documents the internal APIs used for inter-service communication (NATS) and the external REST API exposed by the `api-gateway`.
 
 ---
 
@@ -18,7 +18,7 @@ Currently, the API is open for local network access. Future versions (M7) will i
 #### System Status
 - **GET** `/health`
   - **Description**: System health check.
-  - **Response**: `{"status": "ok", "services": {...}}`
+  - **Response**: `{"status": "ok", "services": {"nats": "ok", ...}}`
 
 #### Transcription Management
 - **GET** `/v1/transcription/status`
@@ -94,41 +94,26 @@ Clients (Web UI) connect to receive real-time updates.
 
 ---
 
-## 3. ZeroMQ Internal API
+## 3. NATS Internal API
 
-**Broker Address**: `tcp://broker:5555` (XPUB/XSUB)
+**Broker URL**: `nats://nats:4222`
 
-### Topic Structure
+### Subject Structure
 
-| Topic | Publisher | Subscriber | Payload Format |
-|-------|-----------|------------|----------------|
-| `audio.raw` | audio-producer | stt-provider | Binary PCM (16kHz, S16LE) |
-| `audio.event` | audio-classifier | api-gateway | JSON `{"event": "music_start"}` |
-| `stt.transcript` | stt-provider | api-gateway | JSON `{"text": "...", "confidence": 0.9}` |
-| `system.control` | api-gateway | all | JSON `{"command": "shutdown"}` |
+| Subject | Publisher | Subscriber | Payload Format |
+|---------|-----------|------------|----------------|
+| `audio.raw` | audio-producer | stt-provider, identifier | Binary PCM (16kHz, S16LE) |
+| `text.transcript` | stt-provider | identity-manager | JSON |
+| `identity.event` | identifier | identity-manager | JSON |
+| `events.merged` | identity-manager | api-gateway | JSON |
+| `system.alert` | all | api-gateway | JSON |
 
 ### Message Schemas
 
-**`stt.transcript`**
-```json
-{
-  "channel": 0,
-  "metadata": {
-    "request_id": "uuid",
-    "model_uuid": "uuid"
-  },
-  "alternatives": [
-    {
-      "transcript": "Hello world",
-      "confidence": 0.98,
-      "words": [...]
-    }
-  ]
-}
-```
+See [Data Dictionary](../30_data/data_dictionary.md) for full schema definitions.
 
 ---
 
 ## 4. Data Models
 
-See [Data Dictionary](../30_data/data_dictionary.md) for full schema definitions.
+See [Data Dictionary](../30_data/data_dictionary.md).

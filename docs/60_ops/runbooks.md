@@ -1,404 +1,163 @@
-# Operational Runbooks
+# Operational Runbooks (v7.3)
 
 ## Overview
-This document provides step-by-step procedures for common operational tasks across all deployment tiers.
+This document provides step-by-step procedures for common operational tasks for the Live STT system (v7.3 Industrial Split-Brain).
 
 ---
 
 ## Runbook Index
-1. [Data Harvest (M0.5)](#1-data-harvest-m05)
-2. [Initial Deployment (Tier 1 - Balena)](#2-initial-deployment-tier-1---balena)
-3. [Initial Deployment (Tier 2/3 - Docker Compose)](#3-initial-deployment-tier-23---docker-compose)
-4. [Adding Custom Vocabulary](#4-adding-custom-vocabulary)
-5. [Enrolling a Speaker Voiceprint](#5-enrolling-a-speaker-voiceprint)
-6. [Recovering from Internet Outage](#6-recovering-from-internet-outage)
-7. [Debugging Audio Issues](#7-debugging-audio-issues)
-8. [Rotating Deepgram API Key](#8-rotating-deepgram-api-key)
-9. [Backup & Restore](#9-backup--restore)
-10. [Emergency Shutdown](#10-emergency-shutdown)
-11. [Troubleshooting Service Crashes](#11-troubleshooting-service-crashes)
+1. [NATS Debugging](#1-nats-debugging)
+2. [Initial Deployment (Industrial NUC)](#2-initial-deployment-industrial-nuc)
+3. [Recovering from Internet Outage](#3-recovering-from-internet-outage)
+4. [Debugging Audio Issues](#4-debugging-audio-issues)
+5. [Rotating Deepgram API Key](#5-rotating-deepgram-api-key)
+6. [Emergency Shutdown](#6-emergency-shutdown)
+7. [Troubleshooting Service Crashes](#7-troubleshooting-service-crashes)
 
 ---
 
-## 1. Data Harvest (M0.5)
+## 1. NATS Debugging
 
-**Purpose**: Create test datasets for phrase mining (Silver) and regression testing (Gold)
+**Purpose**: Inspect message flow and troubleshoot communication issues.
 
-### Silver Standard (Phrase Mining)
-**Goal**: Extract high-frequency proper nouns for `initial_phrases.json`
+### 1.1 Spy on All Messages
+Watch live traffic on the bus:
+```bash
+just nats-spy
+# Output:
+# [#1] Received on "audio.raw"
+# [#2] Received on "text.transcript": {"text": "Hello world", ...}
+```
 
-**Steps**:
-1. Download YouTube auto-captions (~20 hours)
-   ```bash
-   # Using yt-dlp
-   yt-dlp --write-auto-sub --skip-download --sub-lang en \
-          --output "data/silver/%(title)s.%(ext)s" \
-          <channel-url>
-   ```
+### 1.2 Check Server Health
+Verify NATS JetStream status:
+```bash
+just nats-health
+# Output: OK
+```
 
-2. Extract phrases using mining script
-   ```bash
-   python scripts/mine_phrases.py data/silver/ \
-          --output=config/initial_phrases.json \
-          --min-frequency=3
-   ```
-
-3. Review and commit
-   ```bash
-   git add config/initial_phrases.json
-   git commit -m "feat(data): update phrase mining results"
-   ```
-
-### Gold Standard (Manual Correction)
-**Goal**: Create human-verified test corpus for WER regression testing
-
-**Steps**:
-1. Download 3 representative service recordings
-
-2. Extract 15 × 3-minute clips (stratified sampling)
-   ```bash
-   # 30% Sermon (clips 1-5)
-   ffmpeg -i service1.mp4 -ss 00:15:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/sermon_01.wav
-  
-   # 30% Liturgy (clips 6-10)
-   ffmpeg -i service2.mp4 -ss 00:05:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/liturgy_01.wav
-   
-   # 20% Announcements (clips 11-13)
-   ffmpeg -i service3.mp4 -ss 00:45:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/announce_01.wav
-   
-   # 20% Transitions (clips 14-15)
-   ffmpeg -i service1.mp4 -ss 00:30:00 -t 00:03:00 -vn -ar 16000 tests/data/gold_standard/transition_01.wav
-   ```
-
-3. Manual correction using Subtitle Edit
-   - Open `.wav` file
-   - Auto-generate transcript (temp)
-   - Manually correct all errors
-   - Export as plain text (`.txt`)
-
-4. Commit paired files
-   ```bash
-   git add tests/data/gold_standard/*.wav tests/data/gold_standard/*.txt
-   git commit -m "test(gold): add regression test clips"
-   ```
-
-**Pass Criteria**: CI regression test must achieve WER < 5%
+### 1.3 Inspect Specific Topic
+Debug audio flow specifically:
+```bash
+just nats-tail subject="audio.raw"
+```
 
 ---
 
-## 2. Initial Deployment (Tier 1 - Balena)
+## 2. Initial Deployment (Industrial NUC)
 
 **Prerequisites**:
-- Jetson Orin Nano with BalenaOS flashed
-- Balena account with fleet created
+- ASRock NUC N97 with BalenaOS flashed
 - Deepgram API key
 
 **Steps**:
-```bash
-# 1. Install Balena CLI
-npm install -g balena-cli
-
-# 2. Login to Balena
-balena login
-
-# 3. Add device to fleet
-balena device add <FLEET_NAME>
-# Follow prompts to provision device
-
-# 4. Set environment variables (in Balena dashboard)
-DEEPGRAM_API_KEY=<your_key>
-LOG_LEVEL=INFO
-
-# 5. Deploy application
-cd /path/to/live-stt
-balena push <FLEET_NAME>
-
-# 6. Wait for build (~10 minutes)
-# Monitor: https://dashboard.balena-cloud.com
-
-# 7. Verify deployment
-balena ssh <DEVICE_UUID>
-docker ps  # Should show all services running
-```
-
-**Verification**:
-- Navigate to public device URL: `https://<device-uuid>.balena-devices.com:8000`
-- Should see "Live STT" web UI with "Reconnecting..." status (no audio yet)
+1.  **Provision Device**: Follow [Assembly Guide](../40_hardware/assembly_guide.md).
+2.  **Set Variables** (Balena Dashboard):
+    - `DEEPGRAM_API_KEY`: `<your_key>`
+    - `LOG_LEVEL`: `INFO`
+3.  **Deploy**:
+    ```bash
+    balena push live-stt-production
+    ```
+4.  **Verify**:
+    - Check "Black Box" mount: `balena ssh <uuid> mount | grep nats`
+    - Check NATS health: `docker logs nats`
 
 ---
 
-## 2. Initial Deployment (Tier 2/3 - Docker Compose)
+## 3. Recovering from Internet Outage
 
-**Prerequisites**:
-- Docker & Docker Compose installed
-- Deepgram API key
-
-**Steps**:
-```bash
-# 1. Clone repository
-git clone https://github.com/yourusername/live-stt.git
-cd live-stt
-
-# 2. Create .env file
-cp .env.example .env
-nano .env  # Set DEEPGRAM_API_KEY
-
-# 3. (Optional) Set up mock audio for testing
-export MOCK_FILE=/path/to/sermon_sample.wav
-
-# 4. Start services
-just up  # Or: docker compose up -d
-
-# 5. Check logs
-just logs  # Or: docker compose logs -f
-
-# 6. Verify all services running
-docker compose ps
-```
-
-**Verification**:
-- Navigate to `http://localhost:8000`
-- Should see web UI with live status
-
----
-
-## 3. Adding Custom Vocabulary
-
-**Purpose**: Improve transcription accuracy for names, liturgical terms
-
-**Steps**:
-```bash
-# Option A: Via Admin UI (when available in M8)
-# 1. Navigate to http://<device-url>:8000/admin
-# 2. Click "PhraseSet" table
-# 3. Click "Add Entry"
-# 4. Fill:
-#    - phrase: "Pastor Mike"
-#    - boost: 8
-# 5. Click "Save"
-
-# Option B: Direct Database Edit (before M8)
-balena ssh <DEVICE_UUID>
-sqlite3 /data/config.db
-INSERT INTO phrase_set (phrase, boost) VALUES ('Pastor Mike', 8);
-.quit
-
-# 3. Restart stt-provider to reload phrases
-docker compose restart stt-provider  # Or: balena restart <service-id>
-```
-
-**Verification**:
-- Speak test phrase during live session
-- Check transcript for correct capitalization
-
----
-
-## 4. Enrolling a Speaker Voiceprint
-
-**Prerequisites**: Milestone 10+ (voiceprint support implemented)
-
-**Steps**:
-```bash
-# 1. Navigate to enrollment UI
-https://<device-url>:8000/admin/enrollment
-
-# 2. Enter speaker name
-# 3. Click "Start Recording"
-# 4. Read consent script aloud (~15 seconds)
-# 5. Click "Submit Enrollment"
-
-# 6. Verify enrollment
-balena ssh <DEVICE_UUID>
-ls /data/enrollment/  # Should see <speaker-name>.wav.enc
-```
-
-**Verification**:
-- During next live session, transcripts should show speaker name instead of "Speaker 0"
-
----
-
-## 5. Recovering from Internet Outage
-
-**Scenario**: Internet drops for 30 minutes during service
+**Scenario**: Internet drops for 30 minutes during service.
 
 **Automatic Recovery**:
-1. `stt-provider` detects Deepgram WebSocket disconnect
-2. Audio buffered to `/data/buffer/buffer.wav`
-3. When internet returns, `stt-provider` reconnects
-4. Buffered audio streamed to Deepgram (catch-up mode)
-5. Transcripts appear with historical timestamps
+1.  `stt-provider` detects disconnect.
+2.  Audio is buffered to NATS JetStream (persisted to `/data/nats` "Black Box").
+3.  When internet returns, `stt-provider` replays missed messages.
+4.  Transcripts appear with historical timestamps.
 
 **Manual Verification**:
 ```bash
-# Check buffer file size (should grow during outage)
-balena ssh <DEVICE_UUID>
-ls -lh /data/buffer/
-# If buffer.wav exists and is >1MB, buffering is active
-
-# Check stt-provider logs
-docker compose logs stt-provider | grep "buffering"
+# Check NATS JetStream storage usage
+balena ssh <uuid>
+du -sh /data/nats
 ```
-
-**Post-Recovery**:
-- No action required (automatic)
-- `/data/buffer/buffer.wav` deleted after successful upload
 
 ---
 
-## 6. Debugging Audio Issues
+## 4. Debugging Audio Issues
 
 ### Issue: No Audio Detected
 ```bash
-# 1. Check audio device
-balena ssh <DEVICE_UUID>
-arecord -l  # List capture devices
-# Should show USB audio interface
+# 1. Spy on audio.raw subject
+just nats-tail subject="audio.raw"
+# If no messages appear, audio-producer is failing to capture.
 
-# 2. Test capture manually
-arecord -D hw:1,0 -f S16_LE -r 16000 -c 1 -d 5 test.wav
-aplay test.wav  # Should hear 5-second recording
-
-# 3. Check audio-producer logs
-docker compose logs audio-producer | grep "RMS"
-# Should show RMS values (0 = silence, >1000 = audio detected)
+# 2. Check audio-producer logs
+docker compose logs audio-producer
+# Look for "Input overflow" or "Device not found"
 ```
 
 ### Issue: Clipping Alerts
 ```bash
-# Symptoms: "Audio clipping detected" alerts in UI
+# 1. Check system.alert subject
+just nats-tail subject="system.alert"
+# Look for {"type": "clipping", "severity": "warn"}
 
-# 1. Reduce PA system output level (gain knob on mixer)
-# 2. Check audio-producer logs for RMS peaks
-docker compose logs audio-producer | grep "clipping"
-
-# Target: RMS < 20000 (70% of max 32767)
+# 2. Adjust Focusrite Gain Knob (aim for green halo, not red)
 ```
 
 ---
 
-## 7. Rotating Deepgram API Key
+## 5. Rotating Deepgram API Key
 
-**Trigger**: Key compromised, or routine 90-day rotation
+**Trigger**: Key compromised or expired.
 
 **Steps**:
-```bash
-# 1. Generate new key in Deepgram console
-# https://console.deepgram.com/project/<project-id>/keys
-
-# 2. Update environment variable
-# Balena:
-balena env set DEEPGRAM_API_KEY <new_key> --device <DEVICE_UUID>
-
-# Docker Compose:
-nano .env  # Update DEEPGRAM_API_KEY
-just up-build  # Restart services
-
-# 3. Verify new key works
-docker compose logs stt-provider | grep "Connected to Deepgram"
-
-# 4. Revoke old key in Deepgram console
-```
-
-**Downtime**: ~30 seconds (during service restart)
+1.  Generate new key in Deepgram Console.
+2.  Update Balena Variable: `DEEPGRAM_API_KEY`.
+3.  Services will auto-restart.
+4.  Verify:
+    ```bash
+    docker logs stt-provider | grep "Connected to Deepgram"
+    ```
 
 ---
 
-## 8. Backup & Restore
+## 6. Emergency Shutdown
 
-### Backup
-```bash
-# 1. Backup configuration database
-balena ssh <DEVICE_UUID>
-cp /data/config.db /tmp/config_backup_$(date +%Y%m%d).db
-exit
-
-# 2. Download backup
-balena ssh <DEVICE_UUID> cat /tmp/config_backup_*.db > config_backup.db
-
-# 3. Backup encryption keys (Tier 2/3 only)
-scp user@device:/config/master.key master.key.backup
-
-# 4. Backup voiceprints (optional, if migrating device)
-balena ssh <DEVICE_UUID> tar -czf /tmp/enrollment_backup.tar.gz /data/enrollment/
-balena ssh <DEVICE_UUID> cat /tmp/enrollment_backup.tar.gz > enrollment_backup.tar.gz
-```
-
-### Restore
-```bash
-# 1. Upload config database
-balena ssh <DEVICE_UUID> "cat > /data/config.db" < config_backup.db
-
-# 2. Restore voiceprints
-balena ssh <DEVICE_UUID> "cat > /tmp/enrollment.tar.gz" < enrollment_backup.tar.gz
-balena ssh <DEVICE_UUID>
-tar -xzf /tmp/enrollment.tar.gz -C /data/
-
-# 3. Restart services
-docker compose up -d --force-recreate
-```
-
----
-
-## 9. Emergency Shutdown
-
-**Scenarios**: Fire alarm, power maintenance, immediate evacuation
+**Scenarios**: Fire alarm, power maintenance.
 
 **Steps**:
-```bash
-# Graceful shutdown (30 seconds)
-balena ssh <DEVICE_UUID>
-docker compose down
-sudo poweroff
-
-# Forced shutdown (if system unresponsive)
-# Hold power button for 10 seconds
-```
-
-**Data Safety**: All data written to NVMe with `fsync()` calls, no data loss on graceful shutdown
+1.  **Graceful**: `balena ssh <uuid> poweroff`
+2.  **Forced**: Hold power button 10s.
+    - *Note*: "Black Box" journaling prevents corruption even on forced shutdown.
 
 ---
 
-## 10. Troubleshooting Service Crashes
+## 7. Troubleshooting Service Crashes
 
 ### stt-provider Crash Loop
 ```bash
-# Symptoms: Transcripts stop appearing, logs show repeated restarts
-
-# 1. Check last 50 log lines
-docker compose logs --tail=50 stt-provider
+# 1. Check logs
+docker logs stt-provider --tail 50
 
 # Common causes:
-# - Invalid Deepgram API key → Update env var
-# - Network unreachable → Check firewall (port 443 outbound)
-# - Out of disk space → Clean /data/buffer/
-
-# 2. Check disk space
-df -h /data
-
-# 3. Manually restart service
-docker compose restart stt-provider
+# - Invalid API Key (401 Unauthorized)
+# - NATS unreachable (Check nats container)
 ```
 
-### api-gateway Not Responding
+### NATS Server Failing
 ```bash
-# Symptoms: Cannot access web UI
+# 1. Check disk space (Black Box full?)
+df -h /data
 
-# 1. Check if container is running
-docker compose ps | grep api-gateway
-
-# 2. Check logs for errors
-docker compose logs api-gateway | grep ERROR
-
-# 3. Restart service
-docker compose restart api-gateway
-
-# 4. If still failing, rebuild
-just rebuild-hard api-gateway
+# 2. Check permissions
+ls -l /data/nats
+# Should be owned by nats:nats (1000:1000)
 ```
 
 ---
 
 **See Also:**
+- [NATS Tooling](nats_tooling.md) - Advanced debugging
 - [HSI](../20_architecture/hsi.md) - Service topology
-- [Secrets Manifest](secrets_manifest.md) - Credential management
-- [CI/CD](cicd.md) - Automated deployment

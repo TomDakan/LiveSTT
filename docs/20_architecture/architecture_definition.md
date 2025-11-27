@@ -1,24 +1,24 @@
 # Architecture Definition Document (ADD)
 
 ## 1. System Overview
-The **Live STT** system is a high-reliability, real-time speech-to-text appliance designed for edge deployment on embedded hardware (Jetson Orin Nano). It implements an event-driven microservices architecture using ZeroMQ as the central message broker, enabling decoupled communication between audio processing, transcription, and UI services.
+The **Live STT** system is a high-reliability, real-time speech-to-text appliance designed for "Industrial Split-Brain" deployment on x86 hardware (ASRock Industrial NUC). It implements a dual-stream architecture where transcription is offloaded to the cloud (Deepgram Nova-3) while biometric identification runs locally on the edge (OpenVINO), synchronized via a "Time Zipper" service.
 
 **Key Design Principles:**
-- **Failure Domain Isolation**: UI (api-gateway) and transcription (stt-provider) run in separate containers
-- **Zero Data Loss**: On-disk buffering during network outages
-- **Multi-Tier Hardware Support**: Jetson (Tier 1), Desktop GPU (Tier 2), CPU-only (Tier 3)
+- **Split-Brain Processing**: Decoupled cloud transcription (high accuracy) and edge biometrics (low latency/privacy)
+- **Industrial Reliability**: Fanless x86 hardware with Power Loss Protection (PLP) and "Black Box" filesystem
+- **Event-Driven**: NATS-based messaging backbone for persistence and observability
 
 ## 2. System Context (C4 Level 1)
 ```mermaid
 C4Context
-  title System Context - Live STT Appliance
+  title System Context - Live STT Appliance (v7.3)
   
   Person(operator, "AV Operator", "Church staff member")
   Person(admin, "System Administrator", "Manages configuration and reviews transcripts")
   
-  System(livesst, "Live STT Appliance", "Real-time speech transcription appliance")
+  System(livesst, "Live STT Appliance", "Real-time speech transcription & identification")
   
-  System_Ext(deepgram, "Deepgram API", "Cloud STT service")
+  System_Ext(deepgram, "Deepgram API", "Cloud STT service (Nova-3)")
   System_Ext(balena, "Balena Cloud", "Fleet management and deployment")
   
   Rel(operator, livesst, "Views live transcripts", "WebSocket")
@@ -30,123 +30,124 @@ C4Context
 ## 3. Container Diagram (C4 Level 2)
 ```mermaid
 C4Container
-  title Container Diagram - Live STT Microservices
+  title Container Diagram - Live STT Microservices (v7.3)
 
   Person(user, "User")
   
   Container_Boundary(appliance, "Live STT Appliance") {
     Container(gateway, "api-gateway", "FastAPI/Python", "Web UI, WebSocket server, config management")
-    Container(broker, "broker", "C++ zmq_proxy", "Central event bus (XPUB/XSUB)")
-    Container(producer, "audio-producer", "Python/PyAudio", "Microphone capture, RMS monitoring")
-    Container(stt, "stt-provider", "Python/Deepgram SDK", "Cloud STT client, resilience, sanitizer")
-    Container(classifier, "audio-classifier", "Python/TFLite", "YAMNet music detection")
-    Container(identifier, "identifier", "Python/PyTorch", "Speaker biometric ID (GPU)")
-    Container(watchdog, "health-watchdog", "Python", "Service health monitoring")
+    Container(broker, "NATS Server", "Go", "Central event bus with JetStream persistence")
+    Container(producer, "audio-producer", "Python/PipeWire", "Microphone capture, RMS monitoring")
+    Container(stt, "stt-provider", "Python/Deepgram SDK", "Cloud STT client, offline buffering")
+    Container(identifier, "identifier", "Python/OpenVINO", "Speaker biometric ID (WeSpeaker)")
+    Container(manager, "identity-manager", "Python", "Time Zipper (merges text + identity)")
   }
   
   System_Ext(deepgram, "Deepgram API")
-  ContainerDb(nvme, "NVMe Storage", "SQLite + Encrypted Files")
+  ContainerDb(lancedb, "LanceDB", "Vector DB for Biometrics")
+  ContainerDb(blackbox, "Black Box Storage", "Loopback ext4 (data=journal)", "Crash-proof persistence")
   
   Rel(user, gateway, "Views transcripts", "WSS")
-  Rel(producer, broker, "Publishes audio.raw", "ZMQ PUB")
-  Rel(broker, stt, "Routes audio.raw", "ZMQ SUB")
-  Rel(broker, classifier, "Routes audio.raw", "ZMQ SUB")
-  Rel(broker, identifier, "Routes audio.raw", "ZMQ SUB")
+  Rel(producer, broker, "Publishes audio.raw", "NATS")
+  Rel(broker, stt, "Routes audio.raw", "NATS")
+  Rel(broker, identifier, "Routes audio.raw", "NATS")
   Rel(stt, deepgram, "Streams PCM", "WSS")
-  Rel(stt, broker, "Publishes text.transcript", "ZMQ PUB")
-  Rel(broker, gateway, "Routes text.transcript", "ZMQ SUB")
-  Rel(gateway, nvme, "Stores config, logs")
-  Rel(stt, nvme, "Buffers audio, saves QA snippets")
+  Rel(stt, broker, "Publishes text.transcript", "NATS")
+  Rel(identifier, lancedb, "Queries embeddings")
+  Rel(identifier, broker, "Publishes identity.event", "NATS")
+  Rel(broker, manager, "Routes text + identity", "NATS")
+  Rel(manager, broker, "Publishes merged events", "NATS")
+  Rel(broker, gateway, "Routes final events", "NATS")
+  Rel(stt, blackbox, "Buffers offline audio")
 ```
 
 ## 4. Component List
 
 | Service | Technology | Purpose | Resilience Strategy |
 |---------|-----------|---------|---------------------|
-| **broker** | C++ ZMQ | Central event bus | Stateless, instant restart |
-| **audio-producer** | Python/PyAudio | Mic capture | RMS monitoring, clipping detection |
-| **stt-provider** | Python/Deepgram | Cloud STT client | On-disk buffering, catch-up on reconnect |
-| **api-gateway** | FastAPI | Web UI, config | Decoupled from audio path, always responsive |
-| **audio-classifier** | TFLite/YAMNet | Music detection | Pause STT during music |
-| **identifier** | PyTorch/GPU | Speaker ID | Local biometric matching |
-| **health-watchdog** | Python | Service monitor | Exposes /status for dashboard |
-| **data-sweeper** | Python/cron | Data retention | Automated compliance (deletes review files >24h) |
+| **NATS** | Go | Central event bus | JetStream persistence, cluster-ready |
+| **audio-producer** | Python/PipeWire | Mic capture | Ring buffer, non-blocking I/O |
+| **stt-provider** | Python/Deepgram | Cloud STT client | "Black Box" buffering, auto-reconnect |
+| **identifier** | Python/OpenVINO | Speaker ID | Local iGPU inference, fallback to CPU |
+| **identity-manager** | Python | Sensor Fusion | Hybrid tagging strategy (no timestamp drift) |
+| **api-gateway** | FastAPI | Web UI, config | Read-only NATS access, decoupled UI |
 
 ## 5. Deployment View
 
-### Local Development (Tier 3)
+### Production (Industrial x86)
 ```yaml
-docker-compose.dev.yml:
-  - Mock audio producer (reads .wav files)
-  - All services except identifier (no GPU required)
-  - Mounts: ./data, ./config
-```
-
-### Production (Tier 1 - Jetson)
-```yaml
-BalenaOS:
+BalenaOS (Generic x86):
   - Fleet managed via Balena Cloud
-  - TPM 2.0 for key sealing
-  - Public device URL for remote access
-  - Volume: /data (NVMe, encrypted)
+  - Hardware: ASRock NUC BOX-N97
+  - Storage: /data (Transcend PLP NVMe)
+  - Audio: Focusrite Scarlett Solo (PipeWire)
+  - Watchdog: Hardware WDT enabled
 ```
 
-### Hardware Tiers
-- **Tier 1 (Jetson Orin Nano)**: Full stack including identifier (GPU), TPM sealing
-- **Tier 2 (Desktop GPU)**: Docker Compose, user-provided encryption key
-- **Tier 3 (CPU-only)**: Dev/testing, no identifier service
-
-## 6. Data Flow
+## 6. Data Flow (Split-Brain)
 
 ```mermaid
 sequenceDiagram
     participant Mic as audio-producer
-    participant Broker as broker
+    participant NATS as NATS JetStream
     participant STT as stt-provider
-    participant DG as Deepgram API
+    participant ID as identifier
+    participant Zip as identity-manager
     participant UI as api-gateway
-    participant User
 
-    Mic->>Broker: PUB audio.raw (16kHz PCM)
-    Broker->>STT: SUB audio.raw
-    STT->>DG: WSS stream (with endpointing)
-    DG-->>STT: JSON transcript
-    STT->>Broker: PUB text.transcript
-    Broker->>UI: SUB text.transcript
-    UI->>User: WebSocket broadcast
+    par Split-Brain
+        Mic->>NATS: Pub audio.raw
+        NATS->>STT: Stream audio
+        NATS->>ID: Stream audio
+    end
+
+    par Parallel Processing
+        STT->>Deepgram: WSS Stream
+        Deepgram-->>STT: Transcript (Speaker A)
+        STT->>NATS: Pub text.transcript
+        
+        ID->>OpenVINO: Inference
+        OpenVINO-->>ID: Vector
+        ID->>LanceDB: Lookup
+        ID->>NATS: Pub identity.event (Speaker A = Alice)
+    end
+
+    NATS->>Zip: Sub text + identity
+    Zip->>Zip: Hybrid Tagging (Apply "Alice" to "Speaker A")
+    Zip->>NATS: Pub events.merged
+    NATS->>UI: Sub events.merged
+    UI->>User: WebSocket Broadcast
 ```
 
 ## 7. Key Architectural Decisions
 
 See [ADRs](adrs/) for detailed rationale:
-- [ADR-0001](adrs/0001-zmq-broker.md): ZMQ XPUB/XSUB broker pattern
-- [ADR-0002](adrs/0002-decoupled-ui.md): Splitting stt-provider from api-gateway (v6.0)
-- [ADR-0003](adrs/0003-multi-tier-hardware.md): Multi-tier hardware strategy
-- [ADR-0004](adrs/0004-deepgram-selection.md): Deepgram as STT provider
-- [ADR-0005](adrs/0005-balenaos-deployment.md): BalenaOS for fleet management
+- [ADR-0007](adrs/0007-platform-pivot-x86.md): Pivot to x86 Industrial Platform
+- [ADR-0008](adrs/0008-split-brain-architecture.md): Split-Brain Architecture
+- [ADR-0009](adrs/0009-nats-migration.md): Migration to NATS
 
 ## 8. Quality Attributes
 
 | Attribute | Target | Implementation |
 |-----------|--------|----------------|
-| **Latency** | \< 500ms (mic → UI) | Direct ZMQ routing, local broker |
-| **Availability** | 99.9% uptime | Decoupled services, health monitoring |
-| **Resilience** | Zero data loss | On-disk buffering during outages |
-| **Security** | PII encrypted at rest | AES-256 per-file, TPM key sealing |
-| **Scalability** | Single-device | Optimized for edge, not distributed |
+| **Latency** | < 100ms (ID), < 500ms (Text) | Parallel processing, local biometrics |
+| **Reliability** | Zero Corruption | PLP Hardware + "Black Box" Journaling |
+| **Silence** | 0dB (Fanless) | ASRock NUC N97 (Passive Cooling) |
+| **Accuracy** | > 95% WER | Deepgram Nova-3 (Cloud) |
+| **Privacy** | Biometrics Local | Face/Voice vectors never leave device |
 
 ## 9. Technology Stack
 
-- **Broker**: ZeroMQ (C++)
-- **Services**: Python 3.13, FastAPI, PyAudio, Deepgram SDK
-- **ML**: TensorFlow Lite (YAMNet), PyTorch (SpeechBrain)
-- **Database**: SQLite
-- **Deployment**: Docker Compose, BalenaOS
-- **Hardware**: NVIDIA Jetson Orin Nano (Tier 1)
+- **Broker**: NATS (JetStream)
+- **Services**: Python 3.13, FastAPI, PipeWire
+- **ML**: OpenVINO (WeSpeaker), Deepgram Nova-3
+- **Database**: LanceDB (Vectors), SQLite (Config)
+- **OS**: BalenaOS (x86_64)
+- **Hardware**: ASRock Industrial NUC BOX-N97
 
 ---
 
 **See Also:**
-- [System Design](../system_design.md) - Detailed technical specification
+- [System Design v7.3](system_design_v7.3.md) - Detailed technical specification
 - [HSI](hsi.md) - Hardware/Software interface details
 - [Threat Model](threat_model.md) - Security architecture

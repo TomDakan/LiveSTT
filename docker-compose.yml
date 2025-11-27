@@ -1,8 +1,13 @@
 services:
-  broker:
-    build: ./services/broker
-    container_name: broker
-    restart: always
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats
+    command: "-js -sd /data/nats"
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./data/nats:/data/nats
     networks:
       - internal_overlay
 
@@ -13,52 +18,64 @@ services:
     ports:
       - "8000:8000"
     environment:
-      # Connects to the Broker's OUTPUT (XPUB) port
-      - ZMQ_SUB_URL=tcp://broker:5556
+      - NATS_URL=nats://nats:4222
     volumes:
       - ./data/db:/data/db
-      - ./data/review:/data/review
     networks:
       - internal_overlay
     depends_on:
-      - broker
+      - nats
 
-  mock-audio-producer:
+  audio-producer:
     build:
       context: ./services/audio-producer
       dockerfile: Dockerfile.mock
     container_name: audio-producer
     environment:
-      # Connects to the Broker's INPUT (XSUB) port
-      - ZMQ_BROKER_URL_INPUT=tcp://broker:5555
-      - ZMQ_SNDHWM=1000
+      - NATS_URL=nats://nats:4222
     networks:
       - internal_overlay
     depends_on:
-      - broker
+      - nats
+
   stt-provider:
     build: ./services/stt-provider
     container_name: stt-provider
     restart: unless-stopped
     environment:
-      # Connects to Broker Output (XPUB) to hear audio
-      - ZMQ_SUB_URL=tcp://broker:5556
-      # Connects to Broker Input (XSUB) to publish text
-      - ZMQ_PUB_URL=tcp://broker:5555
-      # Fallback if secrets aren't used (optional)
+      - NATS_URL=nats://nats:4222
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
     networks:
       - internal_overlay
     depends_on:
-      - broker
+      - nats
+
+  identifier:
+    build: ./services/identifier
+    container_name: identifier
+    environment:
+      - NATS_URL=nats://nats:4222
+    volumes:
+      - ./data/lancedb:/data/lancedb
+    networks:
+      - internal_overlay
+    depends_on:
+      - nats
+
+  identity-manager:
+    build: ./services/identity-manager
+    container_name: identity-manager
+    environment:
+      - NATS_URL=nats://nats:4222
+    networks:
+      - internal_overlay
+    depends_on:
+      - nats
 
 networks:
   internal_overlay:
     driver: bridge
-    internal: true
 
 secrets:
   deepgram_key:
     file: ./secrets/deepgram_key.txt
-  master_encryption_key:
-    file: ./secrets/master_encryption_key.bin

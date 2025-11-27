@@ -1,0 +1,18 @@
+services:
+  nats-surveyor:
+    image: natsio/nats-surveyor:latest
+    ports:
+      - "8080:8080"
+    environment:
+      SURVEYOR_SERVERS: "nats://nats:4222"
+    profiles: ["dev"]
+    networks:
+      - internal_overlay
+
+  nats:
+    command:
+      - "--debug"   # Enable debug logging in dev
+      - "--trace"   # Trace all messages
+      - "-js"       # JetStream
+      - "-sd"
+      - "/data/nats"

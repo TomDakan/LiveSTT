@@ -93,6 +93,22 @@ rebuild-hard service:
 adr *args:
     uv run scripts/new_adr.py {{ args }}
 
+# Interactive NATS debugging
+nats-cli:
+    docker run -it --network=host natsio/nats-box:latest
+
+# View all messages (dev spy mode)
+nats-spy:
+    docker run --network=host natsio/nats-box:latest nats sub ">"
+
+# Inspect specific subject
+nats-tail subject="audio.raw":
+    docker run --network=host natsio/nats-box:latest nats sub {{subject}}
+
+# NATS health check
+nats-health:
+    docker run --network=host natsio/nats-box:latest nats server check
+
 # Run the full quality assurance suite.
 qa:
     just format-check

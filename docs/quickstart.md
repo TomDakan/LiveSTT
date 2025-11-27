@@ -1,9 +1,7 @@
-# Quickstart Guide
+# Quickstart Guide (v7.3)
 
 ## Overview
-This guide will help you deploy the Live STT system on a **Tier 1 (Jetson Orin Nano)** device or a **Tier 2 (Desktop)** environment for testing.
-
-# TODO: review and validate once appliance is working E2E
+This guide will help you deploy the Live STT system on the **Tier 1 (Industrial x86)** platform or a **Tier 2 (Desktop)** environment for testing.
 
 > [!IMPORTANT]
 > This guide is for **end-users and administrators**. If you are a developer looking to contribute code, please see [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -13,9 +11,9 @@ This guide will help you deploy the Live STT system on a **Tier 1 (Jetson Orin N
 ## Prerequisites
 
 ### Hardware
-- **Compute**: NVIDIA Jetson Orin Nano (Tier 1) OR Desktop PC with NVIDIA GPU (Tier 2)
-- **Audio**: USB Audio Interface (e.g., Behringer UCA202) connected to PA system
-- **Network**: Ethernet connection (preferred) or stable WiFi
+- **Compute**: ASRock Industrial NUC BOX-N97 (Tier 1) OR Desktop PC (Tier 2)
+- **Audio**: Focusrite Scarlett Solo (or similar USB interface)
+- **Network**: Ethernet connection (preferred)
 
 ### Software Accounts
 - **Deepgram**: [Sign up](https://console.deepgram.com) and create an API Key.
@@ -23,19 +21,20 @@ This guide will help you deploy the Live STT system on a **Tier 1 (Jetson Orin N
 
 ---
 
-## Option A: Production Deployment (Jetson + Balena)
+## Option A: Production Deployment (Industrial NUC + Balena)
 
 ### 1. Create Fleet
 1. Log in to BalenaCloud.
 2. Click **"Create Fleet"**.
 3. Name: `live-stt-production`.
-4. Device Type: **NVIDIA Jetson Orin Nano**.
+4. Device Type: **Generic x86_64 (GPT)**.
 
 ### 2. Flash Device
 1. Click **"Add Device"** in your new fleet.
 2. Download the BalenaOS image (Development edition recommended for initial setup).
-3. Flash to microSD card / NVMe using [BalenaEtcher](https://www.balena.io/etcher/).
-4. Insert media into Jetson and power on.
+3. Flash to USB Drive using [BalenaEtcher](https://www.balena.io/etcher/).
+4. Insert USB into NUC, power on, and boot from USB (F11/F12).
+5. Install BalenaOS to internal NVMe when prompted.
 
 ### 3. Configure Variables
 In the Balena Dashboard, go to **Variables** and add:
@@ -91,6 +90,6 @@ Open browser to `http://localhost:8000`.
 
 ## Next Steps
 
-- **[Connect Audio](40_hardware/hbom.md)**: Setup your microphone or PA feed.
+- **[Connect Audio](40_hardware/assembly_guide.md)**: Setup your Focusrite interface.
 - **[Operations](60_ops/runbooks.md)**: Learn how to manage the system.
 - **[Troubleshooting](60_ops/runbooks.md#10-troubleshooting-service-crashes)**: Fix common issues.

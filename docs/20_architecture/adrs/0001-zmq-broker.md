@@ -1,6 +1,6 @@
 # Use ZeroMQ XPUB/XSUB Broker Pattern
 
-* **Status:** Accepted
+* **Status**: SUPERSEDED by [ADR-0009](0009-nats-migration.md)
 * **Date:** 2025-11-19
 
 ---

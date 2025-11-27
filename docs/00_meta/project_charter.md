@@ -12,7 +12,7 @@
 - Real-time transcription of live audio feeds (PA system).
 - Local web interface for viewing transcripts on personal devices.
 - Speaker identification for known staff (e.g., "Pastor Mike").
-- Multi-tier hardware support (Jetson Orin Nano, Desktop GPU, CPU-only).
+- Multi-tier hardware support (Industrial x86 NUC, Desktop GPU, CPU-only).
 - Secure management of biometric data (voiceprints).
 
 ### Out-of-Scope

@@ -12,19 +12,19 @@
 Full documentation is available in the `docs/` directory:
 
 - **[Quickstart](docs/quickstart.md)**: Deploy in 10 minutes.
-- **[Hardware Guide](docs/40_hardware/hbom.md)**: Recommended hardware (Jetson Orin Nano).
-- **[Architecture](docs/20_architecture/architecture_definition.md)**: System design and microservices.
+- **[Hardware Guide](docs/40_hardware/hbom.md)**: Industrial x86 (NUC N97) BOM.
+- **[Architecture](docs/20_architecture/architecture_definition.md)**: Split-Brain design (Cloud Text + Edge Identity).
 - **[API Reference](docs/api.md)**: REST and WebSocket API docs.
 
 ---
 
 ## 🌟 Features
 
-- **Offline-First**: Works without internet (buffers audio until connection restores).
-- **Real-Time**: Low latency (<500ms) transcription using Deepgram.
-- **Speaker ID**: Identifies known speakers (e.g., "Pastor Mike") using local biometrics.
-- **Resilient**: Auto-recovers from power loss and network outages.
-- **Privacy-Focused**: Voiceprints stored locally and encrypted.
+- **Split-Brain Architecture**: Combines Cloud STT accuracy with Edge Biometric privacy.
+- **Deepgram Nova-3**: Industry-leading transcription accuracy and speed.
+- **Hybrid Tagging**: Zero-drift speaker identification using local biometrics.
+- **Industrial Reliability**: Fanless x86 hardware with Power Loss Protection (PLP).
+- **Offline-First**: "Black Box" loopback filesystem ensures zero data loss during outages.
 
 ---
 
@@ -56,7 +56,7 @@ Full documentation is available in the `docs/` directory:
 - **Python**: 3.10+ (tested on 3.12-3.13)
 - **Package Manager**: [pdm](https://pdm-project.org/) (uses uv as backend)
 - **Task Runner**: [just](https://github.com/casey/just) (optional but recommended)
-- **Docker** (optional, for containerized testing)
+- **Docker**: Required for NATS and LanceDB
 
 ### Setup
 
@@ -82,19 +82,13 @@ Full documentation is available in the `docs/` directory:
 This is a **monorepo** with multiple microservices. Run individual services for development:
 
 ```bash
-# Run the API Gateway (REST + WebSocket)
+# 1. Start Infrastructure (NATS + LanceDB)
+docker compose up -d nats lancedb
+
+# 2. Run Services (in separate terminals)
 just start api-gateway
-
-# Run the STT Provider (Deepgram integration)
 just start stt-provider
-
-# Run the Message Broker (ZMQ proxy)
-just start broker
-```
-
-Or run all services via Docker Compose:
-```bash
-docker compose up
+just start identity-manager
 ```
 
 ### Development Commands
@@ -104,47 +98,32 @@ We use [Just](https://github.com/casey/just) for common tasks:
 ```bash
 just qa              # Run full QA suite (format, lint, type-check, test, security)
 just format          # Auto-format code with Ruff
-just format-check    # Check formatting (CI-safe)
-just lint            # Run linter (auto-fix)
 just type-check      # Run MyPy type checking
 just test            # Run pytest
-just bandit-check    # Security scan with Bandit
-```
-
-### Testing
-
-Run the test suite:
-```bash
-# All tests
-pytest
-
-# With coverage report
-pytest --cov
-
-# Specific test file
-pytest tests/test_settings.py
+just nats-cli        # Open NATS CLI shell
+just nats-spy        # Watch all NATS messages
 ```
 
 ### Project Structure
 
 ```
 live-stt/
-├── services/           # Microservices (each with own src, tests, deps)
-│   ├── api-gateway/   # FastAPI REST + WebSocket server
-│   ├── broker/        # ZMQ message broker (XSUB/XPUB)
-│   ├── stt-provider/  # Deepgram STT integration
-│   └── ...
-├── src/live_stt/      # Shared library code
-├── scripts/           # Utility scripts
-├── tests/             # Root-level tests
-├── justfile           # Task runner commands
-└── pyproject.toml     # Monorepo config (PDM workspace)
+├── services/           # Microservices
+│   ├── api-gateway/    # FastAPI REST + WebSocket server
+│   ├── stt-provider/   # Deepgram STT integration
+│   ├── identifier/     # OpenVINO Biometrics
+│   └── identity-manager/ # Hybrid Tagging Logic
+├── src/live_stt/       # Shared library code
+├── docs/               # Architecture & Ops docs
+├── justfile            # Task runner commands
+└── pyproject.toml      # Monorepo config
+```
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to set up your development environment and submit pull requests.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ---
 
