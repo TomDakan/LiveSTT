@@ -1,30 +1,19 @@
-# GEMINI.md - Context & Architecture
+# GEMINI.md - Context & Navigation
 
 > [!IMPORTANT]
 > **CRITICAL INSTRUCTION FOR LLMS:**
-> This file contains the GROUND TRUTH for this project's architecture and context.
-> You MUST read this file before making any structural changes or answering architectural questions.
-> If you are unsure about a pattern, refer to the "Architecture" section below.
+> This file is the MAP. The TRUTH is in the linked files below.
+> You MUST read the specific files linked here to understand the current project state.
 
-## Project Identity
-- **Project Name:** live-stt
-- **Hardware Target:** Jetson Orin Nano
-- **Architecture:** Microservices
+## 1. Architecture & Specs
+*   **Active System Design**: [docs/20_architecture/system_design_v7.3.md](docs/20_architecture/system_design_v7.3.md) (READ THIS FIRST)
+    *   *Contains*: Hardware Topology, Data Path ("Split-Brain"), Component Design, Microservices.
+*   **Hardware Constraints**: See "Hardware Topology" in the design doc above.
+*   **IPC Pattern**: See "Component Design" in the design doc above (currently NATS).
 
-- **IPC Method:** ZMQ
+## 2. Development Standards
+*   **Workflow & Commands**: [CONTRIBUTING.md](CONTRIBUTING.md)
+*   **Coding Style**: [CONTRIBUTING.md](CONTRIBUTING.md) section 6.
 
-
-## Overview
-This project aims to... (TODO: Add goal)
-
-## Architecture
-This project follows a **Microservices** pattern.
-
-
-### Communication
-Services communicate via **ZMQ**.
-
-
-## Development Guidelines
-1. **Docs-as-Code:** Update this file when architectural decisions change.
-2. **Hardware Constraints:** Respect the limitations of Jetson Orin Nano.
+## 3. Current Status
+*   **Active Roadmap**: [ROADMAP.md](ROADMAP.md)
