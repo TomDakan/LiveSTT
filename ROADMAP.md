@@ -1,200 +1,83 @@
-# Roadmap
+# Roadmap (v7.3)
 
 ## Overview
-This document outlines the development roadmap for Live STT, organized by quarterly releases and detailed milestones.
+This document outlines the development roadmap for Live STT (v7.3 Industrial Split-Brain), organized by phases and milestones.
 
 ---
 
-## Version 6.2 Development (Current)
+## Phase 1: The "Ironclad" Foundation (Week 1)
+**Goal**: Crash-proof Hardware Setup & Basic Audio
 
-Development is organized into 4 phases with 13 milestones:
-
-### Phase 0: Foundation & Data Strategy (M0-M0.5)
-**Goal**: Establish the build pipeline and test datasets
-
-#### Milestone 0: Scaffolding & Config
-- Repo initialization & Docker strategy
-- `just` setup automation (Secrets/Data directories)
-
-#### Milestone 0.5: The Data Harvest ⭐
+### Milestone 0.5: The Data Harvest (Data Strategy)
 - **Silver Mining**: Download 20h YouTube auto-captions, extract phrases using `mine_phrases.py`
-- **Gold Creation**: 
+- **Gold Creation**:
   - Download 3 service recordings
   - Extract 15 × 3-minute clips (ffmpeg)
   - Manually correct transcripts (Human-in-the-Loop)
   - Commit to `tests/data/gold_standard/`
 
----
+### Milestone 1: Hardware & OS
+- [ ] Provision ASRock NUC N97 with BalenaOS
+- [ ] Configure BIOS (Power On After Fail, Watchdog)
+- [ ] Implement "Black Box" Loopback Filesystem (`entrypoint.sh`)
 
-### Phase 1: Infrastructure & Messaging (M1-M2)
-**Goal**: Establish the "Nervous System" (ZMQ broker)
-
-#### Milestone 1: The Core Stack
-- `broker` service (Two-Port: 5555/5556)
-- `mock-audio-producer` (ZMQ HWM testing)
-- `api-gateway` (UI Skeleton)
-
-#### Milestone 2: Hardware Validation
-- Deploy to NUC/Jetson
-- Thermal burn-in testing (`stress-ng`)
+### Milestone 2: Audio Pipeline
+- [ ] `audio-producer` service (ALSA -> NATS)
+- [ ] Verify Focusrite Solo input (16kHz, Linear16)
+- [ ] NATS JetStream configuration (`audio.raw` persistence)
 
 ---
 
-### Phase 2: Core STT & Resilience (M3-M6)
-**Goal**: Implement decoupled transcription
+## Phase 2: The "Cloud Ear" (Week 2)
+**Goal**: End-to-End Transcription (Mic -> UI)
 
-#### Milestone 3: The stt-provider
-- Deepgram SDK integration
-- **Regression Test**: Run Gold Standard clips, calculate WER
+### Milestone 3: Cloud Transcription
+- [ ] Update `stt-provider` to consume NATS
+- [ ] Implement Deepgram Nova-3 streaming
+- [ ] "Black Box" offline buffering logic
 
-#### Milestone 4: Context & Quality
-- Music Detection (`audio-classifier`)
-- PhraseSet injection (using M0.5 data)
-
-#### Milestone 5: Zero Data Loss
-- NVMe buffering ("Catch Up" logic)
-- Frontend timestamp sorting
-
-#### Milestone 6: Observability
-- `health-watchdog` service
-- Status monitoring
+### Milestone 4: Full System Integration (Text Only)
+- [ ] Update `api-gateway` to consume `text.transcript`
+- [ ] End-to-end testing (Mic -> NATS -> Deepgram -> UI)
+- [ ] Web UI updates (WebSocket consumer)
 
 ---
 
-### Phase 3: Security & Compliance (M7-M11)
-**Goal**: Secure PII and build admin interfaces
+## Phase 3: The "Edge Eye" (Week 3)
+**Goal**: Biometric Identification & Hybrid Tagging
 
-#### Milestone 7: data-sweeper & Encryption
-- Automated data retention (configurable via env var)
-- AES-256 per-file encryption
+### Milestone 5: OpenVINO Optimization
+- [ ] Export Silero VAD to ONNX
+- [ ] Export WeSpeaker ResNet34 to ONNX (INT8 Quantization)
+- [ ] Create `identifier` service skeleton
 
-#### Milestone 8: Admin Dashboard
-- SQLAdmin integration
-- PhraseSet management UI
-
-#### Milestone 8.5: Maintainer/DevOps Tooling ⭐ *New*
-**Purpose**: Developer/maintainer operations via CLI (separate from end-user admin UI)
-
-**Validation Commands** (Pre-Deployment):
-- `just burn-in-test` - 60-minute thermal stability test with temperature monitoring
-- `just validate-network` - 10-minute offline buffering test
-- `just validate-gold-corpus` - Run WER regression test (< 5% pass criteria)
-- `just validate-security` - TPM sealing verification (Tier 1) or encryption key audit (Tier 2/3)
-
-**Diagnostic Commands** (Troubleshooting):
-- `just health-check` - All service + hardware status report
-- `just gpu-info` - CUDA/cuDNN availability check
-- `just disk-usage` - Storage utilization by service/volume
-- `just temp-monitor` - Real-time CPU/GPU temperature logging
-
-**Operational Commands** (Maintenance):
-- `just logs-aggregate` - Tail all service logs in single view
-- `just backup-config` - Export PhraseSets and settings
-- `just restore-config` - Import configuration from backup
-- `just reset-buffers` - Clear /data/buffer (recovery troubleshooting)
-
-**Access Method**: CLI via Balena SSH (`balena ssh <device-uuid>`)
-
-**Optional Future Enhancement**: Barebones web dashboard on port `:9000` for visual feedback during long-running tests (burn-in progress bars, live log tailing)
-
-**See**: [ADR-0006](docs/20_architecture/adrs/0006-maintainer-tooling.md)
-
-#### Milestone 9: The Review Queue
-- Low-confidence snippet capture
-- Admin playback interface
-
-#### Milestone 10: Speaker Enrollment
-- Voiceprint upload functionality
-- Encrypted storage
-
-#### Milestone 11: GPU Infrastructure Upgrade
-- Migrate to Tier 1 (Jetson) or Tier 2 (Desktop GPU)
+### Milestone 6: Identity Manager
+- [ ] Implement `identifier` service (VAD + Vector Extraction)
+- [ ] Implement `identity-manager` service (Session Map)
+- [ ] Merge `text.transcript` and `identity.event`
 
 ---
 
-### Phase 4: Local AI (M12-M13)
-**Goal**: Enable biometric speaker identification
+## Phase 4: Integration & Burn-In (Week 4)
+**Goal**: Deployment Ready
 
-#### Milestone 12: identifier Service
-- SpeechBrain ECAPA-TDNN integration
-- GPU-accelerated inference
-
-#### Milestone 13: Correlation Engine
-- Map Deepgram "Speaker 0" to enrolled names
-- UI display with speaker labels
+### Milestone 7: Full System Integration
+- [ ] End-to-end testing (Mic -> UI)
+- [ ] Web UI updates (WebSocket consumer)
+- [ ] 7-Day Burn-in Test
 
 ---
 
-## Quarterly Release Plan
+## Future Roadmap (Post-v7.3)
 
-### Q1 2026: Foundation (v0.5)
-**Status**: In Progress
-
-- [x] Core Architecture Definition
-- [x] Basic Transcription (Deepgram)
-- [x] Documentation structure (Docs-as-Code)
-- [ ] Web UI Implementation (M1)
-- [ ] Docker Compose Dev Environment (M0-M1)
-
-**Corresponds to**: Phases 0-1 (M0-M2)
-
----
-
-### Q2 2026: Production Ready (v1.0)
-**Target Features**:
-
-- [ ] Jetson Orin Nano Support (Tier 1)
-- [ ] Speaker Identification (SpeechBrain)
-- [ ] BalenaCloud Deployment
-- [ ] Offline Buffering & Recovery
-
-**Corresponds to**: Phases 2-3 (M3-M11)
-
-**Release Criteria**:
-- Gold Standard regression test: WER < 5%
-- 60-minute thermal stability test passes
-- Data retention compliance verified
-
----
-
-### Q3 2026: Enhanced Features (v1.5)
-**Target Features**:
-
-- [ ] Open Captioning (HDMI Output)
-- [ ] Translation Support (Deepgram Translate)
-- [ ] Custom Vocabulary Editor UI
-
-
-**Status**: Planning phase
-
----
-
-### Q4 2026: Enterprise (v2.0)
-**Target Features**:
-
+### Q1 2026: Enterprise Features
 - [ ] LDAP/SSO Integration
-- [ ] Cloud Archiving (S3)
-- [ ] Mobile App (iOS/Android)
-- [ ] Analytics Dashboard
-
-**Status**: Future consideration
+- [ ] Cloud Archiving
+- [ ] Mobile App
 
 ---
 
-## Key Milestones Summary
-
-| Milestone | Phase | Description | Status |
-|-----------|-------|-------------|--------|
-| **M0** | Foundation | Scaffolding & Docker | ✅ Complete |
-| **M0.5** | Foundation | Data Harvest (Silver/Gold) | 🔄 In Progress |
-| **M1** | Infrastructure | Core Stack (broker, gateway) | 📋 Planned |
-| **M2** | Infrastructure | Hardware Validation | 📋 Planned |
-| **M3** | STT | stt-provider + WER Testing | 📋 Planned |
-| **M7** | Security | data-sweeper & Encryption | 📋 Planned |
-| **M8** | Security | Admin Dashboard | 📋 Planned |
-| **M12** | AI | Speaker Identification | 📋 Planned |
-
-For detailed technical specifications, see:
+**See Also:**
 - [Architecture Definition](docs/20_architecture/architecture_definition.md)
-- [Master Test Plan](docs/50_qa/master_test_plan.md)
-- [Traceability Matrix](docs/10_requirements/traceability_matrix.md)
+- [System Design v7.3](docs/temp_design_update.md)
+
