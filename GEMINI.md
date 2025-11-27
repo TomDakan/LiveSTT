@@ -13,6 +13,7 @@
 
 ## 2. Development Standards
 *   **Workflow & Commands**: [CONTRIBUTING.md](CONTRIBUTING.md)
+*   **AI Collaboration**: [docs/implementation_guides/00_workflow.md](docs/implementation_guides/00_workflow.md)
 *   **Coding Style**: [CONTRIBUTING.md](CONTRIBUTING.md) section 6.
 
 ## 3. Current Status
