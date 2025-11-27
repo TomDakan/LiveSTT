@@ -74,6 +74,11 @@ log service:
 
 # --- Development ---
 
+# Start a service locally (Usage: just start api-gateway, just start stt-provider, etc.)
+start service:
+    @echo "Starting {{service}}..."
+    python -c "import sys, os; os.chdir('services/{{service}}'); from src import main"
+
 # Open a shell inside a container (Usage: just shell api-gateway)
 shell service:
     docker compose exec -it {{ service }} /bin/bash
