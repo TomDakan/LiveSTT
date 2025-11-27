@@ -22,7 +22,7 @@ Thank you for considering contributing to this project! Please follow these guid
 
 2. **Install Dependencies**:
    ```bash
-   mise install  # Installs Python 3.13, PDM, etc.
+   mise install  # Installs Python 3.11, PDM, etc.
    pdm install   # Installs Python packages
    ```
 
@@ -40,7 +40,7 @@ This project supports three hardware tiers. Choose the one that matches your set
 
 | Tier | Hardware | Docker Profile | Use Case |
 |------|----------|----------------|----------|
-| **Tier 1** | Jetson Orin Nano | `gpu` | Production, ARM64 testing |
+| **Tier 1** | Industrial NUC (N97) | `gpu` | Production, OpenVINO Inference |
 | **Tier 2** | Desktop w/ NVIDIA GPU | `gpu` | Full feature dev (w/ Speaker ID) |
 | **Tier 3** | CPU-only (Laptop/CI) | `cpu` (default) | Core logic, UI, API dev |
 
@@ -59,10 +59,11 @@ We use `just` to automate common tasks:
 - `just up`: Start services (Docker Compose)
 - `just down`: Stop services
 - `just logs`: Tail logs
+- `just nats-spy`: Monitor NATS message bus
+- `just nats-cli`: Interactive NATS shell
 - `just test`: Run unit tests
 - `just lint`: Run ruff and mypy
 - `just format`: Auto-format code
-- `just rebuild`: Rebuild Docker images
 
 ---
 
