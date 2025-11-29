@@ -7,7 +7,7 @@ authors = [
 ]
 # We stick to >=3.10 to match the Jetson (Tier 1) constraint,
 # even though this specific service could run on 3.13.
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "GPL-3.0"}
 

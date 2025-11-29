@@ -5,7 +5,7 @@ description = "Monorepo for High-Reliability STT Kiosk (v6.1)"
 authors = [
     { name = "Tom Dakan", email = "" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "GPL-3.0"}
 classifiers = [
@@ -24,6 +24,7 @@ distribution = false
 [tool.pdm.dev-dependencies]
 dev = [
     "pytest",
+    "pytest-asyncio",
     "pytest-cov",
     "ruff",
     "commitizen",
@@ -51,9 +52,13 @@ testpaths = [
     "services/stt-provider/tests",
     "services/identifier/tests",
     "services/audio-classifier/tests",
+    "services/audio-producer/tests",
     "tests",
 ]
-pythonpath = ["src"]
+pythonpath = [
+    "services/audio-producer/src",
+    "src",
+]
 markers = [
     "unit: Marks fast, self-contained unit tests.",
     "integration: Marks tests that require external resources.",
@@ -63,7 +68,7 @@ markers = [
 
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.12"
 mypy_path = "services"
 strict = true
 warn_unused_configs = true
@@ -77,9 +82,13 @@ module = "tests.*"
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+[[tool.mypy.overrides]]
+module = ["nats.*"]
+ignore_missing_imports = true
+
 [tool.ruff]
 line-length = 90
-target-version = "py310"
+target-version = "py312"
 src = ["services"]
 exclude = [
     ".venv",
