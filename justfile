@@ -11,15 +11,15 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 # Check if code formatting is correct (Ruff).
 format-check *args:
-    ruff format . --diff {{ args }}
+    cd "{{ invocation_directory() }}"; ruff format --diff {{ if args == "" { "." } else { args } }}
 
 # Apply code formatting (Ruff).
 format *args:
-    ruff format . {{ args }}
+    cd "{{ invocation_directory() }}"; ruff format {{ if args == "" { "." } else { args } }}
 
 # Run the linter and import sorter (Ruff).
 lint *args:
-    ruff check . --fix {{ args }}
+    cd "{{ invocation_directory() }}"; ruff check --fix {{ if args == "" { "." } else { args } }}
 
 # Run static type checking (MyPy).
 # Run static type checking (MyPy).
