@@ -8,6 +8,7 @@ Thank you for considering contributing to this project! Please follow these guid
 
 ### Prerequisites
 - **OS**: Linux (Ubuntu 22.04+), macOS, or Windows (WSL2)
+  > **Note**: The `audio-producer` service relies on ALSA and is fully functional only on Linux. On Windows/macOS, it will install without `pyalsaaudio` and must be run with the Mock audio source.
 - **Tools**:
   - `mise` (for managing Python/Node versions)
   - `docker` & `docker compose`
