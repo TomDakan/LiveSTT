@@ -15,6 +15,7 @@
 *   **Workflow & Commands**: [CONTRIBUTING.md](CONTRIBUTING.md)
 *   **AI Collaboration**: [docs/implementation_guides/00_workflow.md](docs/implementation_guides/00_workflow.md)
 *   **Coding Style**: [CONTRIBUTING.md](CONTRIBUTING.md) section 6.
+*   **Platform Support**: Some services (like `audio-producer`) have platform-specific dependencies (e.g., ALSA on Linux). These are handled via conditional dependencies in `pyproject.toml`.
 
 ## 3. Current Status
 *   **Active Roadmap**: [ROADMAP.md](ROADMAP.md)
