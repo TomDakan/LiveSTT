@@ -60,7 +60,7 @@ We need to verify that our `MockAudioSource` behaves like a real stream.
 ```python
 import pytest
 import asyncio
-from live_stt.audio.producer import MockAudioSource
+from producer import MockAudioSource  # Import from local src
 
 @pytest.mark.asyncio
 async def test_mock_timing():
