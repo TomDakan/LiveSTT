@@ -53,8 +53,8 @@ Full documentation is available in the `docs/` directory:
 
 ### Prerequisites
 
-- **Python**: 3.10+ (tested on 3.12-3.13)
-- **Package Manager**: [pdm](https://pdm-project.org/) (uses uv as backend)
+- **Python**: 3.12+ (managed by uv)
+- **Package Manager**: [uv](https://github.com/astral-sh/uv)
 - **Task Runner**: [just](https://github.com/casey/just) (optional but recommended)
 - **Docker**: Required for NATS and LanceDB
 
@@ -68,7 +68,8 @@ Full documentation is available in the `docs/` directory:
 
 2. **Install dependencies**:
    ```bash
-   pdm install
+   mise install
+   just install
    ```
 
 3. **Configure environment**:

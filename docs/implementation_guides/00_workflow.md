@@ -50,5 +50,5 @@ The User runs the project's standard verification tools.
 -   **Linting**: Ruff
 -   **Typing**: MyPy (Strict)
 -   **Tasks**: Just
--   **Package Manager**: PDM
+-   **Package Manager**: uv
 -   **Commits**: Conventional Commits (via `commitizen`)

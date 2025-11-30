@@ -97,7 +97,7 @@ journey
         Clone repository: 5: Alex
         Read README.md: 4: Alex
         Install mise: 3: Alex
-        Run pdm install: 5: Alex
+        Run just install: 5: Alex
         Confused by Docker setup: 1: Alex
     section Day 1 - First Run
         Read CONTRIBUTING.md: 4: Alex

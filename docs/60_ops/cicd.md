@@ -43,23 +43,25 @@ jobs:
         with:
           python-version: '3.13'
       
-      - name: Install PDM
-        run: pip install pdm==2.12.3
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
       
       - name: Install dependencies
-        run: pdm install
+        run: uv sync
       
       - name: Run Ruff (format check)
-        run: pdm run ruff format . --check
+        run: uv run ruff format . --check
       
       - name: Run Ruff (lint)
-        run: pdm run ruff check .
+        run: uv run ruff check .
       
       - name: Run MyPy
-        run: pdm run mypy .
+        run: uv run mypy .
       
       - name: Run Pytest
-        run: pdm run pytest --cov=services --cov-report=xml
+        run: uv run pytest --cov=services --cov-report=xml
       
       - name: Upload coverage
         uses: codecov/codecov-action@v3
@@ -168,15 +170,16 @@ jobs:
 # Example: services/stt-provider/Dockerfile
 
 # Stage 1: Builder (install dependencies)
-FROM python:3.13-slim as builder
-WORKDIR /build
-COPY pyproject.toml pdm.lock ./
-RUN pip install pdm && pdm install --prod --no-lock --no-editable
+FROM ghcr.io/astral-sh/uv:latest as builder
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
 
 # Stage 2: Runtime (minimal image)
 FROM python:3.13-slim
 WORKDIR /app
-COPY --from=builder /build/__pypackages__/3.13/lib /usr/local/lib/python3.13/site-packages
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
 COPY src/ ./src/
 CMD ["python", "-m", "src.main"]
 ```
@@ -203,8 +206,8 @@ docker buildx build \
 ### 3.3 Layer Caching
 ```dockerfile
 # Copy dependency files first (cache layer)
-COPY pyproject.toml pdm.lock ./
-RUN pdm install --prod
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project
 
 # Copy source code last (most frequently changed)
 COPY src/ ./src/
@@ -264,10 +267,10 @@ balena device set-release <DEVICE_UUID> <PREVIOUS_RELEASE_ID>
 ### 5.1 Unit Tests
 ```bash
 # Run locally
-pdm run pytest tests/unit/
+uv run pytest tests/unit/
 
 # Coverage threshold: 80%
-pdm run pytest --cov=services --cov-fail-under=80
+uv run pytest --cov=services --cov-fail-under=80
 ```
 
 ### 5.2 Integration Tests

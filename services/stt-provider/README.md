@@ -20,11 +20,11 @@ Connects to the Audio Broker, streams audio to Deepgram, and publishes transcrip
 
 1.  **Install Dependencies:**
     ```bash
-    pdm install
+    just install
     ```
 
 2.  **Run Locally:**
     ```bash
     # Ensure an audio broker is running first!
-    pdm run python src/main.py
+    uv run python src/main.py
     ```

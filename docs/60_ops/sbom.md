@@ -24,7 +24,7 @@ This document catalogs all software dependencies, Docker base images, and third-
 
 ### Core Services (audio-producer, stt-provider, api-gateway)
 
-Generated from `pdm.lock` (pinned versions):
+Generated from `uv.lock` (pinned versions):
 
 | Package | Version | License | Purpose | CVE Status |
 |---------|---------|---------|---------|------------|
@@ -39,7 +39,7 @@ Generated from `pdm.lock` (pinned versions):
 | **pydantic** | 2.6.3 | MIT | Data validation | ✅ No known CVEs |
 | **python-multipart** | 0.0.9 | Apache-2.0 | File uploads | ✅ No known CVEs |
 
-**Full Dependency Tree**: See `pdm.lock` (150+ transitive dependencies)
+**Full Dependency Tree**: See `uv.lock` (150+ transitive dependencies)
 
 ### ML Services (audio-classifier, identifier)
 
@@ -93,7 +93,7 @@ Generated from `pdm.lock` (pinned versions):
 
 | Tool | Version | Purpose | Used In |
 |------|---------|---------|---------|
-| **pdm** | 2.12.3 | Python dependency manager | CI/CD, local dev |
+| **uv** | latest | Python dependency manager | CI/CD, local dev |
 | **ruff** | 0.2.2 | Linter & formatter | CI/CD, pre-commit |
 | **mypy** | 1.8.0 | Type checker | CI/CD |
 | **pytest** | 8.0.2 | Test runner | CI/CD |
@@ -162,7 +162,7 @@ docker scan live-stt/api-gateway:latest
 | **Medium** (CVSS 4.0-6.9) | 30 days | Automated monthly audit |
 | **Low** (CVSS 0.1-3.9) | Best effort | Automated quarterly audit |
 
-**Version Pinning**: All production dependencies pinned in `pdm.lock` (reproducible builds)
+**Version Pinning**: All production dependencies pinned in `uv.lock` (reproducible builds)
 
 ---
 
@@ -170,12 +170,14 @@ docker scan live-stt/api-gateway:latest
 
 ### CycloneDX (JSON)
 ```bash
-pdm export --cyclonedx > sbom-cyclonedx.json
+# Pending uv support
+# uv export --format cyclonedx > sbom-cyclonedx.json
 ```
 
 ### SPDX (RDF)
 ```bash
-pdm export --spdx > sbom-spdx.rdf
+# Pending uv support
+# uv export --format spdx > sbom-spdx.rdf
 ```
 
 **Storage**: Committed to `/docs/60_ops/sbom/` directory with each release
