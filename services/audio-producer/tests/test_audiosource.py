@@ -1,8 +1,9 @@
 import time
 
 import pytest
-from audio_producer.interfaces import AudioSource
-from mocks import MockAudioSource
+from audio_producer.audiosource import AudioSource
+
+from tests.mocks import MockAudioSource
 
 
 @pytest.mark.asyncio

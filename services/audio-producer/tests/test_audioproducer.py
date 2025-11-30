@@ -1,6 +1,7 @@
 import pytest
 from audio_producer.main import NatsAudioPublisher
-from mocks import MockAudioSource, MockNatsClient
+
+from tests.mocks import MockAudioSource, MockNatsClient
 
 
 @pytest.mark.asyncio

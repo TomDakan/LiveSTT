@@ -5,6 +5,12 @@ description = "Audio Classifier Service"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.scripts]
+audio-classifier = "audio_classifier.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+extend = "../../ruff.toml"

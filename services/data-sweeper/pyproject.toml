@@ -5,6 +5,12 @@ description = "Data Sweeper Service"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.scripts]
+data-sweeper = "data_sweeper.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+extend = "../../ruff.toml"

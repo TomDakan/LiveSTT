@@ -5,6 +5,12 @@ description = "Health Watchdog Service"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.scripts]
+health-watchdog = "health_watchdog.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+extend = "../../ruff.toml"
