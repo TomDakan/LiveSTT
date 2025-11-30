@@ -28,6 +28,7 @@ dependencies = [
     "aiosqlite>=0.19.0",      # Async SQLite driver
     "sqladmin>=0.16.0",       # The Admin Dashboard
     "wtforms",                # underlying dep for sqladmin
+    "messaging",
 ]
 
 [project.scripts]

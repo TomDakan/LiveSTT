@@ -1,0 +1,11 @@
+uv run scripts/type_check.py api-gateway
+services\api-gateway\src\api_gateway\main.py:68: error: Name "Any" is not
+defined  [name-defined]
+        async def message_handler(msg: Any) -> None:
+                                       ^
+services\api-gateway\src\api_gateway\main.py:68: note: Did you forget to import it from "typing"? (Suggestion: "from typing import Any")
+Found 1 error in 1 file (checked 4 source files)
+Type checking C:\Users\Tom\source\repos\live-stt\services\api-gateway...
+
+Type checking failed.
+error: Recipe `type-check` failed on line 43 with exit code 1

@@ -1,0 +1,10 @@
+uv run scripts/type_check.py api-gateway
+services\api-gateway\src\api_gateway\main.py:68: error: Function is missing a
+type annotation for one or more arguments  [no-untyped-def]
+        async def message_handler(msg) -> None:
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Found 1 error in 1 file (checked 4 source files)
+Type checking C:\Users\Tom\source\repos\live-stt\services\api-gateway...
+
+Type checking failed.
+error: Recipe `type-check` failed on line 43 with exit code 1

@@ -3,10 +3,12 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager, suppress
+from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from nats.aio.client import Client as NATS
+from messaging.nats import NatsClient
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
@@ -16,8 +18,9 @@ NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 TRANSCRIPT_TOPIC = "text.transcript"
 
 # --- NATS Setup ---
-# Global client to be reused
-nc = NATS()
+# --- NATS Setup ---
+# We will inject this into the app state
+nats_client = NATS()
 
 
 @asynccontextmanager
@@ -27,12 +30,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger.info("API Gateway starting...")
     try:
-        await nc.connect(NATS_URL)
+        await nats_client.connect(NATS_URL)
         logger.info(f"Connected to NATS at {NATS_URL}")
+        # Store in app state for access in endpoints
+        app.state.nats = nats_client
         yield
     finally:
         logger.info("Shutting down... closing NATS connection.")
-        await nc.close()
+        await nats_client.close()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -61,7 +66,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     logger.info("Client connected to WebSocket.")
 
-    async def message_handler(msg):
+    async def message_handler(msg: Any) -> None:
         try:
             payload = msg.data.decode("utf-8")
             data = json.loads(payload)
@@ -74,6 +79,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         # We use a unique subscription for each client to keep it simple,
         # but for high scale we might want a shared subscription broadcasting to all
         # websockets.
+
+        # Access NATS from app state
+        nc: NatsClient = app.state.nats
         sub = await nc.subscribe(TRANSCRIPT_TOPIC, cb=message_handler)
 
         # Keep the connection open until client disconnects
