@@ -1,4 +1,3 @@
-# ruff: noqa: PERF203
 import asyncio
 import contextlib
 import json
@@ -6,8 +5,6 @@ import logging
 import os
 from typing import Any
 
-import zmq
-import zmq.asyncio
 from deepgram import (
     DeepgramClient,
     DeepgramClientOptions,
@@ -15,13 +12,13 @@ from deepgram import (
     LiveTranscriptionEvents,
 )
 from dotenv import load_dotenv
+from nats.aio.client import Client as NATS
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("stt-provider")
 
-ZMQ_SUB_URL = os.getenv("ZMQ_SUB_URL", "tcp://broker:5555")
-ZMQ_PUB_URL = os.getenv("ZMQ_PUB_URL", "tcp://broker:5556")
+NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 TOPIC_INPUT = "audio.raw"
 TOPIC_OUTPUT = "text.transcript"
 
@@ -41,54 +38,37 @@ def get_api_key() -> str:
 
 class STTService:
     def __init__(self) -> None:
-        self.ctx = zmq.asyncio.Context()
+        self.nc = NATS()
         self.audio_queue: asyncio.Queue[bytes] = asyncio.Queue()
         self.running = True
         self.api_key = get_api_key()
 
         # Initialize Deepgram Client (v3.x)
-        # Note: DeepgramClientOptions is now passed as 'config'
         config = DeepgramClientOptions(
             verbose=logging.WARNING,
         )
         self.dg_client = DeepgramClient(self.api_key, config)
 
-    async def setup_zmq(self) -> None:
-        """Initialize ZMQ Sockets."""
-        # Subscriber: Listens for Raw Audio
-        self.sub_sock = self.ctx.socket(zmq.SUB)
-        self.sub_sock.connect(ZMQ_SUB_URL)
-        self.sub_sock.setsockopt(zmq.SUBSCRIBE, TOPIC_INPUT)
-        logger.info(f"ZMQ Subscriber connected to {ZMQ_SUB_URL} (Topic: {TOPIC_INPUT})")
+    async def setup_nats(self) -> None:
+        """Initialize NATS Connection."""
+        try:
+            await self.nc.connect(NATS_URL)
+            logger.info(f"Connected to NATS at {NATS_URL}")
 
-        # Publisher: Sends Transcripts
-        self.pub_sock = self.ctx.socket(zmq.PUB)
-        self.pub_sock.connect(ZMQ_PUB_URL)
-        logger.info(f"ZMQ Publisher connected to {ZMQ_PUB_URL}")
+            # Subscribe to raw audio
+            await self.nc.subscribe(TOPIC_INPUT, cb=self.on_audio_message)
+            logger.info(f"Subscribed to {TOPIC_INPUT}")
+        except Exception as e:
+            logger.error(f"Failed to connect to NATS: {e}")
+            raise
 
-    async def zmq_ingestion_loop(self) -> None:
-        """
-        High-reliability ingestion.
-        Reads from ZMQ and buffers into RAM (asyncio.Queue).
-        This continues running even if Deepgram is disconnected.
-        """
-        logger.info("Starting ZMQ Ingestion Loop...")
-        while self.running:
-            try:
-                # Receive multipart: [topic, payload]
-                # We assume payload is raw PCM bytes
-                msg = await self.sub_sock.recv_multipart()
-                # topic = msg[0]
-                audio_data = msg[1]
-
-                # Put into buffer. If queue is huge, we might need a drop strategy later.
-                await self.audio_queue.put(audio_data)
-
-            except asyncio.CancelledError:
-                break
-            except Exception as e:
-                logger.error(f"Error in ZMQ Ingestion: {e}")
-                await asyncio.sleep(0.1)
+    async def on_audio_message(self, msg: Any) -> None:
+        """Callback for NATS audio messages."""
+        try:
+            # NATS message data is bytes
+            await self.audio_queue.put(msg.data)
+        except Exception as e:
+            logger.error(f"Error queuing audio: {e}")
 
     async def deepgram_sender_loop(self) -> None:
         """
@@ -127,9 +107,8 @@ class STTService:
                 logger.info("Deepgram Connected. Streaming audio...")
 
                 # Inner loop: Pump data from Queue -> Deepgram
-                # If this loop breaks, we fall back to the outer loop (reconnect)
                 while self.running:
-                    # Wait for audio data from the ZMQ ingestion loop
+                    # Wait for audio data from the NATS callback
                     data = await self.audio_queue.get()
 
                     # Send to Deepgram
@@ -145,14 +124,13 @@ class STTService:
                 await asyncio.sleep(2)
             finally:
                 # Ensure we try to close the connection cleanly if possible
-                # Ensure we try to close the connection cleanly if possible
                 with contextlib.suppress(Exception):
                     await dg_connection.finish()
 
     async def on_transcript(self, _: Any, result: Any, **kwargs: Any) -> None:
         """
         Callback when Deepgram returns a transcript.
-        Publishes result back to ZMQ.
+        Publishes result back to NATS.
         """
         try:
             # Extract the transcript string
@@ -170,11 +148,8 @@ class STTService:
                 "confidence": result.channel.alternatives[0].confidence,
             }
 
-            # Publish to ZMQ: [topic, json_string]
-            # Note: zmq.asyncio sockets are thread-safe for async functions
-            await self.pub_sock.send_multipart(
-                [TOPIC_OUTPUT.encode("utf-8"), json.dumps(payload).encode("utf-8")]
-            )
+            # Publish to NATS
+            await self.nc.publish(TOPIC_OUTPUT, json.dumps(payload).encode("utf-8"))
 
             if is_final:
                 logger.debug(f"Published Final: {sentence}")
@@ -187,17 +162,19 @@ class STTService:
 
     async def run(self) -> None:
         """Main entry point."""
-        await self.setup_zmq()
+        await self.setup_nats()
 
-        # Run ingestion and sender concurrently
-        ingestion_task = asyncio.create_task(self.zmq_ingestion_loop())
+        # Run sender loop (ingestion is handled by NATS callback)
         sender_task = asyncio.create_task(self.deepgram_sender_loop())
 
-        await asyncio.gather(ingestion_task, sender_task)
+        # Keep the main loop alive
+        with contextlib.suppress(asyncio.CancelledError):
+            # Wait for sender task or indefinitely
+            await sender_task
 
     async def shutdown(self) -> None:
         self.running = False
-        self.ctx.term()
+        await self.nc.close()
 
 
 if __name__ == "__main__":

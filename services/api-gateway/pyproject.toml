@@ -21,7 +21,7 @@ dependencies = [
     "typed-settings>=24.0.0", # For strongly typed env var loading
 
     # --- Messaging (M1) ---
-    "pyzmq>=25.1.2",          # Critical: Talks to the C++ Broker
+    "nats-py>=2.6.0",          # Messaging Backbone
 
     # --- Database & Admin (M8) ---
     "sqlalchemy>=2.0.0",
@@ -30,6 +30,12 @@ dependencies = [
     "wtforms",                # underlying dep for sqladmin
 ]
 
+[project.scripts]
+api-gateway = "api_gateway.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.ruff]
+extend = "../../ruff.toml"
