@@ -9,6 +9,7 @@ dependencies = [
     "pyalsaaudio>=0.10.0; sys_platform == 'linux'",
     "pyaudio>=0.2.14; sys_platform == 'win32'",
     "numpy>=1.26.0",
+    "messaging>=0.1.0",
 ]
 
 [project.scripts]

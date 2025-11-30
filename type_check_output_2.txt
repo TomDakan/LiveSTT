@@ -1,0 +1,10 @@
+services\stt-provider\src\stt_provider\deepgram_adapter.py:35: error: Return
+type "Coroutine[Any, Any, AsyncIterator[TranscriptionEvent]]" of "get_events"
+incompatible with return type "AsyncIterator[TranscriptionEvent]" in supertype
+"stt_provider.interfaces.Transcriber"  [override]
+        async def get_events(self) -> AsyncIterator[TranscriptionEvent]:
+        ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Found 1 error in 1 file (checked 7 source files)
+Type checking C:\Users\Tom\source\repos\live-stt\services\stt-provider...
+
+Type checking failed.

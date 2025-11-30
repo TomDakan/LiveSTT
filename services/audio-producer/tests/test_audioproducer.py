@@ -1,7 +1,8 @@
 import pytest
 from audio_producer.main import NatsAudioPublisher
 
-from tests.mocks import MockAudioSource, MockNatsClient
+from tests.mocks import MockAudioSource
+from messaging.nats import MockNatsClient
 
 
 @pytest.mark.asyncio
@@ -10,4 +11,4 @@ async def test_mock_nats_publisher() -> None:
     nats = MockNatsClient()
     producer = NatsAudioPublisher(source=source, nats=nats)
     await producer.start()
-    assert nats.publish_calls == 3
+    assert len(nats.published_messages) == 3

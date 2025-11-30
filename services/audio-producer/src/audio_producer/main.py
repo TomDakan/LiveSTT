@@ -7,8 +7,8 @@ from typing import Protocol, Self, runtime_checkable
 
 from nats.aio.client import Client as NATS
 
+from messaging.nats import NatsClient
 from .audiosource import AudioSource, LinuxSource, WindowsSource
-from .interfaces import NatsClient
 
 
 @runtime_checkable

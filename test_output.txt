@@ -1,0 +1,66 @@
+uv run pytest services/stt-provider 
+C:\Users\Tom\source\repos\live-stt\.venv\Lib\site-packages\coverage\control.py:950: CoverageWarning: No data was collected. (no-data-collected); see https://coverage.readthedocs.io/en/7.12.0/messages.html#warning-no-data-collected
+  self._warn("No data was collected.", slug="no-data-collected")
+C:\Users\Tom\source\repos\live-stt\.venv\Lib\site-packages\pytest_cov\plugin.py:363: CovReportWarning: Failed to generate report: No data to report.
+
+  warnings.warn(CovReportWarning(message), stacklevel=1)
+F
+WARNING: Failed to generate report: No data to report.
+
+                                                                         [100%]
+================================== FAILURES ===================================
+____________________________ test_stt_service_flow ____________________________
+
+    @pytest.mark.asyncio
+    async def test_stt_service_flow() -> None:
+        """
+        Verifies the full flow:
+        1. Audio message received via NATS.
+        2. Sent to Transcriber.
+        3. Transcriber yields event.
+        4. Service publishes event to NATS.
+        """
+        # TODO: 1. Setup Mocks and Service
+        # Hint: Instantiate MockNatsClient, MockTranscriber, and STTService
+        nats = MockNatsClient()
+        transcriber = MockTranscriber()
+        service = STTService(nats, transcriber)
+    
+        # TODO: 2. Start Service (in background)
+        # Hint: Use asyncio.create_task(service.start())
+        asyncio.create_task(service.start())
+        # Hint: Wait a bit for it to be "connected" (mock property)
+        await asyncio.sleep(0.1)
+    
+        # TODO: 3. Simulate Audio Input
+        # Hint: Use nats.trigger_message("audio.raw", b"...")
+        await nats.trigger_message("audio.raw", b"...")
+        # TODO: 4. Verify sent to transcriber
+        # Hint: Check transcriber.sent_audio list
+        assert len(transcriber.sent_audio) == 1
+    
+        # TODO: 5. Simulate Transcript Event
+        # Hint: Create a TranscriptionEvent and use transcriber.inject_event()
+        event = TranscriptionEvent(
+            text="test",
+            is_final=True,
+            confidence=1.0,
+        )
+        await transcriber.inject_event(event)
+    
+        # TODO: 6. Verify output published to NATS
+        # Hint: Check nats.published_messages list
+        # Hint: Verify subject is "text.transcript" and payload is valid JSON
+>       assert len(nats.published_messages) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <messaging.nats.MockNatsClient object at 0x00000178359530E0>.published_messages
+
+services\stt-provider\tests\test_service.py:49: AssertionError
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.12.12-final-0 _______________
+
+=========================== short test summary info ===========================
+FAILED services/stt-provider/tests/test_service.py::test_stt_service_flow - a...
+1 failed in 0.19s
+error: Recipe `test-service` failed on line 51 with exit code 1
