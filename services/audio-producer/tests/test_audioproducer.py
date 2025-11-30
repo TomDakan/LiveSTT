@@ -1,5 +1,5 @@
 import pytest
-from main import NatsAudioPublisher
+from audio_producer.main import NatsAudioPublisher
 from mocks import MockAudioSource, MockNatsClient
 
 

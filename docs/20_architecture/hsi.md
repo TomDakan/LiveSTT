@@ -9,7 +9,7 @@ This document defines the hardware/software interface for the Live STT system (v
 ```yaml
 services:
   nats:               # Central event bus (JetStream)
-  audio-producer:     # Microphone capture (PipeWire)
+  audio-producer:     # Analog audio capture (PipeWire)
   stt-provider:       # Deepgram client (Cloud Ear)
   identifier:         # Biometric ID (Edge Eye)
   identity-manager:   # Time Zipper (Hybrid Tagging)

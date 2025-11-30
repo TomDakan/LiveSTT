@@ -1,9 +1,9 @@
 [project]
-name = "stt-kiosk-monorepo"
+name = "live-stt-monorepo"
 version = "0.1.0"
-description = "Monorepo for High-Reliability STT Kiosk (v6.1)"
+description = "Monorepo for High-Reliability STT Appliance"
 authors = [
-    { name = "Tom Dakan", email = "" },
+    { name = "Tom Dakan", email = "tomdakan@gmail.com" },
 ]
 requires-python = ">=3.12"
 readme = "README.md"
@@ -16,80 +16,17 @@ classifiers = [
 # Dependencies (like typed-settings) belong in services/*/pyproject.toml
 dependencies = []
 
-[tool.pdm]
-# CRITICAL: This defines the monorepo structure
-workspace = ["services/*"]
-distribution = false
-
-[tool.pdm.dev-dependencies]
-dev = [
-    "pytest",
-    "pytest-asyncio",
-    "pytest-cov",
-    "ruff",
-    "commitizen",
-    "mypy",
-    "safety",
-    "bandit",
-    "python-semantic-release",
-    # Add type stubs here if needed (e.g. types-requests)
-]
-docs = [
-    "mkdocs",
-    "mkdocs-material",
-    "mkdocstrings[python]",
-]
+[tool.uv.workspace]
+members = ["services/*"]
 
 # ==============================================================================
-# SHARED TOOL CONFIGURATION (Applies to all services)
+# SHARED TOOL CONFIGURATION
 # ==============================================================================
-
-[tool.pytest.ini_options]
-minversion = "6.0"
-addopts = "-ra -q --cov=services --cov-report=term-missing"
-testpaths = [
-    "services/api-gateway/tests",
-    "services/stt-provider/tests",
-    "services/identifier/tests",
-    "services/audio-classifier/tests",
-    "services/audio-producer/tests",
-    "tests",
-]
-pythonpath = [
-    "services/audio-producer/src",
-    "src",
-]
-markers = [
-    "unit: Marks fast, self-contained unit tests.",
-    "integration: Marks tests that require external resources.",
-    "slow: Marks tests that are slow to run.",
-    "network: Marks tests that require a live network connection.",
-]
-
-
-[tool.mypy]
-python_version = "3.12"
-mypy_path = "services"
-strict = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unreachable = true
-show_error_codes = true
-pretty = true
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-
-[[tool.mypy.overrides]]
-module = ["nats.*"]
-ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 90
 target-version = "py312"
-src = ["services"]
+src = ["src", "services"]
 exclude = [
     ".venv",
     ".git",
@@ -111,6 +48,17 @@ select = [
 quote-style = "double"
 docstring-code-format = true
 
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --cov=src --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "unit: Marks fast, self-contained unit tests.",
+    "integration: Marks tests that require external resources.",
+    "slow: Marks tests that are slow to run.",
+    "network: Marks tests that require a live network connection.",
+]
+
 [tool.commitizen]
 name = "cz_conventional_commits"
 tag_format = "$version"
@@ -128,3 +76,22 @@ confidence = "MEDIUM"
 [tool.coverage.run]
 source = ["services"]
 omit = ["tests*", "*/__main__.py"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+    "commitizen",
+    "mypy",
+    "safety",
+    "bandit",
+    "python-semantic-release",
+    # Add type stubs here if needed (e.g. types-requests)
+]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+]

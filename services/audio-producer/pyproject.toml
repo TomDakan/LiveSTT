@@ -7,16 +7,15 @@ requires-python = ">=3.12"
 dependencies = [
     "nats-py>=2.6.0",
     "pyalsaaudio>=0.10.0; sys_platform == 'linux'",
+    "pyaudio>=0.2.14; sys_platform == 'win32'",
     "numpy>=1.26.0",
 ]
 
 [project.scripts]
-audio-producer = "main:main"
+audio-producer = "audio_producer.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[[tool.mypy.overrides]]
-module = "producer"
-python_version = "3.12"
+

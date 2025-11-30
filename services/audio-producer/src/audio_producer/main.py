@@ -5,9 +5,10 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self, runtime_checkable
 
-from audiosource import AudioSource, LinuxSource, WindowsSource
-from interfaces import NatsClient
 from nats.aio.client import Client as NATS
+
+from .audiosource import AudioSource, LinuxSource, WindowsSource
+from .interfaces import NatsClient
 
 
 @runtime_checkable

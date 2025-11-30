@@ -1,30 +1,32 @@
-FROM python:3.11-slim
+# services/stt-provider/Dockerfile
 
-# System dependencies:
-# - gcc: often needed for building python extensions
-# - libsndfile1: required by many audio processing libraries
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libsndfile1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install PDM
-RUN pip install -U pip setuptools wheel
-RUN pip install pdm
+FROM ghcr.io/astral-sh/uv:latest as builder
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Copy project definition files AND the Readme to satisfy PDM validation
-COPY pyproject.toml pdm.lock* README.md ./
+# Copy root workspace config
+COPY pyproject.toml uv.lock ./
+# Copy service config
+COPY services/stt-provider/pyproject.toml ./services/stt-provider/pyproject.toml
 
-# Install dependencies
-# --prod: skips dev dependencies
-# --no-lock: generates dependencies on the fly if lockfile is missing
-# --no-editable: installs the project as a standard package
-RUN pdm install --prod --no-lock --no-editable
+# Sync dependencies
+RUN uv sync --frozen --no-install-project --package stt-provider
 
-# Copy source code
-COPY src/ ./src/
+FROM python:3.12-slim
+WORKDIR /app
 
-# Run the application
-CMD ["pdm", "run", "python", "src/main.py"]
+# Copy venv
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy service code
+COPY services/stt-provider ./services/stt-provider
+# Copy root src if needed
+COPY src ./src
+
+# Install project
+RUN uv sync --frozen --package stt-provider
+
+CMD ["uv", "run", "python", "-m", "services.stt_provider.src.main"]

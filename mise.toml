@@ -1,11 +1,6 @@
 [tools]
-python = "3.13"
-pdm = "latest"
 uv = "latest"
 just = "latest"
 
 [env]
-_.python.venv = { path = ".venv", create = true }
-
-[settings]
-disable_tools = ["just"]
+PROJECT_ROOT = "{{config_root}}"

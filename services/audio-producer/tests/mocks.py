@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from types import TracebackType
 from typing import Any, Self
 
-from interfaces import AudioSource, NatsClient
+from audio_producer.interfaces import AudioSource, NatsClient
 
 
 class MockAudioSource(

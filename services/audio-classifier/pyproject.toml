@@ -1,0 +1,10 @@
+[project]
+name = "audio-classifier"
+version = "0.1.0"
+description = "Audio Classifier Service"
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

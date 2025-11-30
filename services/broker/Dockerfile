@@ -1,17 +1,32 @@
-FROM python:3.11-slim
+# services/broker/Dockerfile
 
-# We only need pyzmq for the broker.
-# Using pip directly here is acceptable for this "infrastructure" container
-# to keep the build ultra-light and fast, bypassing the heavy PDM install.
-RUN pip install --no-cache-dir pyzmq
+FROM ghcr.io/astral-sh/uv:latest as builder
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
 WORKDIR /app
 
-# Copy the source
-COPY src/ /app/src/
+# Copy root workspace config
+COPY pyproject.toml uv.lock ./
+# Copy service config
+COPY services/broker/pyproject.toml ./services/broker/pyproject.toml
 
-# Ensure Python path finds the module if needed, though we run by file path below
-ENV PYTHONPATH=/app
+# Sync dependencies
+RUN uv sync --frozen --no-install-project --package broker
 
-# Run unbuffered so logs show up in Docker immediately
-CMD ["python", "-u", "src/main.py"]
+FROM python:3.12-slim
+WORKDIR /app
+
+# Copy venv
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy service code
+COPY services/broker ./services/broker
+# Copy root src if needed
+COPY src ./src
+
+# Install project
+RUN uv sync --frozen --package broker
+
+CMD ["uv", "run", "python", "-u", "services/broker/src/main.py"]

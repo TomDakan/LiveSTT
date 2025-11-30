@@ -1,19 +1,33 @@
 # services/api-gateway/Dockerfile
 
-FROM python:3.11-slim
+FROM ghcr.io/astral-sh/uv:latest as builder
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
 WORKDIR /app
 
-# Install PDM
-RUN pip install pdm
+# Copy root workspace config
+COPY pyproject.toml uv.lock ./
+# Copy service config
+COPY services/api-gateway/pyproject.toml ./services/api-gateway/pyproject.toml
 
-# Copy ONLY this service's config
-COPY pyproject.toml pdm.lock* README.md ./
+# Sync dependencies (caching layer)
+RUN uv sync --frozen --no-install-project --package api-gateway
 
-# Install dependencies
-# --check: fail if lockfile is out of sync
-# --prod: don't install dev deps
-# --no-editable: don't install the project itself as editable
-RUN pdm install --check --prod --no-editable
+FROM python:3.12-slim
+WORKDIR /app
 
-COPY app/ ./app
-CMD ["pdm", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0"]
+# Copy venv
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy service code
+COPY services/api-gateway ./services/api-gateway
+# Copy root src if needed (shared code)
+COPY src ./src
+
+# Install project
+RUN uv sync --frozen --package api-gateway
+
+# Run
+CMD ["uv", "run", "uvicorn", "services.api_gateway.app.main:app", "--host", "0.0.0.0"]
