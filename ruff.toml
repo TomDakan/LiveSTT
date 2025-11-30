@@ -1,0 +1,23 @@
+line-length = 90
+target-version = "py312"
+src = ["src", "services"]
+exclude = [
+    ".venv",
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    "migrations",
+]
+
+[lint]
+select = [
+    "A", "E", "F", "W", "I", "UP", "B", "C90", "SIM", "PERF", "RUF"
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["B018", "S101"]
+
+[format]
+quote-style = "double"
+docstring-code-format = true
