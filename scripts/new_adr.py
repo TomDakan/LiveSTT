@@ -78,7 +78,7 @@ def main() -> None:
     if not title:
         print("Error: A title for the ADR is required.", file=sys.stderr)
         print("\nUsage example:")
-        print('  pdm run adr "Your concise decision title"', file=sys.stderr)
+        print('  uv run scripts/new_adr.py "Your concise decision title"', file=sys.stderr)
         print("  # or, if using just:")
         print('  just adr "Your concise decision title"', file=sys.stderr)
         sys.exit(1)

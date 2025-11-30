@@ -24,28 +24,26 @@ jobs:
           # Fetch all history so semantic-release can analyze commits
           fetch-depth: 0
           # Use a token with write permissions to push tags/changelog updates
-          
 
-      - name: Set up PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.13"
+          version: "latest"
 
       - name: Install dependencies (including semantic-release)
-        run: pdm install --dev
+        run: uv sync
 
       # Configure git user for semantic-release commits (e.g., updating changelog)
       - name: Configure Git User
         run: |
-          
+
           git config user.name "local-dev"
           git config user.email "local-dev@example.com"
-          
 
       - name: Run Semantic Release
         # Publishes to PyPI using trusted OIDC if configured
-        run: pdm run semantic-release publish
-        env:
-           # Use the default GitHub token for authentication with GitHub
-           
-           # PyPI token is handled by OIDC - no PYPI_TOKEN needed here
+        run: uv run semantic-release publish
+        # env:
+        # Use the default GitHub token for authentication with GitHub
+
+        # PyPI token is handled by OIDC - no PYPI_TOKEN needed here

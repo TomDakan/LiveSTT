@@ -15,16 +15,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
         with:
-          python-version: "3.13"
-          cache: true
+          version: "latest"
 
       - name: Install dependencies
         # Ensure the docs group is installed
-        run: pdm install --dev --group docs
+        run: uv sync --group docs
 
       - name: Deploy to GitHub Pages
         # This command builds the site and pushes it to the gh-pages branch
-        run: pdm run mkdocs gh-deploy --force
+        run: uv run mkdocs gh-deploy --force
