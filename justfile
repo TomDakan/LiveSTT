@@ -97,7 +97,7 @@ log service:
 # Start a service locally
 start service:
     @echo "Starting {{service}}..."
-    uv run python -c "import sys, os; os.chdir('services/{{service}}'); from src import main"
+    uv run --package {{service}} python -m {{service | replace("-", "_")}}.main
 
 # Open a shell inside a container
 shell service:

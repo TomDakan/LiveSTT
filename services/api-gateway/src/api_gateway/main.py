@@ -103,3 +103,14 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         with suppress(Exception):
             if "sub" in locals():
                 await sub.unsubscribe()
+
+
+def main():
+    """Entry point for the application script."""
+    import uvicorn
+
+    uvicorn.run("api_gateway.main:app", host="0.0.0.0", port=8000, reload=True)
+
+
+if __name__ == "__main__":
+    main()
