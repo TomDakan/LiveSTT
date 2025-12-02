@@ -6,7 +6,6 @@ import os
 from typing import Any
 
 from deepgram import AsyncDeepgramClient
-from deepgram import DeepgramClientOptions, LiveOptions, LiveTranscriptionEvents
 from dotenv import load_dotenv
 from nats.aio.client import Client as NATS
 
