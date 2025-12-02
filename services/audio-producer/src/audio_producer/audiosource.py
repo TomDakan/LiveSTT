@@ -12,7 +12,45 @@ try:
     import pyaudio
 except ImportError:
     pyaudio = None
+import wave
 from .interfaces import AudioSource
+
+
+class FileSource(AudioSource):
+    """Audio source that reads from a WAV file."""
+
+    def __init__(self, file_path: str, chunk_size: int = 1600, loop: bool = False) -> None:
+        self.wf = wave.open(file_path, "rb")
+        self.chunk_size = chunk_size
+        self.loop = loop
+        if self.wf.getnchannels() != 1:
+            raise ValueError("Audio file must be mono")
+        if self.wf.getsampwidth() != 2:
+            raise ValueError("Audio file must be 16-bit PCM")
+
+    async def stream(self) -> AsyncIterator[bytes]:
+        """Yields chunks of raw PCM audio bytes from the file."""
+        while True:
+            data = self.wf.readframes(self.chunk_size)
+            if not data:
+                if self.loop:
+                    self.wf.rewind()
+                    continue
+                break
+            yield data
+            # Simulate real-time streaming
+            await asyncio.sleep(self.chunk_size / 16000)
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.wf.close()
 
 
 class WindowsSource(AudioSource):

@@ -62,14 +62,16 @@ async def main() -> None:
     nats = NATS()
     await nats.connect(nats_url)
 
+    import platform
+    audio_file = os.getenv("AUDIO_FILE")
+
     source: AudioSource
-    match os.getenv("OS"):
-        case "Windows":
-            source = WindowsSource(sample_rate, chunk_size)
-        case "Linux":
-            source = LinuxSource(sample_rate, chunk_size)
-        case _:
-            raise ValueError("Unsupported OS")
+    if audio_file:
+        print(f"Using FileSource: {audio_file}")
+        from .audiosource import FileSource
+        source = FileSource(audio_file, chunk_size, loop=True)
+    else:
+        raise ValueError(f"Unsupported OS: {os_name}")
 
     publisher = NatsAudioPublisher(source=source, nats=nats)
     await publisher.start()
