@@ -17,50 +17,35 @@ The service follows a "Hexagonal" or "Ports and Adapters" architecture to allow 
 We define strict protocols to decouple the core logic from external dependencies.
 
 ### 2.1 `Transcriber` Protocol
+
 Abstracts the STT engine. This allows us to mock Deepgram for unit tests.
 
-```python
-from typing import Protocol, AsyncIterator, runtime_checkable
-from dataclasses import dataclass
+Defined in `services/stt-provider/src/stt_provider/interfaces.py`.
 
-@dataclass
-class TranscriptionEvent:
-    text: str
-    is_final: bool
-    confidence: float
-    # timestamp: float # Optional, for later
+::: stt_provider.interfaces.TranscriptionEvent
+    options:
+      show_source: true
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
 
-@runtime_checkable
-class Transcriber(Protocol):
-    """Interface for a Speech-to-Text engine."""
-
-    async def connect(self) -> None:
-        """Establishes connection to the STT provider."""
-        ...
-
-    async def send_audio(self, audio: bytes) -> None:
-        """Sends a chunk of audio for transcription."""
-        ...
-
-    async def finish(self) -> None:
-        """Signals end of stream."""
-        ...
-    
-    async def get_events(self) -> AsyncIterator[TranscriptionEvent]:
-        """Yields transcription events as they arrive."""
-        ...
-```
+::: stt_provider.interfaces.Transcriber
+    options:
+      show_source: true
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
 
 ### 2.2 `NatsClient` Protocol
-(Likely already defined in `audio-producer`, but we can redefine or import it. For independence, we define the requirement here).
 
-```python
-@runtime_checkable
-class NatsClient(Protocol):
-    async def publish(self, subject: str, payload: bytes) -> None: ...
-    async def subscribe(self, subject: str, cb: Any) -> Any: ...
-    # ...
-```
+Defined in `libs/messaging/src/messaging/nats.py`.
+
+::: messaging.nats.NatsClient
+    options:
+      show_source: true
+      heading_level: 4
+      show_root_heading: false
+      show_root_toc_entry: false
 
 ## 3. The Implementation (`DeepgramTranscriber`)
 

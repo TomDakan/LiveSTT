@@ -41,7 +41,7 @@ uv run pytest -s tests/integration/test_e2e_container.py
 - Full containerized deployment
 
 ### 2. Local E2E Test (`test_e2e.py`)
-
+# TODO: This test is currently not working. But the containerized version works.
 Runs services in-process (without containers). Useful for debugging and development.
 
 **Prerequisites:**
