@@ -13,7 +13,8 @@ services:
 
   api-gateway:
     build:
-      context: ./services/api-gateway
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
     container_name: api-gateway
     ports:
       - "8000:8000"
@@ -28,18 +29,23 @@ services:
 
   audio-producer:
     build:
-      context: ./services/audio-producer
-      dockerfile: Dockerfile.mock
+      context: .
+      dockerfile: services/audio-producer/Dockerfile
     container_name: audio-producer
     environment:
       - NATS_URL=nats://nats:4222
+      - AUDIO_FILE=/data/test_audio.wav
+    volumes:
+      - ./tests/data:/data
     networks:
       - internal_overlay
     depends_on:
       - nats
 
   stt-provider:
-    build: ./services/stt-provider
+    build:
+      context: .
+      dockerfile: services/stt-provider/Dockerfile
     container_name: stt-provider
     restart: unless-stopped
     environment:
@@ -50,32 +56,34 @@ services:
     depends_on:
       - nats
 
-  identifier:
-    build: ./services/identifier
-    container_name: identifier
-    environment:
-      - NATS_URL=nats://nats:4222
-    volumes:
-      - ./data/lancedb:/data/lancedb
-    networks:
-      - internal_overlay
-    depends_on:
-      - nats
+#   identifier:
+#     build:
+#       context: .
+#       dockerfile: services/identifier/Dockerfile
+#     container_name: identifier
+#     environment:
+#       - NATS_URL=nats://nats:4222
+#     volumes:
+#       - ./data/lancedb:/data/lancedb
+#     networks:
+#       - internal_overlay
+#     depends_on:
+#       - nats
 
-  identity-manager:
-    build: ./services/identity-manager
-    container_name: identity-manager
-    environment:
-      - NATS_URL=nats://nats:4222
-    networks:
-      - internal_overlay
-    depends_on:
-      - nats
+#   identity-manager:
+#     build:
+#       context: .
+#       dockerfile: services/identity-manager/Dockerfile
+#     container_name: identity-manager
+#     environment:
+#       - NATS_URL=nats://nats:4222
+#     networks:
+#       - internal_overlay
+#     depends_on:
+#       - nats
 
 networks:
   internal_overlay:
     driver: bridge
 
-secrets:
-  deepgram_key:
-    file: ./secrets/deepgram_key.txt
+
