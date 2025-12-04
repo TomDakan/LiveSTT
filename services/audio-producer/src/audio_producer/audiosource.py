@@ -1,7 +1,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import Self
+from typing import Self, override
 
 try:
     import alsaaudio
@@ -13,21 +13,26 @@ try:
 except ImportError:
     pyaudio = None
 import wave
+
 from .interfaces import AudioSource
 
 
 class FileSource(AudioSource):
     """Audio source that reads from a WAV file."""
 
-    def __init__(self, file_path: str, chunk_size: int = 1600, loop: bool = False) -> None:
-        self.wf = wave.open(file_path, "rb")
+    file_path: str
+    chunk_size: int
+    loop: bool
+    wf: wave.Wave_read
+
+    def __init__(
+        self, file_path: str, chunk_size: int = 1600, loop: bool = False
+    ) -> None:
+        self.file_path = file_path
         self.chunk_size = chunk_size
         self.loop = loop
-        if self.wf.getnchannels() != 1:
-            raise ValueError("Audio file must be mono")
-        if self.wf.getsampwidth() != 2:
-            raise ValueError("Audio file must be 16-bit PCM")
 
+    @override
     async def stream(self) -> AsyncIterator[bytes]:
         """Yields chunks of raw PCM audio bytes from the file."""
         while True:
@@ -41,7 +46,13 @@ class FileSource(AudioSource):
             # Simulate real-time streaming
             await asyncio.sleep(self.chunk_size / 16000)
 
+    @override
     async def __aenter__(self) -> Self:
+        self.wf = wave.open(self.file_path, "rb")  # noqa: SIM115
+        if self.wf.getnchannels() != 1:
+            raise ValueError("Audio file must be mono")
+        if self.wf.getsampwidth() != 2:
+            raise ValueError("Audio file must be 16-bit PCM")
         return self
 
     async def __aexit__(
@@ -56,6 +67,11 @@ class FileSource(AudioSource):
 class WindowsSource(AudioSource):
     """Audio source for Windows."""
 
+    pyaudio: pyaudio.PyAudio
+    stream_obj: pyaudio.Stream
+    chunk_size: int
+    sample_rate: int
+
     def __init__(self, sample_rate: int = 16000, chunk_size: int = 1600) -> None:
         self.pyaudio = pyaudio.PyAudio()
         self.stream_obj = self.pyaudio.open(
@@ -68,6 +84,7 @@ class WindowsSource(AudioSource):
         self.chunk_size = chunk_size
         self.sample_rate = sample_rate
 
+    @override
     async def stream(self) -> AsyncIterator[bytes]:
         """Yields chunks of raw PCM audio bytes."""
         while True:
@@ -76,10 +93,12 @@ class WindowsSource(AudioSource):
             )
             yield data
 
+    @override
     async def __aenter__(self) -> Self:
         """Enter the runtime context related to this object."""
         return self
 
+    @override
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None,
@@ -101,16 +120,19 @@ class LinuxSource(AudioSource):
         self.inp.setperiodsize(chunk_size)
         self.chunk_size = chunk_size
 
+    @override
     async def stream(self) -> AsyncIterator[bytes]:
         while True:
             length, data = await asyncio.to_thread(self.inp.read)
             if length > 0:
                 yield data
 
+    @override
     async def __aenter__(self) -> Self:
         """Enter the runtime context related to this object."""
         return self
 
+    @override
     async def __aexit__(
         self,
         exc_type: type[BaseException] | None,
