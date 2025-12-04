@@ -9,6 +9,7 @@ from nats.aio.client import Client as NATS
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/transcripts")
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_container_e2e_flow() -> None:
     """

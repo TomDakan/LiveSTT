@@ -1,10 +1,19 @@
 # live-stt - Task Runner
 
 # --- Environment ---
+# --- Cross-Platform Shell Config ---
+# On Linux/Mac, use bash. On Windows, use PowerShell.
+set shell := ["bash", "-c"]
+set windows-shell := ["powershell.exe", "-NoProfile", "-Command"]
 
 # Install dependencies (uv sync)
 install:
     uv sync
+
+# Add a dependency to a specific workspace member
+# Usage: just add-dep api pandas
+add-dep service package:
+    uv add --package {{service}} {{package}}
 
 # Clean up artifacts (cross-platform python script)
 clean:
@@ -42,13 +51,13 @@ lint *args:
 type-check service="":
     uv run scripts/type_check.py {{ service }}
 
-# Run the test suite (pytest).
+# Run the test suite (pytest). Skips integration tests by default.
 test *args:
-    uv run pytest {{ args }}
+    uv run python -m pytest -m "not integration" {{ args }}
 
 # Run tests for a specific service
 test-service service *args:
-    uv run pytest services/{{service}} {{args}}
+    uv run python -m pytest services/{{service}} {{args}}
 
 # Placeholder for deployment tasks.
 deploy *args:

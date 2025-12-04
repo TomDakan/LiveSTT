@@ -8,6 +8,7 @@ from audio_producer.audiosource import FileSource
 # Use the real NATS URL from environment or default to localhost
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_audio_producer_integration() -> None:
     """

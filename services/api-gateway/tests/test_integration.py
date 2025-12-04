@@ -15,6 +15,7 @@ API_PORT = 8001
 API_URL = f"http://localhost:{API_PORT}"
 WS_URL = f"ws://localhost:{API_PORT}/ws/transcripts"
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_api_gateway_integration() -> None:
     """
