@@ -1,7 +1,6 @@
 import time
 
 import pytest
-
 from audio_producer.interfaces import AudioSource
 
 from tests.mocks import MockAudioSource

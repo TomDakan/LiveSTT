@@ -33,6 +33,11 @@ nav:
                 - Multi-Tier Hardware: 20_architecture/adrs/0003-multi-tier-hardware.md
                 - Deepgram Selection: 20_architecture/adrs/0004-deepgram-selection.md
                 - BalenaOS Deployment: 20_architecture/adrs/0005-balenaos-deployment.md
+                - Maintainer Tooling: 20_architecture/adrs/0006-maintainer-tooling.md
+                - Platform Pivot (x86): 20_architecture/adrs/0007-platform-pivot-x86.md
+                - Split-Brain Architecture: 20_architecture/adrs/0008-split-brain-architecture.md
+                - NATS Migration: 20_architecture/adrs/0009-nats-migration.md
+                - Python 3.12 Upgrade: 20_architecture/adrs/0010-python-3-12-upgrade.md
     - Data:
           - Data Dictionary: 30_data/data_dictionary.md
           - Entity Relationship Diagram: 30_data/erd.md

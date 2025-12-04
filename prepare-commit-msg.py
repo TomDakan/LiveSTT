@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError  # nosec B404
 
 try:
     from commitizen.cz.utils import get_backup_file_path
@@ -18,41 +18,55 @@ def prepare_commit_msg(commit_msg_file: str) -> int:
     Generates a commit message using commitizen if the existing one is invalid.
     """
     # Check if the commit message needs to be generated using commitizen.
+    # Resolve cz executable
+    cz_exe = shutil.which("cz")
+    if not cz_exe:
+        print("Error: 'cz' command not found. Is commitizen installed?")
+        return 1
+
     # `cz check` returns a non-zero exit code if the message is not compliant.
     exit_code = subprocess.run(
         [
-            "cz",
+            cz_exe,
             "check",
             "--commit-msg-file",
             commit_msg_file,
         ],
         capture_output=True,
-    ).returncode
+    ).returncode  # nosec B603
     if exit_code != 0:
         backup_file = Path(get_backup_file_path())
-    if backup_file.is_file():
-        # Confirm if the commit message from the backup file should be reused.
-        answer = input("retry with previous message? [y/N]: ")
-    if answer.lower() == "y":
-        shutil.copyfile(backup_file, commit_msg_file)
-    return 0
-    # Use commitizen to generate the commit message interactively.
-    try:
-        # The `--dry-run` and `--write-message-to-file` flags tell commitizen
-        # to write the generated message to our file instead of committing.
-        subprocess.run(
-            [
-                "cz",
-                "commit",
-                "--dry-run",
-                "--write-message-to-file",
-                commit_msg_file,
-            ],
-            stdin=sys.stdin,  # Pass the interactive tty stdin to the subprocess
-            stdout=sys.stdout,  # Pass the tty stdout as well
-        ).check_returncode()
-    except CalledProcessError as error:
-        return error.returncode
+        if backup_file.is_file():
+            # Confirm if the commit message from the backup file should be reused.
+            answer = input("retry with previous message? [y/N]: ")
+            if answer.lower() == "y":
+                shutil.copyfile(backup_file, commit_msg_file)
+                return 0
+
+        # Use commitizen to generate the commit message interactively.
+        print(
+            f"Error: Commit message in {commit_msg_file} "
+            "does not match Conventional Commits."
+        )
+        print("Attempting to fix with Commitizen...")
+
+        try:
+            # The `--dry-run` and `--write-message-to-file` flags tell commitizen
+            # to write the generated message to our file instead of committing.
+            subprocess.run(
+                [
+                    cz_exe,
+                    "commit",
+                    "--dry-run",
+                    "--write-message-to-file",
+                    commit_msg_file,
+                ],
+                stdin=sys.stdin,  # Pass the interactive tty stdin to the subprocess
+                stdout=sys.stdout,  # Pass the tty stdout as well
+            ).check_returncode()  # nosec B603
+        except CalledProcessError as error:
+            return error.returncode
+
         # Write the newly generated message to the backup file for future use.
         shutil.copyfile(commit_msg_file, backup_file)
         return 0

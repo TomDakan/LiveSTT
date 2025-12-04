@@ -8,7 +8,7 @@ If not, runs MyPy for all services and root modules.
 """
 
 import argparse
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -17,20 +17,24 @@ ROOT_MODULES = ["src", "scripts", "bootstrap.py"]
 
 
 def run_mypy(target: str) -> bool:
-    """Run MyPy on the target path."""
-    print(f"Type checking {target}...")
+    # Resolve mypy executable
+    # We use sys.executable to run mypy as a module, which is safer and more reliable
+    # than trying to find the 'mypy' executable directly, especially in venvs.
+    cmd = [
+        sys.executable,
+        "-m",
+        "mypy",
+        "--no-incremental",
+        "--no-warn-unused-configs",
+        target,
+    ]
+
     try:
         result = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "mypy",
-                "--no-incremental",
-                "--no-warn-unused-configs",
-                target,
-            ],
+            cmd,
             check=False,  # We handle the return code manually
-        )
+            shell=False,  # Safe execution
+        )  # nosec B603
         return result.returncode == 0
     except Exception as e:
         print(f"Error running MyPy on {target}: {e}")

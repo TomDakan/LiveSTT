@@ -72,7 +72,7 @@ changelog_file = "CHANGELOG.md"
 
 [tool.bandit]
 targets = ["services"]
-exclude_dirs = ["tests", ".venv"]
+exclude = ["tests", ".venv", "services/*/tests"]
 level = "MEDIUM"
 confidence = "MEDIUM"
 

@@ -109,7 +109,7 @@ def main() -> None:
     """Entry point for the application script."""
     import uvicorn
 
-    uvicorn.run("api_gateway.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("api_gateway.main:app", host="0.0.0.0", port=8000, reload=True)  # nosec B104
 
 
 if __name__ == "__main__":
