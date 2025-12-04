@@ -75,12 +75,17 @@ bandit-check *args:
 export-docs-reqs *args:
     uv export --group docs --no-hashes -o docs-requirements.txt {{ args }}
 
+# Scaffold Docker build context (required for build)
+scaffold:
+    uv run python scripts/scaffold_context.py
+    uv run python scripts/generate_dockerignore.py
+
 # Start the stack in detached mode
-up:
+up: scaffold
     docker compose up -d
 
 # Force a rebuild of images and restart containers
-up-build:
+up-build: scaffold
     docker compose up -d --build
 
 # The "Nuclear Option": Stop containers and DELETE volumes
