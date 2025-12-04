@@ -73,6 +73,7 @@ services/*/bin/
 # SECTION 3: DOCKER & BALENA
 # ==============================================================================
 .docker/
+.docker-context/
 docker-compose.override.yml
 # Balena CLI localized files
 balena-*.yml
@@ -164,9 +165,6 @@ instance/
 # IPython
 profile_default/
 ipython_config.py
-
-# uv
-uv.lock
 
 # pdm
 pdm.lock

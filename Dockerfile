@@ -5,10 +5,13 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
+# Copy scaffolded Docker build context (created by scripts/scaffold_context.py)
+# This includes: uv.lock, pyproject.toml, and all service/lib pyproject.toml files
+COPY .docker-context/ ./
+
 # Install dependencies
 # Use --frozen to ensure lockfile is respected
 # Use --no-install-project to only install dependencies first (caching)
-COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
 # === Stage 2: Development (Default Target) ===

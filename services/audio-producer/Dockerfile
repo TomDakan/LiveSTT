@@ -1,7 +1,5 @@
 # services/audio-producer/Dockerfile
 
-# services/audio-producer/Dockerfile
-
 FROM python:3.12-slim as builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
@@ -10,12 +8,9 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Copy root workspace config
-COPY pyproject.toml uv.lock ./
-# Copy service config
-COPY services/audio-producer/pyproject.toml ./services/audio-producer/pyproject.toml
-# Copy shared libs config
-COPY libs/messaging/pyproject.toml ./libs/messaging/pyproject.toml
+# Copy scaffolded Docker build context (created by scripts/scaffold_context.py)
+# This includes: uv.lock, pyproject.toml, and all service/lib pyproject.toml files
+COPY .docker-context/ ./
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
