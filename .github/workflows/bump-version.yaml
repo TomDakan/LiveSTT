@@ -1,0 +1,59 @@
+name: Bump Version
+
+on:
+    workflow_run:
+        workflows: ["CI"]
+        types:
+            - completed
+        branches:
+            - main
+
+jobs:
+    bump-version:
+        # Only run if:
+        # 1. The triggering workflow (CI) succeeded
+        # 2. The commit is not already a version bump (prevents loops)
+        if: >
+            github.event.workflow_run.conclusion == 'success' &&
+            !startsWith(github.event.workflow_run.head_commit.message, 'bump:')
+        runs-on: ubuntu-latest
+        name: "Bump version and create changelog"
+
+        # PERMISSIONS: Critical for the bot to push changes back to the repo
+        permissions:
+            contents: write
+
+        steps:
+            - name: Check out
+              uses: actions/checkout@v4
+              with:
+                  # Check out the exact commit that triggered the CI workflow
+                  ref: ${{ github.event.workflow_run.head_sha }}
+                  # fetch-depth: 0 is REQUIRED for commitizen to see history
+                  fetch-depth: 0
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - name: Install Commitizen
+              run: pip install commitizen
+
+            - name: Configure Git User
+              # This makes the commit appear as "GitHub Actions"
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Bump Version
+              # This command calculates the bump, updates files,
+              # generates the changelog, and creates the git tag.
+              run: cz bump --yes
+
+            - name: Push Changes
+              # Push the new commit (changelog/pyproject updates) AND the new tag
+              run: |
+                  git push origin HEAD:main
+                  git push origin --tags
