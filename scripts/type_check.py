@@ -61,8 +61,13 @@ def check_roots(project_root: Path) -> bool:
     failed = False
     for module in ROOT_MODULES:
         target = project_root / module
-        if target.exists() and not run_mypy(str(target)):
-            failed = True
+        if target.exists():
+            # Skip directories without Python files
+            if target.is_dir() and not has_python_files(target):
+                print(f"Skipping {module} (no Python files)")
+                continue
+            if not run_mypy(str(target)):
+                failed = True
     return failed
 
 

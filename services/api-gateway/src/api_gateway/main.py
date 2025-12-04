@@ -105,7 +105,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
                 await sub.unsubscribe()
 
 
-def main():
+def main() -> None:
     """Entry point for the application script."""
     import uvicorn
 

@@ -3,13 +3,14 @@ from collections.abc import AsyncIterator
 from types import TracebackType
 from typing import Self, override
 
+# Platform specific imports
 try:
-    import alsaaudio
+    import alsaaudio  # type: ignore[import-not-found]  # pyright: ignore[reportMissingImports]
 except ImportError:
     alsaaudio = None
 
 try:
-    import pyaudio
+    import pyaudio  # type: ignore[import-untyped]  # pyright: ignore[reportMissingImports]
 except ImportError:
     pyaudio = None
 import wave
