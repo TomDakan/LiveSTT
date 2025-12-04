@@ -51,4 +51,5 @@ The User runs the project's standard verification tools.
 -   **Typing**: MyPy (Strict)
 -   **Tasks**: Just
 -   **Package Manager**: uv
--   **Commits**: Conventional Commits (via `commitizen`)
+-   **Commits**: Conventional Commits (via `commitizen`, see [CONTRIBUTING.md](../../CONTRIBUTING.md) section 6)
+-   **Branching**: See [CONTRIBUTING.md](../../CONTRIBUTING.md) section 6 for branch naming and merge strategy

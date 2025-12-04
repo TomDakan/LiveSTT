@@ -203,7 +203,56 @@ docker buildx build \
 - `linux/amd64`: Tier 2/3 (desktop, cloud)
 - `linux/arm64`: Tier 1 (Jetson Orin Nano)
 
-### 3.3 Layer Caching
+### 3.3 Docker Build Scaffolding (Cross-Platform)
+
+To enable cross-platform Docker builds (Windows/Linux/macOS) without complex shell commands, we use a Python-based scaffolding approach:
+
+#### Scaffold Docker Context
+Before building Docker images, run:
+```bash
+python scripts/scaffold_context.py
+```
+
+This creates `.docker-context/` containing:
+- Root `uv.lock` and `pyproject.toml`
+- All service and library `pyproject.toml` files
+
+**Why?** This ensures Docker dependency layer caching works correctly and avoids platform-specific file path issues.
+
+#### Generate .dockerignore
+To prevent platform-specific artifacts (`.venv/`, `__pycache__/`, etc.) from corrupting Linux containers:
+```bash
+python scripts/generate_dockerignore.py
+```
+
+This generates `.dockerignore` at the repository root with appropriate exclusions.
+
+#### Dockerfile Pattern
+All service Dockerfiles use the `.docker-context/` pattern:
+```dockerfile
+# Builder stage
+FROM python:3.12-slim as builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+WORKDIR /app
+
+# Copy scaffolded build context (dependency files only)
+COPY .docker-context/ ./
+
+# Install dependencies (cached layer)
+RUN uv sync --frozen --no-install-project --package my-service
+
+# Runtime stage
+FROM python:3.12-slim
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy source code (changes frequently, not cached)
+COPY libs/messaging ./libs/messaging
+COPY services/my-service ./services/my-service
+CMD ["python", "-m", "my_service.main"]
+```
+
+### 3.4 Layer Caching
 ```dockerfile
 # Copy dependency files first (cache layer)
 COPY pyproject.toml uv.lock ./

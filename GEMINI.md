@@ -13,8 +13,10 @@
 
 ## 2. Development Standards
 *   **Workflow & Commands**: [CONTRIBUTING.md](CONTRIBUTING.md)
+*   **Branching & Merging**: See [CONTRIBUTING.md](CONTRIBUTING.md) section 6 (Conventional Commits, Squash & Merge)
+*   **Dependency Management**: See [CONTRIBUTING.md](CONTRIBUTING.md) section 7 (Lock-Step Versioning, workspace dependencies)
 *   **AI Collaboration**: [docs/implementation_guides/00_workflow.md](docs/implementation_guides/00_workflow.md)
-*   **Coding Style**: [CONTRIBUTING.md](CONTRIBUTING.md) section 6.
+*   **Coding Style**: [CONTRIBUTING.md](CONTRIBUTING.md) section 8.
 *   **Platform Support**: Some services (like `audio-producer`) have platform-specific dependencies (e.g., ALSA on Linux). These are handled via conditional dependencies in `pyproject.toml`.
 
 ## 3. Current Status
