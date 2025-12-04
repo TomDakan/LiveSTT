@@ -54,13 +54,13 @@ def main() -> int:
     missing_in_mkdocs = adr_files - mkdocs_adrs
 
     if missing_in_mkdocs:
-        print("❌ ERROR: The following ADRs are not listed in mkdocs.yml:")
+        print("[ERROR] The following ADRs are not listed in mkdocs.yml:")
         for adr in sorted(missing_in_mkdocs):
             print(f"  - {adr}")
         print("\nPlease add them to the 'Architecture > ADRs' section in mkdocs.yml")
         return 1
 
-    print("✅ All ADRs are listed in mkdocs.yml")
+    print("[OK] All ADRs are listed in mkdocs.yml")
     return 0
 
 

@@ -11,7 +11,5 @@ python: "3.13" # Use the Python version from Copier
 mkdocs:
 configuration: mkdocs.yml
 fail_on_warning: false # Set to true for stricter builds if desired
-# Optionally declare the Python requirements required to build your docs
-python:
 install:
-- requirements: docs-requirements.txt # We'll need to generate this
+    - requirements: docs-requirements.txt # We'll need to generate this
