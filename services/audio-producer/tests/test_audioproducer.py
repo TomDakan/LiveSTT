@@ -1,8 +1,8 @@
 import pytest
 from audio_producer.main import NatsAudioPublisher
+from messaging.nats import MockNatsClient
 
 from tests.mocks import MockAudioSource
-from messaging.nats import MockNatsClient
 
 
 @pytest.mark.asyncio

@@ -1,12 +1,14 @@
 import asyncio
 import os
+
 import pytest
-from nats.aio.client import Client as NATS
-from audio_producer.main import NatsAudioPublisher
 from audio_producer.audiosource import FileSource
+from audio_producer.main import NatsAudioPublisher
+from nats.aio.client import Client as NATS
 
 # Use the real NATS URL from environment or default to localhost
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+
 
 @pytest.mark.integration
 @pytest.mark.asyncio
@@ -20,6 +22,7 @@ async def test_audio_producer_integration() -> None:
     await sub_nc.connect(NATS_URL)
 
     received_chunks = []
+
     async def msg_handler(msg):
         received_chunks.append(msg.data)
 
@@ -44,7 +47,7 @@ async def test_audio_producer_integration() -> None:
     # Add a timeout to prevent hanging if it doesn't stop
     try:
         await asyncio.wait_for(task, timeout=5.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         task.cancel()
         pytest.fail("Audio producer timed out")
 

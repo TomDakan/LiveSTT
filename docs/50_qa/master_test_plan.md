@@ -37,7 +37,7 @@ This document outlines the testing strategy for the Live STT system, covering un
   - 30% Liturgy (responsive readings, prayers)
   - 20% Announcements (community updates)
   - 20% Transitions (worship team, scene changes)
-- **Purpose**: CI regression testing  
+- **Purpose**: CI regression testing
 - **Pass Criteria**: Word Error Rate (WER) < 5%
 - **Location**: `tests/data/gold_standard/`
 

@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self, runtime_checkable
 
+from messaging.nats import NatsClient
 from nats.aio.client import Client as NATS
 
-from messaging.nats import NatsClient
-from .audiosource import AudioSource, LinuxSource, WindowsSource
+from .interfaces import AudioSource
 
 
 @runtime_checkable
@@ -56,22 +56,22 @@ class NatsAudioPublisher(AudioPublisher):
 async def main() -> None:
     """Application entrypoint."""
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
-    sample_rate = int(os.getenv("SAMPLE_RATE", 16000))
+
     chunk_size = int(os.getenv("CHUNK_SIZE", 1600))
 
     nats = NATS()
     await nats.connect(nats_url)
 
-    import platform
     audio_file = os.getenv("AUDIO_FILE")
 
     source: AudioSource
     if audio_file:
         print(f"Using FileSource: {audio_file}")
         from .audiosource import FileSource
+
         source = FileSource(audio_file, chunk_size, loop=True)
     else:
-        raise ValueError(f"Unsupported OS: {os_name}")
+        raise ValueError("AUDIO_FILE environment variable is required")
 
     publisher = NatsAudioPublisher(source=source, nats=nats)
     await publisher.start()

@@ -1,9 +1,10 @@
-import asyncio
 import json
+
 import pytest
+from api_gateway.main import app
 from fastapi.testclient import TestClient
 from messaging.nats import MockNatsClient
-from api_gateway.main import app
+
 
 @pytest.mark.asyncio
 async def test_websocket_endpoint() -> None:
@@ -26,7 +27,9 @@ async def test_websocket_endpoint() -> None:
 
         # Simulate NATS message
         transcript_data = {"text": "Hello World", "is_final": True, "confidence": 0.99}
-        await mock_nats.trigger_message("text.transcript", json.dumps(transcript_data).encode("utf-8"))
+        await mock_nats.trigger_message(
+            "text.transcript", json.dumps(transcript_data).encode("utf-8")
+        )
 
         # Verify WebSocket received message
         data = websocket.receive_json()

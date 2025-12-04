@@ -141,7 +141,7 @@ safety check --json
 docker scan live-stt/api-gateway:latest
 ```
 
-**Frequency**: 
+**Frequency**:
 - **On Commit**: Static analysis (Bandit) - *Prevent new vulnerabilities in code*
 - **Daily**: Dependency scanning (Safety, Trivy) - *Detect newly disclosed CVEs in dependencies*
 - **Weekly**: Full container scan - *Deep audit of base images*

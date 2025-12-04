@@ -1,10 +1,12 @@
 import asyncio
 import json
+
 import pytest
-from stt_provider.service import STTService
-from stt_provider.interfaces import TranscriptionEvent
-from mocks import MockTranscriber
 from messaging.nats import MockNatsClient
+from mocks import MockTranscriber
+from stt_provider.interfaces import TranscriptionEvent
+from stt_provider.service import STTService
+
 
 @pytest.mark.asyncio
 async def test_stt_service_flow() -> None:
@@ -23,7 +25,7 @@ async def test_stt_service_flow() -> None:
 
     # TODO: 2. Start Service (in background)
     # Hint: Use asyncio.create_task(service.start())
-    asyncio.create_task(service.start())
+    service_task = asyncio.create_task(service.start())  # noqa: RUF006, F841  # pyright: ignore[reportUnusedVariable]
     # Hint: Wait a bit for it to be "connected" (mock property)
     await asyncio.sleep(0.1)
 

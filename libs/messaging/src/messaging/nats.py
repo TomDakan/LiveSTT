@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, Protocol, runtime_checkable
 
+
 @runtime_checkable
 class NatsClient(Protocol):
     """Interface for NATS interaction."""
@@ -40,16 +41,19 @@ class MockNatsClient:
     async def publish(self, subject: str, payload: bytes) -> None:
         self.published_messages.append({"subject": subject, "data": payload})
 
-    async def subscribe(self, subject: str, queue: str = "", cb: Any = None, **kwargs: Any) -> Any:
+    async def subscribe(
+        self, subject: str, queue: str = "", cb: Any = None, **kwargs: Any
+    ) -> Any:
         self.subscriptions[subject] = cb
-        return object() # Return a dummy subscription object
+        return object()  # Return a dummy subscription object
 
     async def trigger_message(self, subject: str, data: bytes) -> None:
         """Helper to simulate an incoming message."""
         if subject in self.subscriptions:
             # Create a dummy msg object with .data attribute
             class Msg:
-                def __init__(self, d: bytes): self.data = d
+                def __init__(self, d: bytes):
+                    self.data = d
 
             cb = self.subscriptions[subject]
             if asyncio.iscoroutinefunction(cb):

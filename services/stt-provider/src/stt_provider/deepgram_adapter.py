@@ -12,9 +12,11 @@ from .interfaces import Transcriber, TranscriptionEvent
 
 logger = logging.getLogger(__name__)
 
+
 class DeepgramTranscriber(Transcriber):
     """
-    Implementation of Transcriber using Deepgram SDK v3 Async Client (WebSocket) Listen V1.
+    Implementation of Transcriber using Deepgram SDK
+    v3 Async Client (WebSocket) Listen V1.
     """
 
     def __init__(self, api_key: str | None = None) -> None:
@@ -50,9 +52,9 @@ class DeepgramTranscriber(Transcriber):
 
         # Start listening loop
         if hasattr(self.connection, "start_listening"):
-             self._listening_task = asyncio.create_task(self.connection.start_listening())
+            self._listening_task = asyncio.create_task(self.connection.start_listening())
         elif hasattr(self.connection, "start"):
-             self._listening_task = asyncio.create_task(self.connection.start())
+            self._listening_task = asyncio.create_task(self.connection.start())
 
     async def _on_open(self, *args: Any, **kwargs: Any) -> None:
         logger.info("Deepgram Connection Opened")

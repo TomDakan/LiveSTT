@@ -1,14 +1,14 @@
 # ADR-0007: Platform Pivot to Industrial x86
 
-**Date**: 2025-11-26  
-**Status**: ACCEPTED  
-**Context**:  
+**Date**: 2025-11-26
+**Status**: ACCEPTED
+**Context**:
 The initial v6.x architecture relied on the NVIDIA Jetson Orin Nano (ARM64) to perform both transcription and biometric identification on the edge. However, during testing and review, several critical issues emerged:
 1.  **Resource Contention**: Running STT and Biometrics simultaneously caused OOM (Out of Memory) kills.
 2.  **Filesystem Corruption**: The Jetson lacks native Power Loss Protection (PLP), leading to corruption during power cuts.
 3.  **Complexity**: Managing custom ARM builds and JetPack dependencies increased maintenance burden.
 
-**Decision**:  
+**Decision**:
 We will pivot the hardware platform to the **ASRock Industrial NUC BOX-N97** (Intel N97 x86).
 
 **Rationale**:

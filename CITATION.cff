@@ -9,4 +9,3 @@ version: 0.1.0
 date-released:
 
     {{ release_date | default("YYYY-MM-DD") }}
-

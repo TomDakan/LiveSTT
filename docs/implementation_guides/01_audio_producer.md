@@ -19,7 +19,7 @@ from typing import Protocol, AsyncIterator, runtime_checkable
 @runtime_checkable
 class AudioSource(Protocol):
     """Interface for an audio source."""
-    
+
     async def stream(self) -> AsyncIterator[bytes]:
         """Yields chunks of raw PCM audio bytes."""
         ...

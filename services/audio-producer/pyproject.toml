@@ -18,5 +18,3 @@ audio-producer = "audio_producer.main:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-

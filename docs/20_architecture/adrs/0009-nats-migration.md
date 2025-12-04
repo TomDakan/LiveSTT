@@ -1,16 +1,16 @@
 # ADR-0009: Migration from ZeroMQ to NATS
 
-**Date**: 2025-11-26  
-**Status**: ACCEPTED  
+**Date**: 2025-11-26
+**Status**: ACCEPTED
 **Supersedes**: [ADR-0001](0001-zmq-broker.md)
 
-**Context**:  
+**Context**:
 The v6.x architecture used ZeroMQ (ZMQ) for inter-service communication. While fast, ZMQ presented challenges:
 1.  **No Persistence**: If a service crashed, messages were lost unless complex application-level buffering was implemented.
 2.  **Opaque**: Debugging ZMQ traffic required custom tools; there was no easy way to "inspect" the bus.
 3.  **Complexity**: Implementing reliable pub/sub with reconnection logic in ZMQ is non-trivial.
 
-**Decision**:  
+**Decision**:
 Migrate the messaging backbone to **NATS (with JetStream)**.
 
 **Rationale**:

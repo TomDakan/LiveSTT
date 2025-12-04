@@ -12,15 +12,15 @@ The **Live STT** system is a high-reliability, real-time speech-to-text applianc
 ```mermaid
 C4Context
   title System Context - Live STT Appliance (v7.3)
-  
+
   Person(operator, "AV Operator", "Church staff member")
   Person(admin, "System Administrator", "Manages configuration and reviews transcripts")
-  
+
   System(livesst, "Live STT Appliance", "Real-time speech transcription & identification")
-  
+
   System_Ext(deepgram, "Deepgram API", "Cloud STT service (Nova-3)")
   System_Ext(balena, "Balena Cloud", "Fleet management and deployment")
-  
+
   Rel(operator, livesst, "Views live transcripts", "WebSocket")
   Rel(admin, livesst, "Manages config, reviews QA queue", "HTTPS")
   Rel(livesst, deepgram, "Streams audio, receives transcripts", "WSS")
@@ -33,7 +33,7 @@ C4Container
   title Container Diagram - Live STT Microservices (v7.3)
 
   Person(user, "User")
-  
+
   Container_Boundary(appliance, "Live STT Appliance") {
     Container(gateway, "api-gateway", "FastAPI/Python", "Web UI, WebSocket server, config management")
     Container(broker, "NATS Server", "Go", "Central event bus with JetStream persistence")
@@ -42,11 +42,11 @@ C4Container
     Container(identifier, "identifier", "Python/OpenVINO", "Speaker biometric ID (WeSpeaker)")
     Container(manager, "identity-manager", "Python", "Time Zipper (merges text + identity)")
   }
-  
+
   System_Ext(deepgram, "Deepgram API")
   ContainerDb(lancedb, "LanceDB", "Vector DB for Biometrics")
   ContainerDb(blackbox, "Black Box Storage", "Loopback ext4 (data=journal)", "Crash-proof persistence")
-  
+
   Rel(user, gateway, "Views transcripts", "WSS")
   Rel(producer, broker, "Publishes audio.raw", "NATS")
   Rel(broker, stt, "Routes audio.raw", "NATS")
@@ -105,7 +105,7 @@ sequenceDiagram
         STT->>Deepgram: WSS Stream
         Deepgram-->>STT: Transcript (Speaker A)
         STT->>NATS: Pub text.transcript
-        
+
         ID->>OpenVINO: Inference
         OpenVINO-->>ID: Vector
         ID->>LanceDB: Lookup

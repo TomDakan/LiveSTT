@@ -1,6 +1,6 @@
 # Penetration Test Report
 
-**Date:** 
+**Date:**
 **Tester:**
 
 ## Executive Summary

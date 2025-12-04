@@ -8,8 +8,8 @@ This document visualizes key user workflows for the Live STT system, identifying
 ## Journey 1: AV Operator - Sunday Service
 
 ### Persona
-**Name**: Sarah  
-**Role**: Church volunteer audiovisual coordinator  
+**Name**: Sarah
+**Role**: Church volunteer audiovisual coordinator
 **Tech Savvy**: Low (familiar with iPad, not with servers)
 
 ### Journey
@@ -48,8 +48,8 @@ journey
 ## Journey 2: Administrator - Weekly Configuration
 
 ### Persona
-**Name**: Pastor Mike  
-**Role**: Church senior pastor  
+**Name**: Pastor Mike
+**Role**: Church senior pastor
 **Tech Savvy**: Medium (comfortable with web apps)
 
 ### Journey
@@ -85,8 +85,8 @@ journey
 ## Journey 3: Developer - First-Time Setup
 
 ### Persona
-**Name**: Alex  
-**Role**: Open-source contributor  
+**Name**: Alex
+**Role**: Open-source contributor
 **Tech Savvy**: High (Python developer, no Docker experience)
 
 ### Journey
@@ -127,7 +127,7 @@ journey
 
 ### Persona
 **Name**: Tom
-**Role**: Developer deploying to production  
+**Role**: Developer deploying to production
 **Tech Savvy**: Expert
 
 ### Journey

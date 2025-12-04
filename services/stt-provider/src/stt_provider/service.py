@@ -1,14 +1,16 @@
+import json
 import logging
+import os
 from typing import Any
 
-import json
-import os
-from .interfaces import Transcriber
 from messaging.nats import NatsClient
+
+from .interfaces import Transcriber
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 
 logger = logging.getLogger(__name__)
+
 
 class STTService:
     """
@@ -66,6 +68,8 @@ class STTService:
                 "is_final": event.is_final,
                 "confidence": event.confidence,
             }
-            await self.nats.publish(self.output_subject, json.dumps(payload).encode("utf-8"))
+            await self.nats.publish(
+                self.output_subject, json.dumps(payload).encode("utf-8")
+            )
             if not self.running:
                 await self.stop()

@@ -135,7 +135,7 @@ flowchart LR
     B -->|ZMQ pub| C[broker]
     C -->|ZMQ sub| D[api-gateway]
     D -->|WebSocket| E[Client Browser]
-    
+
     B -->|If confidence < 0.85| F[quality_log + encrypted snippet]
     F -->|Admin reviews| G[Corrected or Deleted]
 ```

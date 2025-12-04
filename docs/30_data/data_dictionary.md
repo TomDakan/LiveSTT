@@ -8,9 +8,9 @@ This document defines all data structures, message formats, database schemas, an
 ## 1. NATS JetStream Subjects
 
 ### 1.1 `audio.raw`
-**Publisher**: audio-producer  
-**Subscribers**: stt-provider, identifier  
-**Format**: Binary PCM  
+**Publisher**: audio-producer
+**Subscribers**: stt-provider, identifier
+**Format**: Binary PCM
 **Payload**:
 ```
 Bytes 0-1599: 16-bit signed PCM samples (800 samples × 2 bytes)
@@ -20,9 +20,9 @@ Chunk Duration: 50ms
 ```
 
 ### 1.2 `text.transcript`
-**Publisher**: stt-provider  
-**Subscribers**: identity-manager  
-**Format**: JSON  
+**Publisher**: stt-provider
+**Subscribers**: identity-manager
+**Format**: JSON
 **Schema**:
 ```json
 {
@@ -37,9 +37,9 @@ Chunk Duration: 50ms
 ```
 
 ### 1.3 `identity.event`
-**Publisher**: identifier  
-**Subscribers**: identity-manager  
-**Format**: JSON  
+**Publisher**: identifier
+**Subscribers**: identity-manager
+**Format**: JSON
 **Schema**:
 ```json
 {
@@ -52,9 +52,9 @@ Chunk Duration: 50ms
 ```
 
 ### 1.4 `events.merged`
-**Publisher**: identity-manager  
-**Subscribers**: api-gateway  
-**Format**: JSON  
+**Publisher**: identity-manager
+**Subscribers**: api-gateway
+**Format**: JSON
 **Schema**:
 ```json
 {
@@ -68,7 +68,7 @@ Chunk Duration: 50ms
 
 ## 2. LanceDB (Biometrics)
 
-**Location**: `/data/lancedb`  
+**Location**: `/data/lancedb`
 **Table**: `voiceprints`
 
 | Column | Type | Description |
@@ -83,7 +83,7 @@ Chunk Duration: 50ms
 ## 3. SQLite Database (`/data/config.db`)
 
 ### 3.1 Table: `phrase_set`
-**Purpose**: Custom vocabulary for Deepgram API  
+**Purpose**: Custom vocabulary for Deepgram API
 **Owner**: api-gateway (write), stt-provider (read)
 
 | Column | Type | Description |
@@ -96,8 +96,8 @@ Chunk Duration: 50ms
 
 ## 4. "Black Box" Storage
 
-**Location**: `/data/nats` (Loopback Mount)  
-**Format**: NATS JetStream File Store  
+**Location**: `/data/nats` (Loopback Mount)
+**Format**: NATS JetStream File Store
 **Retention**:
 - `audio.raw`: 24 Hours (Rolling)
 - `text.transcript`: 30 Days

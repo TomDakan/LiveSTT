@@ -7,7 +7,7 @@ This document documents the internal APIs used for inter-service communication (
 
 ## 1. REST API (`api-gateway`)
 
-**Base URL**: `http://localhost:8000`  
+**Base URL**: `http://localhost:8000`
 **Docs URL**: `http://localhost:8000/docs` (Swagger UI)
 
 ### Authentication

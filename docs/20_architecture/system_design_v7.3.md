@@ -1,8 +1,8 @@
 # System Design Document: v7.3 (Industrial Split-Brain)
 
-**Status**: ARCHITECTURE LOCKED  
-**Target Platform**: Industrial x86 (Intel N97)  
-**Pattern**: Parallel Processing Streams (Cloud Text + Edge Identity)  
+**Status**: ARCHITECTURE LOCKED
+**Target Platform**: Industrial x86 (Intel N97)
+**Pattern**: Parallel Processing Streams (Cloud Text + Edge Identity)
 **Date**: November 26, 2025
 
 ---

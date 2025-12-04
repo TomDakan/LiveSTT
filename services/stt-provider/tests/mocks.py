@@ -1,8 +1,8 @@
 import asyncio
 from collections.abc import AsyncIterator
-from typing import Any
 
 from stt_provider.interfaces import Transcriber, TranscriptionEvent
+
 
 class MockTranscriber(Transcriber):
     """Simulated Transcriber."""
@@ -19,7 +19,7 @@ class MockTranscriber(Transcriber):
         self.sent_audio.append(audio)
 
     async def finish(self) -> None:
-        await self.events_to_yield.put(None) # Signal end
+        await self.events_to_yield.put(None)  # Signal end
 
     async def get_events(self) -> AsyncIterator[TranscriptionEvent]:
         while True:

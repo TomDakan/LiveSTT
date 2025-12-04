@@ -9,14 +9,13 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    
+
     automerge: true
-    
+
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
-    
+
     automerge: true
-    

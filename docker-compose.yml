@@ -85,5 +85,3 @@ services:
 networks:
   internal_overlay:
     driver: bridge
-
-

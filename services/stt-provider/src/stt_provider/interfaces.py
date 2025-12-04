@@ -1,12 +1,16 @@
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Any, AsyncIterator, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
+
 
 @dataclass
 class TranscriptionEvent:
     """Represents a single transcription result."""
+
     text: str
     is_final: bool
     confidence: float
+
 
 @runtime_checkable
 class Transcriber(Protocol):

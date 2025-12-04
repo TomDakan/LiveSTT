@@ -2,19 +2,21 @@
 
 import asyncio
 import os
+
 import pytest
-from fastapi.testclient import TestClient
-from nats.aio.client import Client as NATS
 
 # Imports from services
 # Note: These require PYTHONPATH to include services/*/src
 from api_gateway.main import app
-from stt_provider.service import STTService
-from stt_provider.deepgram_adapter import DeepgramTranscriber
-from audio_producer.main import NatsAudioPublisher
 from audio_producer.audiosource import FileSource
+from audio_producer.main import NatsAudioPublisher
+from fastapi.testclient import TestClient
+from nats.aio.client import Client as NATS
+from stt_provider.deepgram_adapter import DeepgramTranscriber
+from stt_provider.service import STTService
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+
 
 @pytest.mark.asyncio
 async def test_e2e_flow() -> None:
@@ -65,7 +67,7 @@ async def test_e2e_flow() -> None:
         # Wait for producer to finish (file end)
         try:
             await asyncio.wait_for(producer_task, timeout=5.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             producer_task.cancel()
 
         # Wait for processing and transcript

@@ -37,32 +37,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      
+
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
           version: "latest"
-      
+
       - name: Install dependencies
         run: uv sync
-      
+
       - name: Run Ruff (format check)
         run: uv run ruff format . --check
-      
+
       - name: Run Ruff (lint)
         run: uv run ruff check .
-      
+
       - name: Run MyPy
         run: uv run mypy .
-      
+
       - name: Run Pytest
         run: uv run pytest --cov=services --cov-report=xml
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
 ```
@@ -84,24 +84,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Run Safety (Python deps)
         run: |
           pip install safety
           safety check --json | tee safety-report.json
-      
+
       - name: Run Bandit (code scan)
         run: |
           pip install bandit
           bandit -r services -f json -o bandit-report.json
-      
+
       - name: Run Trivy (Docker images)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'live-stt/api-gateway:latest'
           format: 'sarif'
           output: 'trivy-results.sarif'
-      
+
       - name: Upload to GitHub Security
         uses: github/codeql-action/upload-sarif@v2
         with:
@@ -124,16 +124,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      
+
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v5
         with:
@@ -143,20 +143,20 @@ jobs:
           tags: |
             live-stt/api-gateway:latest
             live-stt/api-gateway:${{ github.sha }}
-  
+
   deploy-balena:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install Balena CLI
         run: npm install -g balena-cli
-      
+
       - name: Balena Login
         run: balena login --token ${{ secrets.BALENA_API_TOKEN }}
-      
+
       - name: Deploy to Fleet
         run: balena push live-stt-production --nocache
 ```
@@ -412,7 +412,7 @@ updates:
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
-  
+
   - package-ecosystem: "docker"
     directory: "/services/api-gateway"
     schedule:

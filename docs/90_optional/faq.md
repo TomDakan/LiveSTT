@@ -3,7 +3,7 @@
 ## General
 
 ### Q: Does this system require the internet?
-**A:** Yes and No. 
+**A:** Yes and No.
 - **Yes**: It needs internet to send audio to Deepgram for transcription.
 - **No**: It is "Offline-First" in design. If the internet cuts out, it will buffer audio locally and upload it when the connection returns. It will not crash.
 
@@ -31,14 +31,14 @@
 ## Troubleshooting
 
 ### Q: The transcript is stuck / not showing up.
-**A:** 
+**A:**
 1. Check if the "On Air" light is active on the device.
 2. Check your internet connection.
 3. Refresh the web page.
 4. See [Runbooks](../60_ops/runbooks.md) for detailed logs analysis.
 
 ### Q: It keeps identifying the wrong person.
-**A:** 
+**A:**
 - The speaker might be too far from the mic.
 - The voiceprint might be poor quality. Try re-enrolling the user.
 - Adjust the confidence threshold in the config.

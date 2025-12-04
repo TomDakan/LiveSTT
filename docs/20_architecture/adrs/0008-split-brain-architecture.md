@@ -1,13 +1,13 @@
 # ADR-0008: Industrial Split-Brain Architecture
 
-**Date**: 2025-11-26  
-**Status**: ACCEPTED  
-**Context**:  
+**Date**: 2025-11-26
+**Status**: ACCEPTED
+**Context**:
 We need high-accuracy transcription (comparable to human captioning) AND low-latency speaker identification.
 -   **Pure Edge (v6.x)**: Jetson STT models (Whisper-small) are not accurate enough for church sermons.
 -   **Pure Cloud**: Cloud diarization is good but cannot identify specific local speakers (e.g., "Pastor John") by name without training custom models, which is expensive and complex.
 
-**Decision**:  
+**Decision**:
 Adopt a **"Split-Brain" Architecture** with a **Hybrid Tagging Strategy**.
 
 **Details**:

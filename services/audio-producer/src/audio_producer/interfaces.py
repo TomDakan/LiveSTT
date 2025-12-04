@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import Any, Protocol, Self, runtime_checkable
+from typing import Protocol, Self, runtime_checkable
 
 
 @runtime_checkable

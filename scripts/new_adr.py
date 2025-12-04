@@ -78,10 +78,10 @@ def main() -> None:
     if not title:
         print("Error: A title for the ADR is required.", file=sys.stderr)
         print("\nUsage example:")
-        print('  uv run scripts/new_adr.py')
+        print("  uv run scripts/new_adr.py")
         print('"Your concise decision title"', file=sys.stderr)
         print("  # or, if using just:")
-        print('  just adr \"Your concise decision title\"', file=sys.stderr)
+        print('  just adr "Your concise decision title"', file=sys.stderr)
         sys.exit(1)
 
     adr_num = get_next_adr_num()

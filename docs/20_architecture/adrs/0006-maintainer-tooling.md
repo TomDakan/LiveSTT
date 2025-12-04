@@ -37,7 +37,7 @@ We will implement a **two-tier administrative interface strategy**:
 
 ### Tier 2: Maintainer/DevOps Tools (M8.5)
 - **Technology**: `just` command recipes + optional barebones web dashboard
-- **Access**: 
+- **Access**:
   - **Primary**: CLI via Balena SSH (`balena ssh <device-uuid>`)
   - **Optional**: Simple web UI on port `:9000` (disabled by default in production)
 - **Audience**: System administrators, deployers, troubleshooters

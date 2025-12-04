@@ -7,8 +7,8 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from nats.aio.client import Client as NATS
 from messaging.nats import NatsClient
+from nats.aio.client import Client as NATS
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)

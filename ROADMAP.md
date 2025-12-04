@@ -80,4 +80,3 @@ This document outlines the development roadmap for Live STT (v7.3 Industrial Spl
 **See Also:**
 - [Architecture Definition](docs/20_architecture/architecture_definition.md)
 - [System Design v7.3](docs/temp_design_update.md)
-

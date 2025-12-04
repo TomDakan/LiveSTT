@@ -213,4 +213,3 @@ When adding a new service (e.g., `services/new-app`):
 - **Python**: Checked by `ruff` (PEP8 compliant) and `mypy` (strict typing).
 - **Architecture**: Follows the [Microservices Pattern](docs/20_architecture/architecture_definition.md).
 - **Secrets**: NEVER commit secrets. Use `.env` for local dev.
-
