@@ -14,7 +14,8 @@ classifiers = [
 ]
 # The root has NO runtime dependencies.
 # Dependencies (like typed-settings) belong in services/*/pyproject.toml
-dependencies = []
+dependencies = [
+]
 
 [tool.uv.workspace]
 members = ["services/*", "libs/*"]
@@ -91,9 +92,9 @@ dev = [
     "safety",
     "bandit",
     "python-semantic-release",
-    # Add type stubs here if needed (e.g. types-requests)
     "websockets>=15.0.1",
     "nats-py>=2.12.0",
+    "pre-commit>=4.5.0",
     "basedpyright>=1.35.0",
 ]
 docs = [
