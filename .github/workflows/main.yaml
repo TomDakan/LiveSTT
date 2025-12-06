@@ -27,7 +27,7 @@ jobs:
               run: uv sync
 
             - name: Run QA Suite
-              run: just qa-github
+              run: just qa
               env:
                   SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
