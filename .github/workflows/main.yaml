@@ -2,33 +2,33 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  qa:
-    name: "QA Suite"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.13", "3.12"]
+    qa:
+        name: "QA Suite"
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                python-version: ["3.13", "3.12"]
 
-    steps:
-      - uses: actions/checkout@v4
+        steps:
+            - uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          version: "latest"
+            - name: Install uv
+              uses: astral-sh/setup-uv@v3
+              with:
+                  version: "latest"
 
-      - name: Install Just
-        uses: extractions/setup-just@v2
+            - name: Install Just
+              uses: extractions/setup-just@v2
 
-      - name: Install dependencies
-        run: uv sync
+            - name: Install dependencies
+              run: uv sync
 
-      - name: Run QA Suite
-        run: just qa
+            - name: Run QA Suite
+              run: just qa-github
 
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.13'
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
+            - name: Upload coverage to Codecov
+              if: matrix.python-version == '3.13'
+              uses: codecov/codecov-action@v4
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  fail_ci_if_error: false
