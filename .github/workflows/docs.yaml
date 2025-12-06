@@ -1,9 +1,9 @@
 name: Deploy Documentation
 on:
+on:
     push:
-        branches:
-            - main
-            - master # Include 'master' for older repositories
+        tags:
+            - "v*"
 
 # Allow this job to push to the gh-pages branch
 permissions:
