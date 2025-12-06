@@ -65,80 +65,84 @@ class FileSource(AudioSource):
         self.wf.close()
 
 
-class WindowsSource(AudioSource):
-    """Audio source for Windows."""
+if pyaudio:
 
-    pyaudio: pyaudio.PyAudio
-    stream_obj: pyaudio.Stream
-    chunk_size: int
-    sample_rate: int
+    class WindowsSource(AudioSource):
+        """Audio source for Windows."""
 
-    def __init__(self, sample_rate: int = 16000, chunk_size: int = 1600) -> None:
-        self.pyaudio = pyaudio.PyAudio()
-        self.stream_obj = self.pyaudio.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=sample_rate,
-            input=True,
-            frames_per_buffer=chunk_size,
-        )
-        self.chunk_size = chunk_size
-        self.sample_rate = sample_rate
+        pyaudio: pyaudio.PyAudio
+        stream_obj: pyaudio.Stream
+        chunk_size: int
+        sample_rate: int
 
-    @override
-    async def stream(self) -> AsyncIterator[bytes]:
-        """Yields chunks of raw PCM audio bytes."""
-        while True:
-            data = await asyncio.to_thread(
-                self.stream_obj.read, self.chunk_size, exception_on_overflow=False
+        def __init__(self, sample_rate: int = 16000, chunk_size: int = 1600) -> None:
+            self.pyaudio = pyaudio.PyAudio()
+            self.stream_obj = self.pyaudio.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=sample_rate,
+                input=True,
+                frames_per_buffer=chunk_size,
             )
-            yield data
+            self.chunk_size = chunk_size
+            self.sample_rate = sample_rate
 
-    @override
-    async def __aenter__(self) -> Self:
-        """Enter the runtime context related to this object."""
-        return self
-
-    @override
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit the runtime context related to this object."""
-        pass
-
-
-class LinuxSource(AudioSource):
-    """Audio source for Linux."""
-
-    def __init__(self, sample_rate: int, chunk_size: int) -> None:
-        self.inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL)
-        self.inp.setchannels(1)
-        self.inp.setrate(sample_rate)
-        self.inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
-        self.inp.setperiodsize(chunk_size)
-        self.chunk_size = chunk_size
-
-    @override
-    async def stream(self) -> AsyncIterator[bytes]:
-        while True:
-            length, data = await asyncio.to_thread(self.inp.read)
-            if length > 0:
+        @override
+        async def stream(self) -> AsyncIterator[bytes]:
+            """Yields chunks of raw PCM audio bytes."""
+            while True:
+                data = await asyncio.to_thread(
+                    self.stream_obj.read, self.chunk_size, exception_on_overflow=False
+                )
                 yield data
 
-    @override
-    async def __aenter__(self) -> Self:
-        """Enter the runtime context related to this object."""
-        return self
+        @override
+        async def __aenter__(self) -> Self:
+            """Enter the runtime context related to this object."""
+            return self
 
-    @override
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit the runtime context related to this object."""
-        pass
+        @override
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None,
+        ) -> None:
+            """Exit the runtime context related to this object."""
+            pass
+
+
+if alsaaudio:
+
+    class LinuxSource(AudioSource):
+        """Audio source for Linux."""
+
+        def __init__(self, sample_rate: int, chunk_size: int) -> None:
+            self.inp = alsaaudio.PCM(alsaaudio.PCM_CAPTURE, alsaaudio.PCM_NORMAL)
+            self.inp.setchannels(1)
+            self.inp.setrate(sample_rate)
+            self.inp.setformat(alsaaudio.PCM_FORMAT_S16_LE)
+            self.inp.setperiodsize(chunk_size)
+            self.chunk_size = chunk_size
+
+        @override
+        async def stream(self) -> AsyncIterator[bytes]:
+            while True:
+                length, data = await asyncio.to_thread(self.inp.read)
+                if length > 0:
+                    yield data
+
+        @override
+        async def __aenter__(self) -> Self:
+            """Enter the runtime context related to this object."""
+            return self
+
+        @override
+        async def __aexit__(
+            self,
+            exc_type: type[BaseException] | None,
+            exc_val: BaseException | None,
+            exc_tb: TracebackType | None,
+        ) -> None:
+            """Exit the runtime context related to this object."""
+            pass
