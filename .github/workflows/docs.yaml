@@ -1,6 +1,5 @@
 name: Deploy Documentation
 on:
-on:
     push:
         tags:
             - "v*"
