@@ -1,3 +1,9 @@
+## 1.0.1 (2025-12-06)
+
+### Fix
+
+- **cicd**: updated deploy and docs github actions to also install alsaaudio dependencies
+
 ## 1.0.0 (2025-12-06)
 
 ### Feat
