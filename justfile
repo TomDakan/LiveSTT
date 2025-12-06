@@ -64,7 +64,7 @@ deploy *args:
     echo 'Deploying...' {{ args }}
 
 # Check for known security vulnerabilities in dependencies.
-safety-scan *args:
+safety-check *args:
     uv run python -m safety scan {{ args }}
 
 # Run Bandit security linter.
@@ -75,12 +75,17 @@ bandit-check *args:
 export-docs-reqs *args:
     uv export --group docs --no-hashes -o docs-requirements.txt {{ args }}
 
+# Scaffold Docker build context (required for build)
+scaffold:
+    uv run python scripts/scaffold_context.py
+    uv run python scripts/generate_dockerignore.py
+
 # Start the stack in detached mode
-up:
+up: scaffold
     docker compose up -d
 
 # Force a rebuild of images and restart containers
-up-build:
+up-build: scaffold
     docker compose up -d --build
 
 # The "Nuclear Option": Stop containers and DELETE volumes
@@ -146,6 +151,7 @@ qa:
     just safety-scan
     just bandit-check
 
+# Run the QA suite for GitHub Actions (skips safety-check)
 qa-github:
     just format-check
     just lint

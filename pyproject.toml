@@ -102,6 +102,7 @@ dev = [
     "audio-producer",
     "messaging",
     "stt-provider",
+    "basedpyright>=1.35.0",
 ]
 docs = [
     "mkdocs",

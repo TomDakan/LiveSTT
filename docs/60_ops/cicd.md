@@ -108,64 +108,75 @@ jobs:
           sarif_file: 'trivy-results.sarif'
 ```
 
-### 2.3 Build & Deploy (`.github/workflows/deploy.yml`)
-**Trigger**: Push to `main`, tagged releases
+### 2.3 Deploy Docker (`.github/workflows/deploy-docker.yaml`)
+**Trigger**: Tagged releases (`v*`) ONLY.
 
 ```yaml
-name: Build & Deploy
+name: Deploy Docker
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    tags:
+      - "v*"
 
 jobs:
-  build:
+  build-and-push:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
+      - name: Scaffold Build Context
+        run: |
+          uv run python scripts/scaffold_context.py
+          uv run python scripts/generate_dockerignore.py
       - name: Build and push (multi-arch)
         uses: docker/build-push-action@v5
-        with:
-          context: services/api-gateway
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            live-stt/api-gateway:latest
-            live-stt/api-gateway:${{ github.sha }}
+        # ... builds for linux/amd64,linux/arm64 ...
 
   deploy-balena:
-    needs: build
+    needs: build-and-push
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Balena CLI
-        run: npm install -g balena-cli
-
-      - name: Balena Login
-        run: balena login --token ${{ secrets.BALENA_API_TOKEN }}
-
-      - name: Deploy to Fleet
-        run: balena push live-stt-production --nocache
+      - name: Deploy to Balena
+        uses: balena-io/deploy-to-balena-action@v0.1.0
+        with:
+          fleet: live-stt-production
+          create_tag: true
+          version: ${{ github.ref_name }}
 ```
 
 ---
 
 ## 3. Docker Build Strategy
 
-### 3.1 Multi-Stage Builds
+### 3.1 Standard Host Deployment (Non-Balena)
+
+For deploying to a standard container host (e.g., a cloud VM or local server), use the following steps:
+
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/yourusername/live-stt.git
+    cd live-stt
+    ```
+
+2.  **Install Prerequisites**:
+    - Docker & Docker Compose
+    - `uv` (Python package manager)
+    - `just` (Command runner)
+
+3.  **Scaffold and Run**:
+    The `just up` command automatically scaffolds the build context before starting containers.
+    ```bash
+    # Starts the stack in detached mode
+    just up
+    ```
+
+    To force a rebuild:
+    ```bash
+    just up-build
+    ```
+
+### 3.2 Multi-Stage Builds
 ```dockerfile
 # Example: services/stt-provider/Dockerfile
 

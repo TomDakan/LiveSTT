@@ -186,25 +186,35 @@ messaging = "==0.5.0"  # Pinned to specific version (not workspace)
 
 ### New Service Protocol
 
-When adding a new service (e.g., `services/new-app`):
+When adding a new service (e.g., `services/new-app`), you must update several configuration files to ensure it is correctly versioned, built, and deployed.
 
-1. **Create service** with `pyproject.toml`
-2. **Set initial version** to match the current root version:
-   ```toml
-   [project]
-   name = "new-app"
-   version = "0.3.5"  # Match root version
-   ```
-3. **Add to version_files** in root `pyproject.toml`:
-   ```toml
-   [tool.commitizen]
-   version_files = [
-       "pyproject.toml:version",
-       # ... other services ...
-       "services/new-app/pyproject.toml:version",  # Add this line
-   ]
-   ```
-4. **Use `workspace = true`** for internal dependencies
+**Checklist:**
+
+1.  **Create Service**:
+    - Create directory `services/new-app/`
+    - Create `pyproject.toml` with `workspace = true` dependencies.
+    - Set initial version to match root `pyproject.toml`.
+
+2.  **Versioning (`pyproject.toml`)**:
+    - Add the new service's `pyproject.toml` to `[tool.commitizen] version_files` in the root `pyproject.toml`.
+    - This ensures the service version is bumped automatically with the monorepo.
+
+3.  **Local Runtime (`docker-compose.yml`)**:
+    - Add a service definition to `docker-compose.yml`.
+    - Ensure it uses the scaffolded build context:
+      ```yaml
+      new-app:
+        build:
+          context: .
+          dockerfile: services/new-app/Dockerfile
+      ```
+
+4.  **Production Build (`.github/workflows/deploy-docker.yaml`)**:
+    - Add a new `Build and push` step to the `build-and-push` job.
+    - This ensures the Docker image is built and pushed to Docker Hub during release.
+
+5.  **Documentation**:
+    - Update `docs/20_architecture/system_design_v7.3.md` to include the new component.
 
 ---
 

@@ -98,6 +98,10 @@ def generate_dockerignore() -> None:
         "",
         "# IMPORTANT: Do NOT exclude .docker-context/ - it's needed for the build!",
         "# .docker-context/",
+        "",
+        "# Exclude tests from production builds",
+        "tests/",
+        "**/tests/",
     ]
 
     # Write to .dockerignore
