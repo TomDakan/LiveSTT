@@ -876,8 +876,11 @@ source = { virtual = "." }
 
 [package.dev-dependencies]
 dev = [
+    { name = "api-gateway" },
+    { name = "audio-producer" },
     { name = "bandit" },
     { name = "commitizen" },
+    { name = "messaging" },
     { name = "mypy" },
     { name = "nats-py" },
     { name = "pre-commit" },
@@ -887,6 +890,7 @@ dev = [
     { name = "python-semantic-release" },
     { name = "ruff" },
     { name = "safety" },
+    { name = "stt-provider" },
     { name = "websockets" },
 ]
 docs = [
@@ -899,8 +903,11 @@ docs = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "api-gateway", editable = "services/api-gateway" },
+    { name = "audio-producer", editable = "services/audio-producer" },
     { name = "bandit" },
     { name = "commitizen" },
+    { name = "messaging", editable = "libs/messaging" },
     { name = "mypy" },
     { name = "nats-py", specifier = ">=2.12.0" },
     { name = "pre-commit", specifier = ">=4.5.0" },
@@ -910,6 +917,7 @@ dev = [
     { name = "python-semantic-release" },
     { name = "ruff" },
     { name = "safety" },
+    { name = "stt-provider", editable = "services/stt-provider" },
     { name = "websockets", specifier = ">=15.0.1" },
 ]
 docs = [

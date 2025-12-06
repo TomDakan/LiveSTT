@@ -64,8 +64,8 @@ deploy *args:
     echo 'Deploying...' {{ args }}
 
 # Check for known security vulnerabilities in dependencies.
-safety-check *args:
-    uv run python -m safety check {{ args }}
+safety-scan *args:
+    uv run python -m safety scan {{ args }}
 
 # Run Bandit security linter.
 bandit-check *args:
@@ -143,5 +143,12 @@ qa:
     just lint
     just type-check
     just test
-    just safety-check
+    just safety-scan
+    just bandit-check
+
+qa-github:
+    just format-check
+    just lint
+    just type-check
+    just test
     just bandit-check
