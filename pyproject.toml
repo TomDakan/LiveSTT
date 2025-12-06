@@ -1,6 +1,6 @@
 [project]
 name = "live-stt-monorepo"
-version = "1.0.2"
+version = "0.3.0"
 description = "Monorepo for High-Reliability STT Appliance"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
@@ -16,6 +16,14 @@ classifiers = [
 # Dependencies (like typed-settings) belong in services/*/pyproject.toml
 dependencies = [
 ]
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+major_on_zero = false
+branch = "main"
+upload_to_pypi = false
+upload_to_release = true
+build_command = "uv build"
 
 [tool.uv.workspace]
 members = ["services/*", "libs/*"]
