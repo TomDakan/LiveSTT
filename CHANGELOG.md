@@ -1,3 +1,9 @@
+## 1.0.2 (2025-12-06)
+
+### Fix
+
+- **cicd**: updated release.yaml to also install alsaaudio dependency
+
 ## 1.0.1 (2025-12-06)
 
 ### Fix
