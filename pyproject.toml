@@ -18,12 +18,24 @@ dependencies = [
 ]
 
 [tool.semantic_release]
-version_toml = ["pyproject.toml:project.version"]
+version_toml = [
+    "pyproject.toml:project.version",
+    "services/api-gateway/pyproject.toml:project.version",
+    "services/audio-classifier/pyproject.toml:project.version",
+    "services/audio-producer/pyproject.toml:project.version",
+    "services/data-sweeper/pyproject.toml:project.version",
+    "services/health-watchdog/pyproject.toml:project.version",
+    "services/identifier/pyproject.toml:project.version",
+    "services/stt-provider/pyproject.toml:project.version",
+    "libs/messaging/pyproject.toml:project.version",
+]
 major_on_zero = false
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
 build_command = "uv build"
+commit_version_number = true
+tag_commit = true
 
 [tool.uv.workspace]
 members = ["services/*", "libs/*"]
