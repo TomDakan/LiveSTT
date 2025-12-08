@@ -1,6 +1,6 @@
 [project]
 name = "live-stt-monorepo"
-version = "1.0.0"
+version = "0.4.0"
 description = "Monorepo for High-Reliability STT Appliance"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
@@ -30,6 +30,7 @@ version_toml = [
     "libs/messaging/pyproject.toml:project.version",
 ]
 major_on_zero = false
+allow_zero_version = true
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
@@ -39,7 +40,7 @@ tag_commit = true
 tag_format = "v{version}"
 # Ignore commits that might be misidentified as breaking or major
 exclude_commit_patterns = [
-    "bump: version 0.3.0 → 1.0.0",
+    '''^bump: version.*''',
 ]
 
 [tool.uv.workspace]
@@ -91,13 +92,7 @@ markers = [
     "network: Marks tests that require a live network connection.",
 ]
 
-[tool.commitizen]
-name = "cz_conventional_commits"
-tag_format = "$version"
-version_scheme = "semver2"
-version_provider = "pep621"
-update_changelog_on_bump = true
-changelog_file = "CHANGELOG.md"
+
 
 [tool.bandit]
 targets = ["services"]
