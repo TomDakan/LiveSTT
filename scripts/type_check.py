@@ -1,10 +1,10 @@
 """
-Cross-platform script to run MyPy type checking.
+Cross-platform script to run type checking (MyPy and BasedPyright).
 Usage:
     python scripts/type_check.py [service_name]
 
-If service_name is provided, runs MyPy for that service.
-If not, runs MyPy for all services and root modules.
+If service_name is provided, runs checks for that service.
+If not, runs checks for all services and root modules.
 """
 
 import argparse
@@ -16,11 +16,28 @@ from pathlib import Path
 ROOT_MODULES = ["src", "scripts", "bootstrap.py"]
 
 
-def run_mypy(target: str) -> bool:
-    # Resolve mypy executable
-    # We use sys.executable to run mypy as a module, which is safer and more reliable
-    # than trying to find the 'mypy' executable directly, especially in venvs.
-    cmd = [
+def run_command(cmd: list[str], task_name: str) -> bool:
+    """Run a type checking command and return True if successful."""
+    print(f"Running {task_name}...")
+    try:
+        result = subprocess.run(
+            cmd,
+            check=False,
+            shell=False,
+        )  # nosec B603
+        if result.returncode != 0:
+            print(f"FAILED: {task_name}")
+            return False
+        return True
+    except Exception as e:
+        print(f"Error running {task_name}: {e}")
+        return False
+
+
+def run_checks(target: str) -> bool:
+    """Run both MyPy and BasedPyright on the target."""
+    # 1. MyPy
+    mypy_cmd = [
         sys.executable,
         "-m",
         "mypy",
@@ -28,17 +45,19 @@ def run_mypy(target: str) -> bool:
         "--no-warn-unused-configs",
         target,
     ]
+    mypy_ok = run_command(mypy_cmd, f"MyPy on {target}")
 
-    try:
-        result = subprocess.run(
-            cmd,
-            check=False,  # We handle the return code manually
-            shell=False,  # Safe execution
-        )  # nosec B603
-        return result.returncode == 0
-    except Exception as e:
-        print(f"Error running MyPy on {target}: {e}")
-        return False
+    # 2. BasedPyright
+    # Run via python module (-m) to ensure we use the venv's installed package.
+    basedpyright_cmd = [
+        sys.executable,
+        "-m",
+        "basedpyright",
+        target,
+    ]
+    bpy_ok = run_command(basedpyright_cmd, f"BasedPyright on {target}")
+
+    return mypy_ok and bpy_ok
 
 
 def has_python_files(path: Path) -> bool:
@@ -53,7 +72,7 @@ def check_services(services_dir: Path) -> bool:
         for service_path in services_dir.iterdir():
             if service_path.is_dir():
                 if has_python_files(service_path):
-                    if not run_mypy(str(service_path)):
+                    if not run_checks(str(service_path)):
                         failed = True
                 else:
                     print(f"Skipping {service_path.name} (no Python files)")
@@ -70,13 +89,13 @@ def check_roots(project_root: Path) -> bool:
             if target.is_dir() and not has_python_files(target):
                 print(f"Skipping {module} (no Python files)")
                 continue
-            if not run_mypy(str(target)):
+            if not run_checks(str(target)):
                 failed = True
     return failed
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run MyPy type checking.")
+    parser = argparse.ArgumentParser(description="Run type checking.")
     parser.add_argument(
         "service",
         nargs="?",
@@ -95,7 +114,7 @@ def main() -> None:
         if not target.exists():
             print(f"Error: Service '{args.service}' not found at {target}")
             sys.exit(1)
-        if not run_mypy(str(target)):
+        if not run_checks(str(target)):
             failed = True
     else:
         # Check all services and roots
