@@ -33,7 +33,7 @@ major_on_zero = false
 branch = "main"
 upload_to_pypi = false
 upload_to_release = true
-build_command = "uv build"
+build_command = "false"
 commit_version_number = true
 tag_commit = true
 
