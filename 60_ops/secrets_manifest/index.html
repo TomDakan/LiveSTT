@@ -1,0 +1,3440 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../sbom/">
+      
+      
+        <link rel="next" href="../drp/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>Secrets Manifest - live-stt</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#secrets-manifest" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="live-stt" class="md-header__button md-logo" aria-label="live-stt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            live-stt
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Secrets Manifest
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="live-stt" class="md-nav__button md-logo" aria-label="live-stt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    live-stt
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../system_design.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap_draft.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meta
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Meta
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/project_charter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Charter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/raci_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RACI Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/compliance_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Requirements
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/prd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/user_journey_maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Journey Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/traceability_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/architecture_definition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Definition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/hsi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware-Software Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/threat_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADRs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ADRs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0000-use-record-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR Template
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0001-zmq-broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ZMQ Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0002-decoupled-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decoupled UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0003-multi-tier-hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Tier Hardware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0004-deepgram-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deepgram Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0005-balenaos-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BalenaOS Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0006-maintainer-tooling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintainer Tooling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0007-platform-pivot-x86/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Pivot (x86)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0008-split-brain-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Split-Brain Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0009-nats-migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NATS Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0010-python-3-12-upgrade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python 3.12 Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0011-retention-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retention Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/data_dictionary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/erd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Relationship Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/biometric_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biometric Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hardware
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/hbom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware BOM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/assembly_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assembly Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/environmental_constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environmental Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/fru_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FRU Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/master_test_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Test Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/performance_benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/penetration_test_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Penetration Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/vpat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VPAT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runbooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cicd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sbom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SBOM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets Manifest
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets Manifest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-secrets-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Secrets Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-secret-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Secret Storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Secret Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tier-1-balena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 (Balena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-23-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 2/3 (Docker Compose)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-secret-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Secret Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Secret Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deepgram_api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEEPGRAM_API_KEY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption_master_key-tier-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION_MASTER_KEY (Tier 2/3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tpm_sealed_key-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TPM_SEALED_KEY (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADMIN_PASSWORD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#websocket_secret-m7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WEBSOCKET_SECRET (M7+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-secret-access-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Secret Access Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-secret-rotation-procedures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Secret Rotation Procedures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Secret Rotation Procedures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rotating-deepgram_api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating DEEPGRAM_API_KEY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-encryption_master_key-tier-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating ENCRYPTION_MASTER_KEY (Tier 2/3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-tpm_sealed_key-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating TPM_SEALED_KEY (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-admin_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating ADMIN_PASSWORD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-secret-leak-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Secret Leak Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Secret Leak Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-commit-hook-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-Commit Hook (Git)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#continuous-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Continuous Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-secret-compromise-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Secret Compromise Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Secret Compromise Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deepgram_api_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEEPGRAM_API_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption_master_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION_MASTER_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tpm_sealed_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TPM_SEALED_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-secret-sharing-team-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Secret Sharing (Team Access)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Secret Sharing (Team Access)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-secrets-tier-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Secrets (Tier 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#production-secrets-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Secrets (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-secrets-in-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Secrets in Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Secrets in Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-sanitization-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log Sanitization Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Compliance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../drp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disaster Recovery Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../air_gap_update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Air-Gap Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/license_attestation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License Attestation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/eula/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EULA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/dpia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DPIA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-secrets-inventory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Secrets Inventory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-secret-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Secret Storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Secret Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tier-1-balena" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 1 (Balena)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tier-23-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tier 2/3 (Docker Compose)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-secret-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Secret Generation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Secret Generation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deepgram_api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEEPGRAM_API_KEY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption_master_key-tier-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION_MASTER_KEY (Tier 2/3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tpm_sealed_key-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TPM_SEALED_KEY (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#admin_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADMIN_PASSWORD
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#websocket_secret-m7" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WEBSOCKET_SECRET (M7+)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-secret-access-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Secret Access Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-secret-rotation-procedures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Secret Rotation Procedures
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Secret Rotation Procedures">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rotating-deepgram_api_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating DEEPGRAM_API_KEY
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-encryption_master_key-tier-23" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating ENCRYPTION_MASTER_KEY (Tier 2/3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-tpm_sealed_key-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating TPM_SEALED_KEY (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotating-admin_password" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rotating ADMIN_PASSWORD
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-secret-leak-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Secret Leak Detection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Secret Leak Detection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pre-commit-hook-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pre-Commit Hook (Git)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#continuous-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Continuous Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-secret-compromise-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Secret Compromise Response
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Secret Compromise Response">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deepgram_api_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEEPGRAM_API_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#encryption_master_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ENCRYPTION_MASTER_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tpm_sealed_key-leak" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        TPM_SEALED_KEY Leak
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-secret-sharing-team-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Secret Sharing (Team Access)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Secret Sharing (Team Access)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#development-secrets-tier-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Secrets (Tier 3)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#production-secrets-tier-1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Production Secrets (Tier 1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-secrets-in-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Secrets in Logs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Secrets in Logs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#log-sanitization-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Log Sanitization Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Compliance
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="secrets-manifest">Secrets Manifest</h1>
+<h2 id="overview">Overview</h2>
+<p>This document catalogs all secrets, credentials, and encryption keys used in the Live STT system, including storage locations, rotation policies, and access controls.</p>
+<hr />
+<h2 id="1-secrets-inventory">1. Secrets Inventory</h2>
+<table>
+<thead>
+<tr>
+<th>Secret ID</th>
+<th>Type</th>
+<th>Purpose</th>
+<th>Required Tier</th>
+<th>Rotation Period</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DEEPGRAM_API_KEY</strong></td>
+<td>API Key</td>
+<td>Cloud STT service</td>
+<td>All</td>
+<td>90 days</td>
+</tr>
+<tr>
+<td><strong>ENCRYPTION_MASTER_KEY</strong></td>
+<td>AES-256 Key</td>
+<td>Encrypt per-file keys</td>
+<td>Tier 2/3</td>
+<td>365 days</td>
+</tr>
+<tr>
+<td><strong>TPM_SEALED_KEY</strong></td>
+<td>AES-256 Key</td>
+<td>Encrypt per-file keys</td>
+<td>Tier 1</td>
+<td>Never (sealed to hardware)</td>
+</tr>
+<tr>
+<td><strong>ADMIN_PASSWORD</strong></td>
+<td>Password</td>
+<td>Admin dashboard access</td>
+<td>All</td>
+<td>180 days</td>
+</tr>
+<tr>
+<td><strong>WEBSOCKET_SECRET</strong></td>
+<td>JWT Secret</td>
+<td>WebSocket ticket signing</td>
+<td>All (M7+)</td>
+<td>90 days</td>
+</tr>
+<tr>
+<td><strong>DB_ENCRYPTION_KEY</strong></td>
+<td>AES-256 Key</td>
+<td>Encrypt sensitive DB columns</td>
+<td>Future</td>
+<td>365 days</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-secret-storage">2. Secret Storage</h2>
+<h3 id="tier-1-balena">Tier 1 (Balena)</h3>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Storage Location</th>
+<th>Access Method</th>
+<th>Encryption at Rest</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DEEPGRAM_API_KEY</strong></td>
+<td>Balena environment variables</td>
+<td><code>os.getenv("DEEPGRAM_API_KEY")</code></td>
+<td>✅ (Balena Vault)</td>
+</tr>
+<tr>
+<td><strong>TPM_SEALED_KEY</strong></td>
+<td>TPM 2.0 PCR registers</td>
+<td><code>tpm2_unseal(pcr=[0,7])</code></td>
+<td>✅ (Hardware-sealed)</td>
+</tr>
+<tr>
+<td><strong>ADMIN_PASSWORD</strong></td>
+<td>Balena environment variables</td>
+<td><code>os.getenv("ADMIN_PASSWORD")</code></td>
+<td>✅ (Balena Vault)</td>
+</tr>
+<tr>
+<td><strong>WEBSOCKET_SECRET</strong></td>
+<td>Balena environment variables</td>
+<td><code>os.getenv("WEBSOCKET_SECRET")</code></td>
+<td>✅ (Balena Vault)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="tier-23-docker-compose">Tier 2/3 (Docker Compose)</h3>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Storage Location</th>
+<th>Access Method</th>
+<th>Encryption at Rest</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DEEPGRAM_API_KEY</strong></td>
+<td><code>.env</code> file (gitignored)</td>
+<td><code>os.getenv("DEEPGRAM_API_KEY")</code></td>
+<td>❌ (User responsibility)</td>
+</tr>
+<tr>
+<td><strong>ENCRYPTION_MASTER_KEY</strong></td>
+<td><code>/config/master.key</code></td>
+<td>Read from file</td>
+<td>❌ (User responsibility)</td>
+</tr>
+<tr>
+<td><strong>ADMIN_PASSWORD</strong></td>
+<td><code>.env</code> file</td>
+<td><code>os.getenv("ADMIN_PASSWORD")</code></td>
+<td>❌ (User responsibility)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommendation (Tier 2/3)</strong>: Use Docker Secrets for production deployments</p>
+<pre><code class="language-bash">echo &quot;&lt;api-key&gt;&quot; | docker secret create deepgram_api_key -
+</code></pre>
+<hr />
+<h2 id="3-secret-generation">3. Secret Generation</h2>
+<h3 id="deepgram_api_key">DEEPGRAM_API_KEY</h3>
+<p><strong>Generation</strong>:
+1. Sign up at https://console.deepgram.com
+2. Navigate to "API Keys"
+3. Click "Create New Key"
+4. Copy key (displayed once)</p>
+<p><strong>Format</strong>: <code>a1b2c3d4e5f6...</code> (64-character hex string)</p>
+<h3 id="encryption_master_key-tier-23">ENCRYPTION_MASTER_KEY (Tier 2/3)</h3>
+<p><strong>Generation</strong>:</p>
+<pre><code class="language-bash"># Generate 256-bit random key
+openssl rand -hex 32 &gt; /config/master.key
+chmod 600 /config/master.key
+</code></pre>
+<p><strong>Format</strong>: 64-character hex string (32 bytes)</p>
+<h3 id="tpm_sealed_key-tier-1">TPM_SEALED_KEY (Tier 1)</h3>
+<p><strong>Generation</strong> (automatic on first boot):</p>
+<pre><code class="language-bash"># Performed by Balena OS provisioning script
+tpm2_createprimary -C o -g sha256 -G rsa -c primary.ctx
+tpm2_create -C primary.ctx -g sha256 -G keyedhash \
+    -r key.priv -u key.pub -I /dev/urandom
+tpm2_load -C primary.ctx -u key.pub -r key.priv -c key.ctx
+tpm2_evictcontrol -C o -c key.ctx 0x81000001  # Persist to NV
+</code></pre>
+<p><strong>Format</strong>: Binary blob (not human-readable)</p>
+<h3 id="admin_password">ADMIN_PASSWORD</h3>
+<p><strong>Generation</strong>:</p>
+<pre><code class="language-bash"># Generate strong random password
+openssl rand -base64 24
+# Example output: &quot;Xk9J2mN8pL4qR7sT3vW6yZ1a&quot;
+</code></pre>
+<p><strong>Requirements</strong>:
+- Minimum 16 characters
+- Mix of uppercase, lowercase, numbers, symbols</p>
+<h3 id="websocket_secret-m7">WEBSOCKET_SECRET (M7+)</h3>
+<p><strong>Generation</strong>:</p>
+<pre><code class="language-bash">openssl rand -hex 32
+</code></pre>
+<p><strong>Format</strong>: 64-character hex string</p>
+<hr />
+<h2 id="4-secret-access-matrix">4. Secret Access Matrix</h2>
+<table>
+<thead>
+<tr>
+<th>Secret</th>
+<th>Service</th>
+<th>Permission</th>
+<th>Why Needed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>DEEPGRAM_API_KEY</strong></td>
+<td>stt-provider</td>
+<td>Read</td>
+<td>Connect to Deepgram WSS</td>
+</tr>
+<tr>
+<td><strong>ENCRYPTION_MASTER_KEY</strong></td>
+<td>api-gateway</td>
+<td>Read</td>
+<td>Decrypt per-file keys</td>
+</tr>
+<tr>
+<td><strong>ENCRYPTION_MASTER_KEY</strong></td>
+<td>stt-provider</td>
+<td>Read</td>
+<td>Encrypt audio snippets</td>
+</tr>
+<tr>
+<td><strong>ENCRYPTION_MASTER_KEY</strong></td>
+<td>identifier</td>
+<td>Read</td>
+<td>Decrypt voiceprints</td>
+</tr>
+<tr>
+<td><strong>ADMIN_PASSWORD</strong></td>
+<td>api-gateway</td>
+<td>Read</td>
+<td>Verify admin login</td>
+</tr>
+<tr>
+<td><strong>WEBSOCKET_SECRET</strong></td>
+<td>api-gateway</td>
+<td>Read</td>
+<td>Sign/verify JWT tickets</td>
+</tr>
+<tr>
+<td><strong>TPM_SEALED_KEY</strong></td>
+<td>api-gateway</td>
+<td>Read</td>
+<td>Unseal master key</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Principle of Least Privilege</strong>: No service has access to secrets it doesn't need</p>
+<hr />
+<h2 id="5-secret-rotation-procedures">5. Secret Rotation Procedures</h2>
+<h3 id="rotating-deepgram_api_key">Rotating DEEPGRAM_API_KEY</h3>
+<p><strong>Trigger</strong>: Every 90 days, or on suspected compromise</p>
+<p><strong>Steps</strong>:
+1. Generate new key in Deepgram console
+2. Update environment variable (see <a href="../runbooks/#7-rotating-deepgram-api-key">Runbooks</a>)
+3. Restart <code>stt-provider</code> service
+4. Verify connectivity in logs
+5. Revoke old key in Deepgram console</p>
+<p><strong>Downtime</strong>: ~30 seconds</p>
+<h3 id="rotating-encryption_master_key-tier-23">Rotating ENCRYPTION_MASTER_KEY (Tier 2/3)</h3>
+<p><strong>Trigger</strong>: Every 365 days, or on suspected compromise</p>
+<p><strong>⚠️ WARNING</strong>: This requires <strong>re-encrypting all existing files</strong></p>
+<p><strong>Steps</strong>:</p>
+<pre><code class="language-bash"># 1. Stop all services
+docker compose down
+
+# 2. Generate new master key
+openssl rand -hex 32 &gt; /config/master.key.new
+
+# 3. Re-encrypt all per-file keys in database
+python scripts/rotate_master_key.py \
+    --old /config/master.key \
+    --new /config/master.key.new
+
+# 4. Replace master key
+mv /config/master.key /config/master.key.old
+mv /config/master.key.new /config/master.key
+
+# 5. Restart services
+docker compose up -d
+
+# 6. Verify (test voiceprint decryption)
+# 7. Delete old key
+shred -u /config/master.key.old
+</code></pre>
+<p><strong>Downtime</strong>: ~5 minutes</p>
+<h3 id="rotating-tpm_sealed_key-tier-1">Rotating TPM_SEALED_KEY (Tier 1)</h3>
+<p><strong>Not recommended</strong>: TPM key is sealed to hardware and boot state. Rotation requires reflashing entire device.</p>
+<p><strong>Alternative</strong>: If compromise suspected, wipe device and start fresh.</p>
+<h3 id="rotating-admin_password">Rotating ADMIN_PASSWORD</h3>
+<p><strong>Trigger</strong>: Every 180 days, or on suspected compromise</p>
+<p><strong>Steps</strong>:
+1. Generate new password
+2. Update <code>ADMIN_PASSWORD</code> environment variable
+3. Restart <code>api-gateway</code> service
+4. Verify login with new password</p>
+<p><strong>Downtime</strong>: None (admin dashboard only)</p>
+<hr />
+<h2 id="6-secret-leak-detection">6. Secret Leak Detection</h2>
+<h3 id="pre-commit-hook-git">Pre-Commit Hook (Git)</h3>
+<pre><code class="language-bash"># Install pre-commit framework
+pip install pre-commit
+
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+</code></pre>
+<p><strong>Excluded Patterns</strong>:
+- <code>.env.example</code> (placeholder values only)
+- <code>test_fixtures/</code> (fake keys for testing)</p>
+<h3 id="continuous-monitoring">Continuous Monitoring</h3>
+<pre><code class="language-bash"># Scan codebase for hardcoded secrets
+docker run --rm -v $(pwd):/src trufflesecurity/trufflehog git file:///src
+</code></pre>
+<p><strong>CI/CD Integration</strong>: Fails build if secrets detected</p>
+<hr />
+<h2 id="7-secret-compromise-response">7. Secret Compromise Response</h2>
+<h3 id="deepgram_api_key-leak">DEEPGRAM_API_KEY Leak</h3>
+<p><strong>Impact</strong>: Unauthorized STT usage (cost escalation)</p>
+<p><strong>Response</strong>:
+1. Immediately revoke key in Deepgram console
+2. Generate new key and rotate (see above)
+3. Review Deepgram usage logs for anomalies
+4. Enable rate limiting on new key</p>
+<h3 id="encryption_master_key-leak">ENCRYPTION_MASTER_KEY Leak</h3>
+<p><strong>Impact</strong>: All encrypted files can be decrypted</p>
+<p><strong>Response</strong>:
+1. <strong>If backups exist</strong>: Reflash device, restore from backup with new key
+2. <strong>If no backups</strong>: Rotate master key (see above)
+3. <strong>If voiceprints compromised</strong>: Notify affected speakers (GDPR/BIPA requirement)</p>
+<h3 id="tpm_sealed_key-leak">TPM_SEALED_KEY Leak</h3>
+<p><strong>Impact</strong>: Minimal (key cannot be unsealed without physical device + secure boot)</p>
+<p><strong>Response</strong>: No action required (key is hardware-bound)</p>
+<hr />
+<h2 id="8-secret-sharing-team-access">8. Secret Sharing (Team Access)</h2>
+<h3 id="development-secrets-tier-3">Development Secrets (Tier 3)</h3>
+<p><strong>Storage</strong>: <strong>1Password</strong> or <strong>BitWarden</strong> shared vault</p>
+<p><strong>Access</strong>:
+- Deepgram API key: Read-only, shared with all developers
+- Admin password: Development instance only (not production)</p>
+<h3 id="production-secrets-tier-1">Production Secrets (Tier 1)</h3>
+<p><strong>Storage</strong>: Balena environment variables (admin access only)</p>
+<p><strong>Access</strong>:
+- Only system administrator (USER)
+- No shared credentials</p>
+<p><strong>Audit Trail</strong>: Balena logs all environment variable changes</p>
+<hr />
+<h2 id="9-secrets-in-logs">9. Secrets in Logs</h2>
+<h3 id="log-sanitization-rules">Log Sanitization Rules</h3>
+<pre><code class="language-python"># api-gateway logging filter
+import logging
+import re
+
+class SanitizeSecretsFilter(logging.Filter):
+    def filter(self, record):
+        # Redact API keys
+        record.msg = re.sub(
+            r'DEEPGRAM_API_KEY=[\w]{64}',
+            'DEEPGRAM_API_KEY=***REDACTED***',
+            str(record.msg)
+        )
+        return True
+
+logging.getLogger().addFilter(SanitizeSecretsFilter())
+</code></pre>
+<p><strong>Never Logged</strong>:
+- Full API keys (only first 8 characters: <code>a1b2c3d4...</code>)
+- Encryption keys (never referenced in logs)
+- Admin passwords (only hashed values)</p>
+<hr />
+<h2 id="10-compliance">10. Compliance</h2>
+<table>
+<thead>
+<tr>
+<th>Regulation</th>
+<th>Requirement</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PCI DSS</strong></td>
+<td>No plaintext secrets in logs</td>
+<td>Log sanitization filter</td>
+</tr>
+<tr>
+<td><strong>GDPR</strong></td>
+<td>Encryption key management</td>
+<td>Per-file keys, crypto-shredding</td>
+</tr>
+<tr>
+<td><strong>BIPA</strong></td>
+<td>Biometric data security</td>
+<td>TPM sealing, voiceprint encryption</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><strong>See Also:</strong>
+- <a href="../../20_architecture/threat_model/">Threat Model</a> - Secret compromise scenarios
+- <a href="../../30_data/biometric_policy/">Biometric Policy</a> - Voiceprint encryption procedures
+- <a href="../runbooks/">Runbooks</a> - Secret rotation procedures</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>

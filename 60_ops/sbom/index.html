@@ -1,0 +1,3250 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../cicd/">
+      
+      
+        <link rel="next" href="../secrets_manifest/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.0">
+    
+    
+      
+        <title>SBOM - live-stt</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.618322db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#software-bill-of-materials-sbom" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="live-stt" class="md-header__button md-logo" aria-label="live-stt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            live-stt
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              SBOM
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="live-stt" class="md-nav__button md-logo" aria-label="live-stt" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    live-stt
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Getting Started
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../system_design.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    System Design
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../roadmap_draft.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Meta
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Meta
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/project_charter/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project Charter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/raci_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RACI Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../00_meta/compliance_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Requirements
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Requirements
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/prd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Product Requirements
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/user_journey_maps/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Journey Maps
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../10_requirements/traceability_matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Traceability Matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/architecture_definition/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Definition
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/hsi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware-Software Interface
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/threat_model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_4" id="__nav_5_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADRs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    ADRs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0000-use-record-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR Template
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0001-zmq-broker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ZMQ Broker
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0002-decoupled-ui/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decoupled UI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0003-multi-tier-hardware/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Multi-Tier Hardware
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0004-deepgram-selection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Deepgram Selection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0005-balenaos-deployment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BalenaOS Deployment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0006-maintainer-tooling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maintainer Tooling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0007-platform-pivot-x86/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Platform Pivot (x86)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0008-split-brain-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Split-Brain Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0009-nats-migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NATS Migration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0010-python-3-12-upgrade/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Python 3.12 Upgrade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../20_architecture/adrs/0011-retention-policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retention Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Data
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/data_dictionary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Dictionary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/erd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Entity Relationship Diagram
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../30_data/biometric_policy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Biometric Policy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Hardware
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/hbom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware BOM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/assembly_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assembly Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/environmental_constraints/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Environmental Constraints
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../40_hardware/fru_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FRU Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QA
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QA
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/master_test_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Master Test Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/performance_benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/penetration_test_report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Penetration Test Report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../50_qa/vpat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    VPAT
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Operations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Operations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runbooks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cicd/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CI/CD
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SBOM
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SBOM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-docker-base-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Docker Base Images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-python-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Python Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Python Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-services-audio-producer-stt-provider-api-gateway" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Services (audio-producer, stt-provider, api-gateway)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ml-services-audio-classifier-identifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Services (audio-classifier, identifier)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-system-libraries-debian-packages-in-docker-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. System Libraries (Debian packages in Docker images)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-pre-trained-ml-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Pre-Trained ML Models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-javascript-dependencies-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. JavaScript Dependencies (Web UI)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-build-tools-development-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Build Tools (Development Only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-third-party-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Third-Party Services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-license-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. License Compliance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. License Compliance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#permissive-licenses-no-attribution-required-in-binary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permissive Licenses (No Attribution Required in Binary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#copyleft-licenses-must-distribute-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Copyleft Licenses (Must Distribute Source)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-vulnerability-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Vulnerability Scanning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Vulnerability Scanning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automated-scans-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Scans (CI/CD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-audits-scheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Audits (Scheduled)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-dependency-update-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Dependency Update Policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-sbom-export-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. SBOM Export Formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. SBOM Export Formats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cyclonedx-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CycloneDX (JSON)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spdx-rdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPDX (RDF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../secrets_manifest/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Secrets Manifest
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../drp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Disaster Recovery Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../air_gap_update/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Air-Gap Updates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/license_attestation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    License Attestation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/eula/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    EULA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../70_legal/dpia/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DPIA
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/glossary/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Glossary
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../90_optional/troubleshooting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Troubleshooting
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-docker-base-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Docker Base Images
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-python-dependencies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Python Dependencies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Python Dependencies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#core-services-audio-producer-stt-provider-api-gateway" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Core Services (audio-producer, stt-provider, api-gateway)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ml-services-audio-classifier-identifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ML Services (audio-classifier, identifier)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-system-libraries-debian-packages-in-docker-images" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. System Libraries (Debian packages in Docker images)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-pre-trained-ml-models" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Pre-Trained ML Models
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-javascript-dependencies-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. JavaScript Dependencies (Web UI)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-build-tools-development-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Build Tools (Development Only)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-third-party-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Third-Party Services
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-license-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. License Compliance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. License Compliance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#permissive-licenses-no-attribution-required-in-binary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Permissive Licenses (No Attribution Required in Binary)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#copyleft-licenses-must-distribute-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Copyleft Licenses (Must Distribute Source)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-vulnerability-scanning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Vulnerability Scanning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Vulnerability Scanning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#automated-scans-cicd" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Scans (CI/CD)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#automated-audits-scheduled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Automated Audits (Scheduled)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-dependency-update-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Dependency Update Policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-sbom-export-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. SBOM Export Formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. SBOM Export Formats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cyclonedx-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CycloneDX (JSON)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spdx-rdf" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SPDX (RDF)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="software-bill-of-materials-sbom">Software Bill of Materials (SBOM)</h1>
+<h2 id="overview">Overview</h2>
+<p>This document catalogs all software dependencies, Docker base images, and third-party libraries used in the Live STT system.</p>
+<hr />
+<h2 id="1-docker-base-images">1. Docker Base Images</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Base Image</th>
+<th>Version</th>
+<th>Source</th>
+<th>Security Scan</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>broker</strong></td>
+<td><code>scratch</code></td>
+<td>N/A</td>
+<td>Docker Hub</td>
+<td>✅ No vulnerabilities (empty image)</td>
+</tr>
+<tr>
+<td><strong>audio-producer</strong></td>
+<td><code>python:3.13-slim</code></td>
+<td>3.13.1</td>
+<td>Docker Hub Official</td>
+<td>✅ Scanned weekly</td>
+</tr>
+<tr>
+<td><strong>stt-provider</strong></td>
+<td><code>python:3.13-slim</code></td>
+<td>3.13.1</td>
+<td>Docker Hub Official</td>
+<td>✅ Scanned weekly</td>
+</tr>
+<tr>
+<td><strong>api-gateway</strong></td>
+<td><code>python:3.13-slim</code></td>
+<td>3.13.1</td>
+<td>Docker Hub Official</td>
+<td>✅ Scanned weekly</td>
+</tr>
+<tr>
+<td><strong>audio-classifier</strong></td>
+<td><code>python:3.13-slim</code></td>
+<td>3.13.1</td>
+<td>Docker Hub Official</td>
+<td>✅ Scanned weekly</td>
+</tr>
+<tr>
+<td><strong>identifier</strong> (Tier 1)</td>
+<td><code>nvcr.io/nvidia/l4t-pytorch</code></td>
+<td>r36.2.0 (Py 3.10)</td>
+<td>NVIDIA NGC</td>
+<td>✅ Locked to JetPack version</td>
+</tr>
+<tr>
+<td><strong>identifier</strong> (Tier 2)</td>
+<td><code>pytorch/pytorch</code></td>
+<td>2.1.0 (Py 3.10)</td>
+<td>Docker Hub</td>
+<td>✅ PyTorch official</td>
+</tr>
+<tr>
+<td><strong>health-watchdog</strong></td>
+<td><code>python:3.13-slim</code></td>
+<td>3.13.1</td>
+<td>Docker Hub Official</td>
+<td>✅ Scanned weekly</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-python-dependencies">2. Python Dependencies</h2>
+<h3 id="core-services-audio-producer-stt-provider-api-gateway">Core Services (audio-producer, stt-provider, api-gateway)</h3>
+<p>Generated from <code>uv.lock</code> (pinned versions):</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Version</th>
+<th>License</th>
+<th>Purpose</th>
+<th>CVE Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>deepgram-sdk</strong></td>
+<td>3.3.6</td>
+<td>MIT</td>
+<td>Deepgram API client</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>fastapi</strong></td>
+<td>0.110.0</td>
+<td>MIT</td>
+<td>Web framework (api-gateway)</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>uvicorn</strong></td>
+<td>0.27.1</td>
+<td>BSD-3</td>
+<td>ASGI server</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>sounddevice</strong></td>
+<td>0.4.6</td>
+<td>MIT</td>
+<td>Audio capture</td>
+<td>✅ Actively maintained (PortAudio wrapper)</td>
+</tr>
+<tr>
+<td><strong>pyzmq</strong></td>
+<td>25.1.2</td>
+<td>LGPL+BSD</td>
+<td>ZMQ bindings</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>numpy</strong></td>
+<td>1.26.4</td>
+<td>BSD</td>
+<td>Audio processing</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>sqlalchemy</strong></td>
+<td>2.0.27</td>
+<td>MIT</td>
+<td>ORM for config.db</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>cryptography</strong></td>
+<td>42.0.5</td>
+<td>Apache-2.0/BSD</td>
+<td>AES encryption</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>pydantic</strong></td>
+<td>2.6.3</td>
+<td>MIT</td>
+<td>Data validation</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>python-multipart</strong></td>
+<td>0.0.9</td>
+<td>Apache-2.0</td>
+<td>File uploads</td>
+<td>✅ No known CVEs</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Full Dependency Tree</strong>: See <code>uv.lock</code> (150+ transitive dependencies)</p>
+<h3 id="ml-services-audio-classifier-identifier">ML Services (audio-classifier, identifier)</h3>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Version</th>
+<th>License</th>
+<th>Purpose</th>
+<th>CVE Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>torch</strong></td>
+<td>2.1.0</td>
+<td>BSD-3</td>
+<td>PyTorch (identifier)</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>torchaudio</strong></td>
+<td>2.1.0</td>
+<td>BSD-2</td>
+<td>Audio preprocessing</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>speechbrain</strong></td>
+<td>0.5.16</td>
+<td>Apache-2.0</td>
+<td>Speaker identification</td>
+<td>✅ No known CVEs</td>
+</tr>
+<tr>
+<td><strong>tensorflow-lite</strong></td>
+<td>2.15.0</td>
+<td>Apache-2.0</td>
+<td>YAMNet inference</td>
+<td>✅ No known CVEs</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-system-libraries-debian-packages-in-docker-images">3. System Libraries (Debian packages in Docker images)</h2>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Version</th>
+<th>Purpose</th>
+<th>Included In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>libportaudio2</strong></td>
+<td>19.6.0-1.2</td>
+<td>PyAudio backend</td>
+<td>audio-producer</td>
+</tr>
+<tr>
+<td><strong>libzmq5</strong></td>
+<td>4.3.4-1</td>
+<td>ZMQ library</td>
+<td>broker, all services</td>
+</tr>
+<tr>
+<td><strong>libsqlite3-0</strong></td>
+<td>3.40.1-2</td>
+<td>SQLite library</td>
+<td>api-gateway</td>
+</tr>
+<tr>
+<td><strong>libssl3</strong></td>
+<td>3.0.11-1</td>
+<td>TLS support</td>
+<td>stt-provider (Deepgram WSS)</td>
+</tr>
+<tr>
+<td><strong>ca-certificates</strong></td>
+<td>20230311</td>
+<td>Root CA certs</td>
+<td>All services</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Security Updates</strong>: Automatically applied via <code>apt-get update &amp;&amp; apt-get upgrade</code> in Dockerfile</p>
+<hr />
+<h2 id="4-pre-trained-ml-models">4. Pre-Trained ML Models</h2>
+<table>
+<thead>
+<tr>
+<th>Model</th>
+<th>Version</th>
+<th>Source</th>
+<th>License</th>
+<th>Size</th>
+<th>CVE Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>YAMNet</strong></td>
+<td>TFLite (2021)</td>
+<td>TensorFlow Hub</td>
+<td>Apache-2.0</td>
+<td>10 MB</td>
+<td>✅ No known issues</td>
+</tr>
+<tr>
+<td><strong>ECAPA-TDNN</strong></td>
+<td>SpeechBrain</td>
+<td>Hugging Face</td>
+<td>Apache-2.0</td>
+<td>500 MB</td>
+<td>✅ No known issues</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Download Location</strong>: Models pulled during Docker build from public repositories</p>
+<hr />
+<h2 id="5-javascript-dependencies-web-ui">5. JavaScript Dependencies (Web UI)</h2>
+<p><strong>None</strong> - The Live STT web UI uses vanilla JavaScript (no npm dependencies)</p>
+<p><strong>Static Assets</strong>:
+- <code>styles.css</code> - Custom CSS (no frameworks)
+- <code>app.js</code> - WebSocket client (vanilla JS)</p>
+<p><strong>Rationale</strong>: Minimize attack surface, no npm supply chain risk</p>
+<hr />
+<h2 id="6-build-tools-development-only">6. Build Tools (Development Only)</h2>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Purpose</th>
+<th>Used In</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>uv</strong></td>
+<td>latest</td>
+<td>Python dependency manager</td>
+<td>CI/CD, local dev</td>
+</tr>
+<tr>
+<td><strong>ruff</strong></td>
+<td>0.2.2</td>
+<td>Linter &amp; formatter</td>
+<td>CI/CD, pre-commit</td>
+</tr>
+<tr>
+<td><strong>mypy</strong></td>
+<td>1.8.0</td>
+<td>Type checker</td>
+<td>CI/CD</td>
+</tr>
+<tr>
+<td><strong>pytest</strong></td>
+<td>8.0.2</td>
+<td>Test runner</td>
+<td>CI/CD</td>
+</tr>
+<tr>
+<td><strong>docker</strong></td>
+<td>25.0.3</td>
+<td>Container runtime</td>
+<td>All environments</td>
+</tr>
+<tr>
+<td><strong>docker-compose</strong></td>
+<td>2.24.6</td>
+<td>Multi-container orchestration</td>
+<td>Tier 2/3</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="7-third-party-services">7. Third-Party Services</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Provider</th>
+<th>Purpose</th>
+<th>License/Terms</th>
+<th>Data Shared</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Deepgram API</strong></td>
+<td>Deepgram Inc.</td>
+<td>Cloud STT</td>
+<td>Commercial (pay-per-use)</td>
+<td>PCM audio only</td>
+</tr>
+<tr>
+<td><strong>BalenaCloud</strong></td>
+<td>Balena Inc.</td>
+<td>Fleet management</td>
+<td>Free tier (10 devices)</td>
+<td>Docker images, logs</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Data Residency</strong>:
+- <strong>Deepgram</strong>: Audio processed in US East (configurable)
+- <strong>BalenaCloud</strong>: Metadata stored in AWS (EU/US)</p>
+<hr />
+<h2 id="8-license-compliance">8. License Compliance</h2>
+<h3 id="permissive-licenses-no-attribution-required-in-binary">Permissive Licenses (No Attribution Required in Binary)</h3>
+<ul>
+<li><strong>MIT</strong>: 80% of dependencies</li>
+<li><strong>Apache-2.0</strong>: 15% of dependencies</li>
+<li><strong>BSD-3</strong>: 5% of dependencies</li>
+</ul>
+<h3 id="copyleft-licenses-must-distribute-source">Copyleft Licenses (Must Distribute Source)</h3>
+<ul>
+<li><strong>LGPL</strong>: pyzmq (dynamically linked, compliant)</li>
+<li><strong>GPL-3.0</strong>: Live STT codebase (must provide source to users)</li>
+</ul>
+<p><strong>Compliance</strong>: All dependencies compatible with GPL-3.0</p>
+<hr />
+<h2 id="9-vulnerability-scanning">9. Vulnerability Scanning</h2>
+<h3 id="automated-scans-cicd">Automated Scans (CI/CD)</h3>
+<pre><code class="language-bash"># Python dependencies
+safety check --json
+
+# Docker images
+docker scan live-stt/api-gateway:latest
+</code></pre>
+<p><strong>Frequency</strong>:
+- <strong>On Commit</strong>: Static analysis (Bandit) - <em>Prevent new vulnerabilities in code</em>
+- <strong>Daily</strong>: Dependency scanning (Safety, Trivy) - <em>Detect newly disclosed CVEs in dependencies</em>
+- <strong>Weekly</strong>: Full container scan - <em>Deep audit of base images</em></p>
+<h3 id="automated-audits-scheduled">Automated Audits (Scheduled)</h3>
+<ul>
+<li><strong>Frequency</strong>: Weekly (GitHub Actions / Dependabot)</li>
+<li><strong>Tools</strong>: <code>pip-audit</code>, Snyk, Dependabot</li>
+<li><strong>SLA</strong>: Critical CVEs patched within 24 hours (auto-PR creation)</li>
+</ul>
+<hr />
+<h2 id="10-dependency-update-policy">10. Dependency Update Policy</h2>
+<table>
+<thead>
+<tr>
+<th>Severity</th>
+<th>Target SLA</th>
+<th>Notification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Critical</strong> (CVSS 9.0+)</td>
+<td>24 hours</td>
+<td>email</td>
+</tr>
+<tr>
+<td><strong>High</strong> (CVSS 7.0-8.9)</td>
+<td>7 days</td>
+<td>GitHub issue</td>
+</tr>
+<tr>
+<td><strong>Medium</strong> (CVSS 4.0-6.9)</td>
+<td>30 days</td>
+<td>Automated monthly audit</td>
+</tr>
+<tr>
+<td><strong>Low</strong> (CVSS 0.1-3.9)</td>
+<td>Best effort</td>
+<td>Automated quarterly audit</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Version Pinning</strong>: All production dependencies pinned in <code>uv.lock</code> (reproducible builds)</p>
+<hr />
+<h2 id="11-sbom-export-formats">11. SBOM Export Formats</h2>
+<h3 id="cyclonedx-json">CycloneDX (JSON)</h3>
+<pre><code class="language-bash"># Pending uv support
+# uv export --format cyclonedx &gt; sbom-cyclonedx.json
+</code></pre>
+<h3 id="spdx-rdf">SPDX (RDF)</h3>
+<pre><code class="language-bash"># Pending uv support
+# uv export --format spdx &gt; sbom-spdx.rdf
+</code></pre>
+<p><strong>Storage</strong>: Committed to <code>/docs/60_ops/sbom/</code> directory with each release</p>
+<hr />
+<p><strong>See Also:</strong>
+- <a href="../cicd/">CI/CD</a> - Automated security scans
+- <a href="../secrets_manifest/">Secrets Manifest</a> - Credential inventory
+- <a href="../../20_architecture/threat_model/">Threat Model</a> - Supply chain risks</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.7a47a382.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.e71a0d61.min.js"></script>
+      
+    
+  </body>
+</html>
