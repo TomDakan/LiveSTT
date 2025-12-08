@@ -1,9 +1,12 @@
 name: Release
 
 on:
-    push:
+    workflow_run:
+        workflows: ["CI"]
+        types:
+            - completed
         branches:
-            - main # Or your primary branch
+            - main
 
 # Required for semantic-release to push tags/commits and PyPI OIDC
 permissions:
@@ -12,6 +15,7 @@ permissions:
 
 jobs:
     release:
+        if: ${{ github.event.workflow_run.conclusion == 'success' }}
         runs-on: ubuntu-latest
         # Configure PyPI OIDC publishing environment (if needed)
         environment:
