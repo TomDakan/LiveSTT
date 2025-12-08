@@ -27,6 +27,8 @@ jobs:
               with:
                   # Fetch all history so semantic-release can analyze commits
                   fetch-depth: 0
+                  # Fetch all tags so semantic-release can start from the correct version
+                  fetch-tags: true
                   # Use a token with write permissions to push tags/changelog updates
 
             - name: Install uv
