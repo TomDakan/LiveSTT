@@ -3,10 +3,9 @@ import json
 
 import pytest
 from messaging.nats import MockNatsClient
+from mocks import MockTranscriber
 from stt_provider.interfaces import TranscriptionEvent
 from stt_provider.service import STTService
-
-from .mocks import MockTranscriber
 
 
 @pytest.mark.asyncio
