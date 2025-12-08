@@ -1,6 +1,6 @@
 [project]
 name = "live-stt-monorepo"
-version = "1.0.0"
+version = "0.3.0"
 description = "Monorepo for High-Reliability STT Appliance"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
