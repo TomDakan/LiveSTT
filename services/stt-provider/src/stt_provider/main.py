@@ -3,7 +3,7 @@ import logging
 import os
 
 from dotenv import load_dotenv
-from nats.aio.client import Client as NATS
+from messaging.nats import JetStreamClient
 
 from .deepgram_adapter import DeepgramTranscriber
 from .service import STTService
@@ -33,24 +33,24 @@ def get_api_key() -> str:
 class Main:
     async def run(self) -> None:
         # 1. Setup Dependencies
-        nats_client = NATS()
-        # We need to adapt the NATS client to our protocol if needed,
-        # but our protocol matches the nats-py client mostly.
-        # However, our Service expects an object that has .connect(),
-        # .subscribe(), .publish(), .close()
-        # The nats-py client has these.
+        nats_client = JetStreamClient()
+        # Ensure we connect first
+        await nats_client.connect(NATS_URL)
 
-        transcriber = DeepgramTranscriber()  # Assuming DeepgramTranscriber can be
-        # instantiated without API key, or gets
-        # it internally
+        # Configurable retention for text stream (Default 7 days)
+        text_retention = float(os.getenv("NATS_TEXT_RETENTION", "604800"))
+
+        # Ensure text stream exists
+        await nats_client.ensure_stream(
+            "text", ["text.transcript", "identity.event", "events.merged"], text_retention
+        )
+
+        transcriber = DeepgramTranscriber()
 
         # 2. Create Service
         service = STTService(nats=nats_client, transcriber=transcriber)
 
         # 3. Run Service
-        # Note: service.start() is an infinite loop in our current implementation
-        # (due to _event_loop awaiting)
-        # We should probably run it.
         await service.start()
 
 

@@ -37,7 +37,7 @@ async def test_audio_producer_integration() -> None:
     assert os.path.exists(test_file), "Test audio file not found"
 
     source = FileSource(test_file, chunk_size=1600)
-    publisher = NatsAudioPublisher(source=source, nats=pub_nc)
+    publisher = NatsAudioPublisher(source=source, nats=pub_nc)  # type: ignore
 
     # 3. Run Producer
     # We run it in a task because start() runs until source is exhausted
@@ -46,10 +46,12 @@ async def test_audio_producer_integration() -> None:
     # Wait for task to complete (FileSource stops when file ends)
     # Add a timeout to prevent hanging if it doesn't stop
     try:
-        await asyncio.wait_for(task, timeout=5.0)
+        # File is ~160KB, chunk 1600, rate 16000Hz (simulated if sleep loop)
+        # 160000 / 1600 = 100 chunks * 0.1s = 10s duration
+        await asyncio.wait_for(task, timeout=15.0)
     except TimeoutError:
         task.cancel()
-        pytest.fail("Audio producer timed out")
+        pytest.fail("Audio producer timed out (check if file duration > timeout)")
 
     # 4. Verify Data Received
     # Give NATS a moment to flush

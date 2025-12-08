@@ -883,7 +883,7 @@ wheels = [
 
 [[package]]
 name = "live-stt-monorepo"
-version = "0.1.0"
+version = "1.0.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -900,6 +900,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "python-dotenv" },
     { name = "python-semantic-release" },
     { name = "ruff" },
     { name = "safety" },
@@ -928,6 +929,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "python-dotenv", specifier = ">=1.2.1" },
     { name = "python-semantic-release" },
     { name = "ruff" },
     { name = "safety" },

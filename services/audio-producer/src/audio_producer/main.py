@@ -5,8 +5,7 @@ from dataclasses import dataclass
 from types import TracebackType
 from typing import Protocol, Self, runtime_checkable
 
-from messaging.nats import NatsClient
-from nats.aio.client import Client as NATS
+from messaging.nats import JetStreamClient, NatsClient
 
 from .interfaces import AudioSource
 
@@ -56,11 +55,15 @@ class NatsAudioPublisher(AudioPublisher):
 async def main() -> None:
     """Application entrypoint."""
     nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
-
     chunk_size = int(os.getenv("CHUNK_SIZE", 1600))
+    # Default retention: 60 minutes
+    retention_sec = float(os.getenv("NATS_AUDIO_RETENTION", "3600"))
 
-    nats = NATS()
+    nats = JetStreamClient()
     await nats.connect(nats_url)
+
+    # Ensure audio stream exists
+    await nats.ensure_stream("audio", ["audio.>"], retention_sec)
 
     audio_file = os.getenv("AUDIO_FILE")
 

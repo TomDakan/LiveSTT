@@ -38,6 +38,7 @@ nav:
                 - Split-Brain Architecture: 20_architecture/adrs/0008-split-brain-architecture.md
                 - NATS Migration: 20_architecture/adrs/0009-nats-migration.md
                 - Python 3.12 Upgrade: 20_architecture/adrs/0010-python-3-12-upgrade.md
+                - Retention Policy: 20_architecture/adrs/0011-retention-policy.md
     - Data:
           - Data Dictionary: 30_data/data_dictionary.md
           - Entity Relationship Diagram: 30_data/erd.md

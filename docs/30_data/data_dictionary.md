@@ -99,8 +99,8 @@ Chunk Duration: 50ms
 **Location**: `/data/nats` (Loopback Mount)
 **Format**: NATS JetStream File Store
 **Retention**:
-- `audio.raw`: 24 Hours (Rolling)
-- `text.transcript`: 30 Days
+- `audio.raw`: 60 Minutes (Configurable via `NATS_AUDIO_RETENTION`)
+- `text.transcript`: 7 Days (Configurable via `NATS_TEXT_RETENTION`)
 - `events.merged`: 30 Days
 
 ---

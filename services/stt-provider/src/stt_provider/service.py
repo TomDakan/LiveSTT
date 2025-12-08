@@ -39,15 +39,25 @@ class STTService:
         3. Subscribes to audio.
         4. Starts the event loop to publish transcripts.
         """
-        await self.nats.connect(NATS_URL)
+        # Connect to NATS if not already connected
+        if not getattr(self.nats, "js", None):
+            await self.nats.connect(NATS_URL)
+
         await self.transcriber.connect()
-        await self.nats.subscribe(self.input_subject, cb=self._on_audio_message)
+        # Durable consumer ensures we pick up where we left off
+        await self.nats.subscribe(
+            self.input_subject, cb=self._on_audio_message, durable="stt-provider-consumer"
+        )
         self.running = True
         await self._event_loop()
 
     async def stop(self) -> None:
         """Stops the service and cleans up resources."""
         self.running = False
+        # Only close if we manage it? It's DI, so maybe not.
+        # But legacy behavior was closing.
+        # Ideally, we verify if we should close.
+        # For now, let's close it to match previous behavior, assuming we own it.
         await self.nats.close()
         await self.transcriber.finish()
 
@@ -68,8 +78,11 @@ class STTService:
                 "is_final": event.is_final,
                 "confidence": event.confidence,
             }
-            await self.nats.publish(
-                self.output_subject, json.dumps(payload).encode("utf-8")
-            )
+            try:
+                await self.nats.publish(
+                    self.output_subject, json.dumps(payload).encode("utf-8")
+                )
+            except Exception as e:
+                logger.error(f"Failed to publish transcript: {e}")
             if not self.running:
                 await self.stop()

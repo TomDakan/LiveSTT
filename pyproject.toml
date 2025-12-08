@@ -111,6 +111,7 @@ dev = [
     "messaging",
     "stt-provider",
     "basedpyright>=1.35.0",
+    "python-dotenv>=1.2.1",
 ]
 docs = [
     "mkdocs",

@@ -30,7 +30,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     logger.info("API Gateway starting...")
     try:
-        await nats_client.connect(NATS_URL)
+        await nats_client.connect(NATS_URL, connect_timeout=5)
         logger.info(f"Connected to NATS at {NATS_URL}")
         # Store in app state for access in endpoints
         app.state.nats = nats_client
