@@ -1,6 +1,6 @@
 [project]
 name = "messaging"
-version = "1.0.0"
+version = "1.0.1"
 description = "Shared NATS messaging utilities and mocks"
 authors = [{ name = "Tom Dakan", email = "tomdakan@gmail.com" }]
 requires-python = ">=3.12"
