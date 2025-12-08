@@ -36,6 +36,11 @@ upload_to_release = true
 build_command = "true"
 commit_version_number = true
 tag_commit = true
+tag_format = "v{version}"
+# Ignore commits that might be misidentified as breaking or major
+exclude_commit_patterns = [
+    "bump: version 0.3.0 → 1.0.0",
+]
 
 [tool.uv.workspace]
 members = ["services/*", "libs/*"]
