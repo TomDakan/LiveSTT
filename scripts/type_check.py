@@ -94,14 +94,19 @@ def check_roots(project_root: Path) -> bool:
     return failed
 
 
+class TypeCheckArgs(argparse.Namespace):
+    service: str | None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run type checking.")
-    parser.add_argument(
+    _ = parser.add_argument(
         "service",
         nargs="?",
         help="Optional service name to check (e.g., api-gateway).",
     )
-    args = parser.parse_args()
+    # Parse into a typed namespace
+    args = parser.parse_args(namespace=TypeCheckArgs())
 
     project_root = Path(__file__).resolve().parent.parent
     services_dir = project_root / "services"
@@ -110,9 +115,10 @@ def main() -> None:
 
     if args.service:
         # Check specific service
-        target = services_dir / args.service
+        service_name = args.service
+        target = services_dir / service_name
         if not target.exists():
-            print(f"Error: Service '{args.service}' not found at {target}")
+            print(f"Error: Service '{service_name}' not found at {target}")
             sys.exit(1)
         if not run_checks(str(target)):
             failed = True

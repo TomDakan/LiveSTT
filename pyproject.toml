@@ -118,3 +118,14 @@ docs = [
     "mkdocs-material",
     "mkdocstrings[python]",
 ]
+[tool.basedpyright]
+typeCheckingMode = "basic"
+extraPaths = [
+    "services/api-gateway/src",
+    "services/audio-producer/src",
+    "services/stt-provider/src",
+    "services/data-sweeper/src",
+    "services/health-watchdog/src",
+    "services/identifier/src",
+    "libs/messaging/src",
+]
