@@ -60,7 +60,7 @@ wheels = [
 
 [[package]]
 name = "api-gateway"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/api-gateway" }
 dependencies = [
     { name = "aiosqlite" },
@@ -109,12 +109,12 @@ wheels = [
 
 [[package]]
 name = "audio-classifier"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/audio-classifier" }
 
 [[package]]
 name = "audio-producer"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/audio-producer" }
 dependencies = [
     { name = "messaging" },
@@ -515,7 +515,7 @@ wheels = [
 
 [[package]]
 name = "data-sweeper"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/data-sweeper" }
 
 [[package]]
@@ -707,7 +707,7 @@ wheels = [
 
 [[package]]
 name = "health-watchdog"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/health-watchdog" }
 
 [[package]]
@@ -769,7 +769,7 @@ wheels = [
 
 [[package]]
 name = "identifier"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/identifier" }
 
 [[package]]
@@ -883,7 +883,7 @@ wheels = [
 
 [[package]]
 name = "live-stt-monorepo"
-version = "1.0.0"
+version = "0.4.1"
 source = { virtual = "." }
 
 [package.dev-dependencies]
@@ -1055,7 +1055,7 @@ wheels = [
 
 [[package]]
 name = "messaging"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "libs/messaging" }
 dependencies = [
     { name = "nats-py" },
@@ -2056,7 +2056,7 @@ wheels = [
 
 [[package]]
 name = "stt-provider"
-version = "0.1.0"
+version = "0.4.1"
 source = { editable = "services/stt-provider" }
 dependencies = [
     { name = "asyncio" },
