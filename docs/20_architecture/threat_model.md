@@ -1,7 +1,7 @@
-# Threat Model (v7.3)
+# Threat Model (v8.0)
 
 ## 1. Overview
-This document identifies security threats to the Live STT system (v7.3 Industrial Split-Brain) and documents mitigations.
+This document identifies security threats to the Live STT system (v8.0 Buffered Brain) and documents mitigations.
 
 ---
 
@@ -18,7 +18,7 @@ This document identifies security threats to the Live STT system (v7.3 Industria
 ## 3. Attack Surface
 
 ### 3.1 NATS Message Bus
-- **Threat**: Unauthorized subscription to `text.transcript` or `identity.event`.
+- **Threat**: Unauthorized subscription to `transcript.raw` or `transcript.identity`.
 - **Mitigation**:
     - NATS is isolated in `internal_overlay` network.
     - No external port exposure (except 8222 for monitoring, localhost only).

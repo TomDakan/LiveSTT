@@ -13,14 +13,14 @@ Full documentation is available in the `docs/` directory:
 
 - **[Quickstart](docs/quickstart.md)**: Deploy in 10 minutes.
 - **[Hardware Guide](docs/40_hardware/hbom.md)**: Industrial x86 (NUC N97) BOM.
-- **[Architecture](docs/20_architecture/architecture_definition.md)**: Split-Brain design (Cloud Text + Edge Identity).
+- **[Architecture](docs/20_architecture/architecture_definition.md)**: Buffered Split-Brain design (Store-and-Forward).
 - **[API Reference](docs/api.md)**: REST and WebSocket API docs.
 
 ---
 
 ## 🌟 Features
 
-- **Split-Brain Architecture**: Combines Cloud STT accuracy with Edge Biometric privacy.
+- **Buffered Split-Brain**: Store-and-Forward architecture with Pre-Roll buffers.
 - **Deepgram Nova-3**: Industry-leading transcription accuracy and speed.
 - **Hybrid Tagging**: Zero-drift speaker identification using local biometrics.
 - **Industrial Reliability**: Fanless x86 hardware with Power Loss Protection (PLP).

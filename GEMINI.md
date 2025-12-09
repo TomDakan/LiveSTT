@@ -6,10 +6,10 @@
 > You MUST read the specific files linked here to understand the current project state.
 
 ## 1. Architecture & Specs
-*   **Active System Design**: [docs/20_architecture/system_design_v7.3.md](docs/20_architecture/system_design_v7.3.md) (READ THIS FIRST)
-    *   *Contains*: Hardware Topology, Data Path ("Split-Brain"), Component Design, Microservices.
+*   **Active System Design**: [docs/20_architecture/system_design_v8.0.md](docs/20_architecture/system_design_v8.0.md) (READ THIS FIRST)
+    *   *Contains*: Hardware Topology, Data Path ("Buffered Split-Brain"), Component Design, Microservices.
 *   **Hardware Constraints**: See "Hardware Topology" in the design doc above.
-*   **IPC Pattern**: See "Component Design" in the design doc above (currently NATS).
+*   **IPC Pattern**: See "Component Design" in the design doc above (currently NATS JetStream).
 
 ## 2. Development Standards
 *   **Workflow & Commands**: [CONTRIBUTING.md](CONTRIBUTING.md)

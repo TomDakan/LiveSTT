@@ -212,7 +212,7 @@ docker buildx build \
 
 **Supported Platforms**:
 - `linux/amd64`: Tier 2/3 (desktop, cloud)
-- `linux/arm64`: Tier 1 (Jetson Orin Nano)
+- `linux/amd64`: Tier 1 (Industrial NUC) & Tier 2 (Desktop)
 
 ### 3.3 Docker Build Scaffolding (Cross-Platform)
 

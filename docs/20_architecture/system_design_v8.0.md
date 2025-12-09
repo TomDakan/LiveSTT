@@ -1,6 +1,6 @@
 # System Design Document: v8.0 ("Buffered Brain")
 
-**Status**: DRAFT
+**Status**: ACTIVE
 **Target Platform**: Industrial x86 (Intel N97)
 **Pattern**: Buffered Split-Brain (Store-and-Forward + Parallel Processing)
 **Date**: December 2025

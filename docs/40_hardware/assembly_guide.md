@@ -1,4 +1,4 @@
-# Assembly Guide (v7.3)
+# Assembly Guide (v8.0)
 
 ## Tools Required
 - Phillips #1 Screwdriver
