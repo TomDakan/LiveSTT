@@ -1,4 +1,4 @@
-# Biometric Data Policy (v7.3)
+# Biometric Data Policy (v8.0)
 
 ## 1. Overview
 This document defines policies for handling biometric data (voiceprints) in the Live STT system (v7.3), ensuring compliance with BIPA and GDPR.

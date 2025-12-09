@@ -5,15 +5,14 @@ Connects to the Audio Broker, streams audio to Deepgram, and publishes transcrip
 ## Architecture
 
 * **Type:** Consumer (Audio) / Producer (Text)
-* **Input:** ZMQ SUB `tcp://broker:5556` (Topic: `audio.raw`)
-* **Output:** ZMQ PUB `tcp://broker:5555` (Topic: `text.transcript`)
+* **Input:** NATS Subscription (`audio.live`, `audio.backfill`)
+* **Output:** NATS Publication (`transcript.raw`)
 
 ## Configuration
 
 | Variable | Default | Description |
 | :--- | :--- | :--- |
-| `ZMQ_SUB_URL` | `tcp://localhost:5556` | Address of the Broker XPUB |
-| `ZMQ_PUB_URL` | `tcp://localhost:5555` | Address of the Broker XSUB |
+| `NATS_URL` | `nats://localhost:4222` | NATS Server URL |
 | `DEEPGRAM_API_KEY` | *Required* | API Key (if not using Docker Secrets) |
 
 ## Local Development

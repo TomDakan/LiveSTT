@@ -28,7 +28,7 @@ We will use **Deepgram** as the primary STT provider.
 
 ### Integration Details
 - **API**: Deepgram Live Streaming API (WebSocket)
-- **Model**: `nova-2` (latest general model)
+- **Model**: `nova-3` (latest general model)
 - **Features Used**:
   - `punctuate=true`: Automatic punctuation
   - `diarize=true`: Speaker labels (Speaker 0, Speaker 1, ...)
@@ -42,7 +42,7 @@ from deepgram import DeepgramClient, LiveOptions
 
 client = DeepgramClient(api_key=os.getenv("DEEPGRAM_API_KEY"))
 options = LiveOptions(
-    model="nova-2",
+    model="nova-3",
     punctuate=True,
     diarize=True,
     smart_format=True,
@@ -57,7 +57,7 @@ connection = client.listen.websocket.v("1")
 ## Consequences
 
 ### Positive
-- **Superior accuracy**: Deepgram Nova-2 achieves ~90% WER on general speech (subjectively better than competitors on liturgical content)
+- **Superior accuracy**: Deepgram Nova-3 achieves ~95% WER on general speech
 - **Low latency**: Typically \<300ms from audio chunk → transcript event
 - **Excellent docs**: Python SDK well-maintained, WebSocket reconnection handled by library
 - **Custom vocabulary**: PhraseSet API allows boosting rare terms without retraining

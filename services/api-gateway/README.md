@@ -1,11 +1,11 @@
 # API Gateway Service
 
-The **API Gateway** acts as the bridge between the internal, asynchronous ZeroMQ mesh and the external, user-facing frontend. It consumes internal events (like transcripts) and pushes them to the UI via WebSockets.
+The **API Gateway** acts as the bridge between the internal, asynchronous NATS mesh and the external, user-facing frontend. It consumes internal events (like fused transcripts) and pushes them to the UI via WebSockets.
 
 ## Architecture
 
-* **Type:** Consumer (ZMQ) / Server (WebSocket/HTTP)
-* **Input:** ZMQ SUB `tcp://broker:5556` (Topic: `text.transcript`)
+* **Type:** Consumer (NATS) / Server (WebSocket/HTTP)
+* **Input:** NATS Subscription (`transcript.final`, `system.alert`)
 * **Output:** WebSocket Stream `/ws/transcripts`
 
 ## API Reference

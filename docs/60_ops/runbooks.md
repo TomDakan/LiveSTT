@@ -1,7 +1,7 @@
-# Operational Runbooks (v7.3)
+# Operational Runbooks (v8.0)
 
 ## Overview
-This document provides step-by-step procedures for common operational tasks for the Live STT system (v7.3 Industrial Split-Brain).
+This document provides step-by-step procedures for common operational tasks for the Live STT system (v8.0 Buffered Brain).
 
 ---
 
@@ -25,8 +25,8 @@ Watch live traffic on the bus:
 ```bash
 just nats-spy
 # Output:
-# [#1] Received on "audio.raw"
-# [#2] Received on "text.transcript": {"text": "Hello world", ...}
+# [#1] Received on "audio.live"
+# [#2] Received on "transcript.raw": {"text": "Hello world", ...}
 ```
 
 ### 1.2 Check Server Health
@@ -39,7 +39,7 @@ just nats-health
 ### 1.3 Inspect Specific Topic
 Debug audio flow specifically:
 ```bash
-just nats-tail subject="audio.raw"
+just nats-tail subject="audio.live"
 ```
 
 ---
@@ -89,7 +89,7 @@ du -sh /data/nats
 ### Issue: No Audio Detected
 ```bash
 # 1. Spy on audio.raw subject
-just nats-tail subject="audio.raw"
+just nats-tail subject="audio.live"
 # If no messages appear, audio-producer is failing to capture.
 
 # 2. Check audio-producer logs

@@ -103,7 +103,7 @@ uv run python generate_audio.py
 
 **Container test:**
 1. Check container logs: `docker compose logs stt-provider`
-2. Verify NATS messages: `just nats-spy` (monitors `audio.raw` and `text.transcript` topics)
+2. Verify NATS messages: `just nats-spy` (monitors `audio.live` and `transcript.raw` topics)
 3. Ensure `DEEPGRAM_API_KEY` is set correctly
 4. Verify audio file exists and has speech content
 

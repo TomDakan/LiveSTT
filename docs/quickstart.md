@@ -1,4 +1,4 @@
-# Quickstart Guide (v7.3)
+# Quickstart Guide (v8.0)
 
 ## Overview
 This guide will help you deploy the Live STT system on the **Tier 1 (Industrial x86)** platform or a **Tier 2 (Desktop)** environment for testing.

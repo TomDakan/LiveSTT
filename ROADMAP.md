@@ -1,7 +1,7 @@
-# Roadmap (v7.3)
+# Roadmap (v8.0 Buffered Brain)
 
 ## Overview
-This document outlines the development roadmap for Live STT (v7.3 Industrial Split-Brain), organized by phases and milestones.
+This document outlines the development roadmap for Live STT (v8.0 Buffered Brain), organized by phases and milestones.
 
 ---
 
@@ -24,7 +24,8 @@ This document outlines the development roadmap for Live STT (v7.3 Industrial Spl
 ### Milestone 2: Audio Pipeline
 - [ ] `audio-producer` service (ALSA -> NATS)
 - [ ] Verify Focusrite Solo input (16kHz, Linear16)
-- [ ] NATS JetStream configuration (`audio.raw` persistence)
+- [ ] NATS JetStream configuration (`audio.live` & `audio.backfill` persistence)
+- [ ] Implement "Pre-Roll" Ring Buffer (Memory)
 
 ---
 
@@ -32,12 +33,13 @@ This document outlines the development roadmap for Live STT (v7.3 Industrial Spl
 **Goal**: End-to-End Transcription (Mic -> UI)
 
 ### Milestone 3: Cloud Transcription
-- [ ] Update `stt-provider` to consume NATS
+- [ ] Update `stt-provider` to consume NATS (`audio.live` & `audio.backfill`)
 - [ ] Implement Deepgram Nova-3 streaming
+- [ ] Implement Backfill Worker (Throttled Background Upload)
 - [ ] "Black Box" offline buffering logic
 
 ### Milestone 4: Full System Integration (Text Only)
-- [ ] Update `api-gateway` to consume `text.transcript`
+- [ ] Update `api-gateway` to consume `transcript.final`
 - [ ] End-to-end testing (Mic -> NATS -> Deepgram -> UI)
 - [ ] Web UI updates (WebSocket consumer)
 
@@ -53,8 +55,8 @@ This document outlines the development roadmap for Live STT (v7.3 Industrial Spl
 
 ### Milestone 6: Identity Manager
 - [ ] Implement `identifier` service (VAD + Vector Extraction)
-- [ ] Implement `identity-manager` service (Session Map)
-- [ ] Merge `text.transcript` and `identity.event`
+- [ ] Implement `identity-manager` service (Session Map + Fusion)
+- [ ] Merge `transcript.raw` and `transcript.identity` into `transcript.final`
 
 ---
 
@@ -79,4 +81,4 @@ This document outlines the development roadmap for Live STT (v7.3 Industrial Spl
 
 **See Also:**
 - [Architecture Definition](docs/20_architecture/architecture_definition.md)
-- [System Design v7.3](docs/temp_design_update.md)
+- [System Design v8.0](docs/20_architecture/system_design_v8.0.md)

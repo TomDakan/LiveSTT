@@ -1,8 +1,8 @@
-# Live STT Documentation (v7.3)
+# Live STT Documentation (v8.0)
 
 Welcome to the documentation for **Live STT**, a resilient, real-time transcription appliance designed for church environments.
 
-**Current Version**: v7.3 (Industrial Split-Brain)
+**Current Version**: v8.0 (Buffered Brain)
 
 ---
 

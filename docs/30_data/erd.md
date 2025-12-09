@@ -1,4 +1,4 @@
-# Entity-Relationship Diagram (ERD)
+# Entity-Relationship Diagram (ERD v8.0)
 
 ## Overview
 This document visualizes the data model for the Live STT system, showing relationships between configuration, quality assurance, and biometric enrollment data.
@@ -128,16 +128,24 @@ erDiagram
 
 ## Data Lifecycle
 
-### Transcript Event
+### Transcript Event (Buffered Split-Brain)
 ```mermaid
 flowchart LR
-    A[Deepgram API] -->|JSON| B[stt-provider]
-    B -->|ZMQ pub| C[broker]
-    C -->|ZMQ sub| D[api-gateway]
-    D -->|WebSocket| E[Client Browser]
+    Mic[Mic Input] -->|Ring Buffer| A[Preroll]
+    A -->|Start Session| B[audio.backfill]
+    Mic -->|Start Session| C[audio.live]
 
-    B -->|If confidence < 0.85| F[quality_log + encrypted snippet]
-    F -->|Admin reviews| G[Corrected or Deleted]
+    B --> D{Dual Processing}
+    C --> D
+
+    D -->|Stream| E[stt-provider]
+    D -->|Stream| F[identifier]
+
+    E -->|transcript.raw| G[identity-manager]
+    F -->|transcript.identity| G
+
+    G -->|transcript.final| H[api-gateway]
+    H -->|WebSocket| I[Client Browser]
 ```
 
 ### Voiceprint Enrollment
@@ -147,7 +155,7 @@ flowchart LR
     B -->|Encrypt with file key| C[/data/enrollment/*.enc]
     B -->|Store metadata| D[voiceprint_enrollment table]
     D -->|Embedding extracted| E[identifier service]
-    E -->|Publishes identity.event| F[broker]
+    E -->|Publishes transcript.identity| F[broker]
 ```
 
 ### Crypto-Shredding (GDPR Right to Erasure)

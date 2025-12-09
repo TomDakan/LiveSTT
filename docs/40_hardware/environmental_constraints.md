@@ -1,4 +1,4 @@
-# Environmental Constraints (v7.3)
+# Environmental Constraints (v8.0)
 
 ## Overview
 This document defines the operating environment requirements and constraints for the Live STT system (v7.3 Industrial Split-Brain).

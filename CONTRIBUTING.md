@@ -214,7 +214,7 @@ When adding a new service (e.g., `services/new-app`), you must update several co
     - This ensures the Docker image is built and pushed to Docker Hub during release.
 
 5.  **Documentation**:
-    - Update `docs/20_architecture/system_design_v7.3.md` to include the new component.
+    - Update `docs/20_architecture/system_design_v8.0.md` to include the new component.
 
 ---
 

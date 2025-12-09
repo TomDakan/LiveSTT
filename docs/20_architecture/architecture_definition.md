@@ -11,7 +11,7 @@ The **Live STT** system is a high-reliability, real-time speech-to-text applianc
 ## 2. System Context (C4 Level 1)
 ```mermaid
 C4Context
-  title System Context - Live STT Appliance (v7.3)
+  title System Context - Live STT Appliance (v8.0)
 
   Person(operator, "AV Operator", "Church staff member")
   Person(admin, "System Administrator", "Manages configuration and reviews transcripts")
@@ -30,7 +30,7 @@ C4Context
 ## 3. Container Diagram (C4 Level 2)
 ```mermaid
 C4Container
-  title Container Diagram - Live STT Microservices (v7.3)
+  title Container Diagram - Live STT Microservices (v8.0)
 
   Person(user, "User")
 
@@ -48,16 +48,16 @@ C4Container
   ContainerDb(blackbox, "Black Box Storage", "Loopback ext4 (data=journal)", "Crash-proof persistence")
 
   Rel(user, gateway, "Views transcripts", "WSS")
-  Rel(producer, broker, "Publishes audio.raw", "NATS")
-  Rel(broker, stt, "Routes audio.raw", "NATS")
-  Rel(broker, identifier, "Routes audio.raw", "NATS")
+  Rel(producer, broker, "Publishes audio.live / audio.backfill", "NATS")
+  Rel(broker, stt, "Routes audio streams", "NATS")
+  Rel(broker, identifier, "Routes audio streams", "NATS")
   Rel(stt, deepgram, "Streams PCM", "WSS")
-  Rel(stt, broker, "Publishes text.transcript", "NATS")
+  Rel(stt, broker, "Publishes transcript.raw", "NATS")
   Rel(identifier, lancedb, "Queries embeddings")
-  Rel(identifier, broker, "Publishes identity.event", "NATS")
-  Rel(broker, manager, "Routes text + identity", "NATS")
-  Rel(manager, broker, "Publishes merged events", "NATS")
-  Rel(broker, gateway, "Routes final events", "NATS")
+  Rel(identifier, broker, "Publishes transcript.identity", "NATS")
+  Rel(broker, manager, "Routes raw transcripts + identity", "NATS")
+  Rel(manager, broker, "Publishes fused transcript.final", "NATS")
+  Rel(broker, gateway, "Routes final transcripts", "NATS")
   Rel(stt, blackbox, "Buffers offline audio")
 ```
 
@@ -96,26 +96,27 @@ sequenceDiagram
     participant UI as api-gateway
 
     par Split-Brain
-        Mic->>NATS: Pub audio.raw
-        NATS->>STT: Stream audio
-        NATS->>ID: Stream audio
+        Mic->>NATS: Pub audio.live (Real-time)
+        Mic->>NATS: Pub audio.backfill (Buffered)
+        NATS->>STT: Stream audio.live / audio.backfill
+        NATS->>ID: Stream audio.live / audio.backfill
     end
 
     par Parallel Processing
         STT->>Deepgram: WSS Stream
         Deepgram-->>STT: Transcript (Speaker A)
-        STT->>NATS: Pub text.transcript
+        STT->>NATS: Pub transcript.raw
 
         ID->>OpenVINO: Inference
         OpenVINO-->>ID: Vector
         ID->>LanceDB: Lookup
-        ID->>NATS: Pub identity.event (Speaker A = Alice)
+        ID->>NATS: Pub transcript.identity (Speaker A = Alice)
     end
 
-    NATS->>Zip: Sub text + identity
+    NATS->>Zip: Sub transcript.raw + transcript.identity
     Zip->>Zip: Hybrid Tagging (Apply "Alice" to "Speaker A")
-    Zip->>NATS: Pub events.merged
-    NATS->>UI: Sub events.merged
+    Zip->>NATS: Pub transcript.final
+    NATS->>UI: Sub transcript.final
     UI->>User: WebSocket Broadcast
 ```
 

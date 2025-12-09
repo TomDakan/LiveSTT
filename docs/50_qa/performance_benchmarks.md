@@ -21,8 +21,8 @@ This document defines the performance targets (SLAs) and benchmarking methodolog
 | Metric | Target | Notes |
 |--------|--------|-------|
 | **Continuous Runtime** | 4 hours | Typical Sunday service length |
-| **Memory Usage (Jetson)** | < 6GB | Total system RAM (8GB available) |
-| **CPU Usage (Jetson)** | < 50% avg | Leave headroom for OS/bursts |
+| **Memory Usage (Tier 1)** | < 6GB | Total system RAM (16GB available) |
+| **CPU Usage (Tier 1)** | < 50% avg | Leave headroom for OS/bursts |
 | **Disk I/O** | < 10MB/s | NVMe bandwidth is plenty |
 
 ### 2.3 Accuracy (WER)
@@ -43,7 +43,7 @@ This document defines the performance targets (SLAs) and benchmarking methodolog
 - **Input**: 16kHz Mono WAV (Sermon)
 - **Services**: All enabled (including identifier)
 - **Clients**: 10 WebSocket listeners
-- **Hardware**: Tier 1 (Jetson Orin Nano)
+- **Hardware**: Tier 1 (Industrial x86 NUC)
 
 ### Scenario B: Stress Test
 - **Input**: High-density speech (auctioneer style)
@@ -107,12 +107,7 @@ If targets are missed, tune these parameters:
    - Risk: Increased CPU overhead, potential dropouts
 
 2. **Deepgram Model**:
-   - Current: `nova-2` (balanced)
-   - Tuning: Switch to `nova-2-general` (faster) vs `enhanced` (slower)
-
-3. **ZMQ HWM (High Water Mark)**:
-   - Current: 1000 messages
-   - Tuning: Reduce to drop old frames faster during congestion
+   - Current: `nova-3` (balanced)
 
 ---
 
