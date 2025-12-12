@@ -8,17 +8,15 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from messaging.streams import SUBJECT_TRANSCRIPT_RAW
+
 from nats.aio.client import Client as NATS
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api-gateway")
 
-
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
-TRANSCRIPT_TOPIC = SUBJECT_TRANSCRIPT_RAW
-
+TRANSCRIPT_TOPIC = "transcript.final.>"
 # --- NATS Setup ---
 # We will inject this into the app state
 nats_client = NATS()
@@ -106,6 +104,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     logger.info("Client connected to WebSocket.")
 
     try:
+
         while True:
             # We just wait here to keep connection open
             # Receiving a message from the client (e.g. ping) keeps it alive.
