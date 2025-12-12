@@ -1,85 +1,82 @@
 import asyncio
-import contextlib
 import os
-from dataclasses import dataclass
-from types import TracebackType
-from typing import Protocol, Self, runtime_checkable
 
-from messaging.nats import JetStreamClient, NatsClient
+from messaging.service import BaseService
+from messaging.streams import (
+    AUDIO_STREAM_CONFIG,
+    PREROLL_STREAM_CONFIG,
+)
 
-from .interfaces import AudioSource
-
-
-@runtime_checkable
-class AudioPublisher(Protocol):
-    """Interface for an audio source."""
-
-    async def __aenter__(self) -> Self:
-        """Enter the runtime context related to this object."""
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit the runtime context related to this object."""
-        pass
+# Import the module itself so we can safely check for platform-specific classes
+from . import audiosource
 
 
-@dataclass
-class NatsAudioPublisher(AudioPublisher):
-    """Orchestrates audio streaming from source to NATS."""
+class AudioProducerService(BaseService):
+    def __init__(self):
+        super().__init__("audio-producer")
+        self.session_id: str | None = None
+        self.is_active = False
 
-    source: AudioSource
-    nats: NatsClient
-    subject: str = "audio.raw"
+    def _get_audio_source(self):
+        """
+        Factory method to select the correct Audio Source based on
+        Env Vars and Platform availability.
+        """
+        # 1. High Priority: File Override (for Testing/Simulation)
+        audio_file = os.getenv("AUDIO_FILE")
+        if audio_file:
+            self.logger.info(f"Source: File ({audio_file})")
+            return audiosource.FileSource(audio_file, chunk_size=1600, loop=True)
 
-    async def start(self) -> None:
-        """Consumes audio from source and publishes to NATS."""
-        async with self.source as stream_source:
-            async for chunk in stream_source.stream():
-                await self.nats.publish(self.subject, chunk)
+        # 2. Windows Microphone
+        if hasattr(audiosource, "WindowsSource"):
+            self.logger.info("Source: Windows Microphone (PyAudio)")
+            return audiosource.WindowsSource()
 
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
-    ) -> None:
-        """Exit the runtime context related to this object."""
-        await self.nats.close()
+        # 3. Linux Microphone
+        if hasattr(audiosource, "LinuxSource"):
+            self.logger.info("Source: Linux Microphone (ALSA)")
+            # You might want to make sample/chunk configurable via env vars
+            return audiosource.LinuxSource(sample_rate=16000, chunk_size=1600)
 
+        # 4. Fallback / Error
+        raise RuntimeError(
+            "No valid Audio Source found! "
+            "Set AUDIO_FILE env var or ensure PyAudio/ALSA is installed."
+        )
 
-async def main() -> None:
-    """Application entrypoint."""
-    nats_url = os.getenv("NATS_URL", "nats://localhost:4222")
-    chunk_size = int(os.getenv("CHUNK_SIZE", 1600))
-    # Default retention: 60 minutes
-    retention_sec = float(os.getenv("NATS_AUDIO_RETENTION", "3600"))
+    async def run_business_logic(self, js, stop_event):
+        # 1. Ensure Streams Exist
+        try:
+            await self.nats_manager.ensure_stream(**PREROLL_STREAM_CONFIG)
+            await self.nats_manager.ensure_stream(**AUDIO_STREAM_CONFIG)
+            self.logger.info("Audio Streams Verified")
+        except Exception as e:
+            self.logger.critical(f"Failed to verify streams: {e}")
+            return
 
-    nats = JetStreamClient()
-    await nats.connect(nats_url)
+        # 2. Initialize the appropriate source
+        try:
+            source = self._get_audio_source()
+        except Exception as e:
+            self.logger.critical(f"Failed to initialize audio source: {e}")
+            return
 
-    # Ensure audio stream exists
-    await nats.ensure_stream("audio", ["audio.>"], retention_sec)
+        # 3. Start Streaming
+        self.logger.info("Audio Stream Started")
 
-    audio_file = os.getenv("AUDIO_FILE")
+        async with source as stream:
+            async for chunk in stream.stream():
+                if stop_event.is_set():
+                    break
 
-    source: AudioSource
-    if audio_file:
-        print(f"Using FileSource: {audio_file}")
-        from .audiosource import FileSource
-
-        source = FileSource(audio_file, chunk_size, loop=True)
-    else:
-        raise ValueError("AUDIO_FILE environment variable is required")
-
-    publisher = NatsAudioPublisher(source=source, nats=nats)
-    await publisher.start()
+                # Logic: Atomic Routing (Live vs Preroll)
+                if self.is_active and self.session_id:
+                    await js.publish(f"audio.live.{self.session_id}", chunk)
+                else:
+                    await js.publish("preroll.audio", chunk)
 
 
 if __name__ == "__main__":
-    with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(main())
+    service = AudioProducerService()
+    asyncio.run(service.start())

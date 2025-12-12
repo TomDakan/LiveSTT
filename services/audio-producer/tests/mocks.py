@@ -1,10 +1,9 @@
 import asyncio
 from collections.abc import AsyncIterator
 from types import TracebackType
-from typing import Any, Self
+from typing import Self
 
 from audio_producer.interfaces import AudioSource
-from messaging.nats import NatsClient
 
 
 class MockAudioSource(
@@ -39,22 +38,4 @@ class MockAudioSource(
         exc_tb: TracebackType | None,
     ) -> None:
         """Exit the runtime context related to this object."""
-        pass
-
-
-class MockNatsClient(NatsClient):
-    """Simulates a NATS client for testing."""
-
-    def __init__(self, sample_rate: int = 16000, chunk_size: int = 1600) -> None:
-        self.sample_rate = sample_rate
-        self.chunk_size = chunk_size
-        self.publish_calls = 0
-
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.publish_calls += 1
-
-    async def connect(self, servers: list[str] | str, **kwargs: Any) -> None:
-        pass
-
-    async def close(self) -> None:
         pass
