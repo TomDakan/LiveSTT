@@ -1,141 +1,63 @@
-import asyncio
-from typing import Any, Protocol, runtime_checkable
+import logging
+from typing import Any
 
 from nats.aio.client import Client as NATS
+from nats.js import JetStreamContext
 from nats.js.api import RetentionPolicy, StorageType, StreamConfig
 
-
-@runtime_checkable
-class NatsClient(Protocol):
-    """Interface for NATS interaction."""
-
-    async def publish(self, subject: str, payload: bytes) -> None:
-        """Publishes a message to a subject."""
-        ...
-
-    async def subscribe(
-        self, subject: str, queue: str = "", cb: Any = None, **kwargs: Any
-    ) -> Any:
-        """Subscribes to a subject with a callback."""
-        ...
-
-    async def close(self) -> None:
-        """Closes the connection."""
-        ...
-
-    async def connect(self, servers: list[str] | str) -> None:
-        """Connects to NATS server(s)."""
-        ...
+logger = logging.getLogger("messaging.nats")
 
 
-class JetStreamClient:
-    """NATS client with JetStream support."""
+class NatsJSManager:
+    """
+    Manages NATS connection and Stream configuration.
+    Exposes raw .nc and .js objects for services to use directly.
+    """
 
     def __init__(self) -> None:
         self.nc = NATS()
-        self.js: Any = None
+        self.js: JetStreamContext | None = None
 
-    async def connect(self, servers: list[str] | str) -> None:
+    async def connect(self, servers: list[str] | str) -> tuple[NATS, JetStreamContext]:
+        """
+        Connects to NATS and returns the Client and JetStream context.
+        """
         await self.nc.connect(servers)
         self.js = self.nc.jetstream()
+        logger.info(f"Connected to NATS: {servers}")
+        return self.nc, self.js
 
     async def close(self) -> None:
+        """Gracefully closes the connection."""
+        await self.nc.drain()
         await self.nc.close()
+        logger.info("NATS Connection closed")
 
-    async def ensure_stream(self, name: str, subjects: list[str], max_age: float) -> None:
+    async def ensure_stream(self, name: str, subjects: list[str], **kwargs: Any) -> None:
         """
-        Ensures a stream exists with the given configuration.
-        Storage is always FILE.
+        Idempotent stream creation/update helper.
         """
         if not self.js:
-            raise RuntimeError("Not connected")
+            raise RuntimeError("NATS not connected")
 
-        config = StreamConfig(
-            name=name,
-            subjects=subjects,
-            max_age=max_age,  # nats-py converts this to nanoseconds
-            storage=StorageType.FILE,
-            retention=RetentionPolicy.LIMITS,
-        )
+        # Merge defaults with kwargs
+        config_args = {
+            "name": name,
+            "subjects": subjects,
+            "storage": StorageType.FILE,
+            "retention": RetentionPolicy.LIMITS,
+            **kwargs,
+        }
+
+        config = StreamConfig(**config_args)
+
         try:
             await self.js.add_stream(config)
-        except Exception as e:
-            # If stream exists with different config, it might fail.
-            # For now we log/ignore, or try update.
-            # But add_stream usually handles updates or idempotency.
-            print(f"Warning: Failed to add stream {name}: {e}")
+            logger.info(f"Stream '{name}' created.")
+        except Exception:
+            # If stream exists, try to update it (in case config changed)
             try:
                 await self.js.update_stream(config)
+                logger.info(f"Stream '{name}' updated.")
             except Exception as e2:
-                print(f"Error: Failed to update stream {name}: {e2}")
-                raise
-
-    async def publish(self, subject: str, payload: bytes) -> None:
-        if not self.js:
-            raise RuntimeError("Not connected")
-        await self.js.publish(subject, payload)
-
-    async def subscribe(
-        self,
-        subject: str,
-        queue: str = "",
-        cb: Any = None,
-        durable: str | None = None,
-        **kwargs: Any,
-    ) -> Any:
-        if not self.js:
-            raise RuntimeError("Not connected")
-
-        # If durable is set, we must use manual ack or explicit ack usually.
-        # But for simplicity we don't force it here, relying on defaults or kwargs
-        # if needed. However, for queue groups + durables, we need options.
-        # nats-py subscribe configures consumer.
-        return await self.js.subscribe(
-            subject, queue=queue, cb=cb, durable=durable, **kwargs
-        )
-
-
-class MockNatsClient:
-    """Simulated NATS client for testing."""
-
-    def __init__(self) -> None:
-        self.published_messages: list[dict[str, Any]] = []
-        self.subscriptions: dict[str, Any] = {}
-        self.is_closed = False
-        self.is_connected = False
-        self.streams: dict[str, Any] = {}
-
-    async def connect(self, servers: list[str] | str, **kwargs: Any) -> None:
-        self.is_connected = True
-
-    async def close(self) -> None:
-        self.is_closed = True
-
-    async def ensure_stream(self, name: str, subjects: list[str], max_age: float) -> None:
-        self.streams[name] = {"subjects": subjects, "max_age": max_age}
-
-    async def publish(self, subject: str, payload: bytes) -> None:
-        self.published_messages.append({"subject": subject, "data": payload})
-
-    async def subscribe(
-        self, subject: str, queue: str = "", cb: Any = None, **kwargs: Any
-    ) -> Any:
-        self.subscriptions[subject] = cb
-        return object()  # Return a dummy subscription object
-
-    async def trigger_message(self, subject: str, data: bytes) -> None:
-        """Helper to simulate an incoming message."""
-        if subject in self.subscriptions:
-            # Create a dummy msg object with .data attribute
-            class Msg:
-                def __init__(self, d: bytes):
-                    self.data = d
-
-                async def ack(self):
-                    pass
-
-            cb = self.subscriptions[subject]
-            if asyncio.iscoroutinefunction(cb):
-                await cb(Msg(data))
-            else:
-                cb(Msg(data))
+                logger.warning(f"Could not configure stream '{name}': {e2}")
