@@ -30,9 +30,9 @@ class DeepgramTranscriber(Transcriber):
         self._listening_task: asyncio.Task[Any] | None = None
         self._event_queue: asyncio.Queue[TranscriptionEvent | None] = asyncio.Queue()
 
-    async def connect(self) -> None:
+    async def connect(self, **kwargs: Any) -> None:
         """Establishes WebSocket connection to Deepgram."""
-        # Using listen.v1 for standard transcription with Nova-3
+        # Default options (can be overridden)
         options = {
             "model": "nova-3",
             "language": "en-US",
@@ -41,6 +41,7 @@ class DeepgramTranscriber(Transcriber):
             "sample_rate": 16000,
             "interim_results": True,
         }
+        options.update(kwargs)
 
         self._connection_cm = self.client.listen.v1.connect(**options)
         self.connection = await self._connection_cm.__aenter__()

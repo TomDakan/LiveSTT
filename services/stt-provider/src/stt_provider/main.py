@@ -1,16 +1,33 @@
 import asyncio
+import dataclasses
 import json
 import logging
+import os
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
 from messaging.service import BaseService
 from messaging.streams import (
+    SUBJECT_AUDIO_BACKFILL,
+    SUBJECT_AUDIO_LIVE,
+    SUBJECT_PREFIX_TRANSCRIPT_RAW,
     TRANSCRIPTION_STREAM_CONFIG,
 )
 
 from .deepgram_adapter import DeepgramTranscriber
 from .interfaces import Transcriber
+
+
+@dataclass
+class TranscriptPayload:
+    text: str
+    is_final: bool
+    confidence: float
+    timestamp: str  # ISO 8601
+    source: str
+
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
@@ -37,8 +54,12 @@ class STTProviderService(BaseService):
 
         try:
             # Connect both
-            await self.live_transcriber.connect()
-            await self.backfill_transcriber.connect()
+            # Load config (basic env var support for now, can be expanded to typed-settings later)
+            dg_model = os.getenv("DEEPGRAM_MODEL", "nova-3")
+            dg_encoding = os.getenv("DEEPGRAM_ENCODING", "linear16")
+
+            await self.live_transcriber.connect(model=dg_model, encoding=dg_encoding)
+            await self.backfill_transcriber.connect(model=dg_model, encoding=dg_encoding)
             self.logger.info("Connected to Deepgram (Dual Pipeline)")
         except Exception as e:
             self.logger.critical(f"Deepgram connection failed: {e}")
@@ -47,7 +68,7 @@ class STTProviderService(BaseService):
         # 3. Setup Consumers
         # A. Live Consumer
         await js.subscribe(
-            subject="audio.live.>",
+            subject=SUBJECT_AUDIO_LIVE,
             queue="stt-live-group",
             cb=self._handle_live_audio,
         )
@@ -55,7 +76,7 @@ class STTProviderService(BaseService):
 
         # B. Backfill Consumer
         await js.subscribe(
-            subject="audio.backfill.>",
+            subject=SUBJECT_AUDIO_BACKFILL,
             queue="stt-backfill-group",
             cb=self._handle_backfill_audio,
         )
@@ -96,14 +117,15 @@ class STTProviderService(BaseService):
                 break
 
             # Enrich
-            topic = f"transcript.raw.{source_tag}"
-            payload = {
-                "text": event.text,
-                "is_final": event.is_final,
-                "confidence": event.confidence,
-                "timestamp": asyncio.get_running_loop().time(),
-                "source": source_tag,
-            }
+            topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
+            payload_obj = TranscriptPayload(
+                text=event.text,
+                is_final=event.is_final,
+                confidence=event.confidence,
+                timestamp=datetime.now(UTC).isoformat(),
+                source=source_tag,
+            )
+            payload = dataclasses.asdict(payload_obj)
             try:
                 await js.publish(topic, json.dumps(payload).encode("utf-8"))
             except Exception as e:

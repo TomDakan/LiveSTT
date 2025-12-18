@@ -5,6 +5,8 @@ from messaging.service import BaseService
 from messaging.streams import (
     AUDIO_STREAM_CONFIG,
     PREROLL_STREAM_CONFIG,
+    SUBJECT_PREFIX_AUDIO_LIVE,
+    SUBJECT_PREFIX_PREROLL,
 )
 
 # Import the module itself so we can safely check for platform-specific classes
@@ -72,9 +74,12 @@ class AudioProducerService(BaseService):
 
                 # Logic: Atomic Routing (Live vs Preroll)
                 if self.is_active and self.session_id:
-                    await js.publish(f"audio.live.{self.session_id}", chunk)
+                    # SUBJECT_PREFIX_AUDIO_LIVE = "audio.live" -> "audio.live.<session_id>"
+                    await js.publish(
+                        f"{SUBJECT_PREFIX_AUDIO_LIVE}.{self.session_id}", chunk
+                    )
                 else:
-                    await js.publish("preroll.audio", chunk)
+                    await js.publish(SUBJECT_PREFIX_PREROLL, chunk)
 
 
 if __name__ == "__main__":
