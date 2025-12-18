@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager, suppress
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -13,6 +13,7 @@ from nats.aio.client import Client as NATS
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api-gateway")
+
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 TRANSCRIPT_TOPIC = SUBJECT_TRANSCRIPT_RAW
@@ -35,10 +36,12 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict[str, Any]) -> None:
-        """Broadcast to all connected clients. Silently skips failed sends."""
+        # Broadcast to all connected clients
         for connection in list(self.active_connections):
-            with suppress(Exception):
+            try:
                 await connection.send_json({"type": "transcript", "payload": message})
+            except Exception:
+                pass
 
 
 manager = ConnectionManager()
