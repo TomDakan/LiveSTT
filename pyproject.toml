@@ -140,6 +140,7 @@ extraPaths = [
     "services/data-sweeper/src",
     "services/health-watchdog/src",
     "services/identifier/src",
+    "services/audio-classifier/src",
     "libs/messaging/src",
     "services/stt-provider/tests",
 ]
