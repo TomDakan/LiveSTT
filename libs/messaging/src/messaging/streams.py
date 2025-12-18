@@ -48,3 +48,15 @@ TRANSCRIPTION_STREAM_CONFIG: dict[str, Any] = {
     "retention": RetentionPolicy.LIMITS,
     "max_age": 7 * 24 * 60 * 60,  # 7 Days
 }
+
+# Configuration for the Classification Results (Memory/Volatile)
+SUBJECT_PREFIX_CLASSIFICATION = "classification"
+SUBJECT_CLASSIFICATION_LIVE = f"{SUBJECT_PREFIX_CLASSIFICATION}.live.>"
+
+CLASSIFICATION_STREAM_CONFIG: dict[str, Any] = {
+    "name": "CLASSIFICATION_STREAM",
+    "subjects": [SUBJECT_CLASSIFICATION_LIVE],
+    "storage": StorageType.MEMORY,
+    "retention": RetentionPolicy.LIMITS,
+    "max_msgs": 1000,  # Keep last 1000 classifications
+}
