@@ -1,6 +1,11 @@
-import pytest
 from unittest.mock import MagicMock, patch
-from audio_classifier.classifiers import StubClassifier, OpenVinoClassifier, ClassificationResult
+
+from audio_classifier.classifiers import (
+    ClassificationResult,
+    OpenVinoClassifier,
+    StubClassifier,
+)
+
 
 def test_stub_classifier():
     classifier = StubClassifier()
@@ -8,6 +13,7 @@ def test_stub_classifier():
     assert isinstance(result, ClassificationResult)
     assert result.label == "speech"
     assert result.confidence > 0.9
+
 
 @patch("audio_classifier.classifiers.OPENVINO_AVAILABLE", False)
 def test_openvino_classifier_fallback_missing_lib():
@@ -17,12 +23,14 @@ def test_openvino_classifier_fallback_missing_lib():
     result = classifier.classify(b"chunk")
     assert result.label == "speech"
 
+
 @patch("audio_classifier.classifiers.OPENVINO_AVAILABLE", True)
 @patch("pathlib.Path.exists", return_value=False)
 def test_openvino_classifier_fallback_missing_model(mock_exists):
     # Should fallback to Stub if model missing
     classifier = OpenVinoClassifier(model_path="missing/model.xml")
     assert isinstance(classifier.classifier, StubClassifier)
+
 
 @patch("audio_classifier.classifiers.OPENVINO_AVAILABLE", True)
 @patch("pathlib.Path.exists", return_value=True)

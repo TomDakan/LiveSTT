@@ -1,7 +1,5 @@
 import asyncio
 import json
-import logging
-import os
 from dataclasses import asdict
 from typing import Any
 
@@ -10,11 +8,11 @@ from messaging.service import BaseService
 from messaging.streams import (
     CLASSIFICATION_STREAM_CONFIG,
     SUBJECT_AUDIO_LIVE,
-    SUBJECT_CLASSIFICATION_LIVE,
     SUBJECT_PREFIX_CLASSIFICATION,
 )
 
 from .classifiers import OpenVinoClassifier
+
 
 class AudioClassifierService(BaseService):
     def __init__(self) -> None:
@@ -59,10 +57,12 @@ class AudioClassifierService(BaseService):
         except Exception as e:
             self.logger.error(f"Error processing audio chunk: {e}")
 
+
 def main() -> None:
     load_dotenv()
     service = AudioClassifierService()
     asyncio.run(service.start())
+
 
 if __name__ == "__main__":
     main()

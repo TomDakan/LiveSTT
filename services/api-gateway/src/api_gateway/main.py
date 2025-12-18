@@ -1,3 +1,4 @@
+import contextlib
 import json
 import logging
 import os
@@ -37,11 +38,10 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict[str, Any]) -> None:
         # Broadcast to all connected clients
+        # Iterate over copy to avoid modification issues
         for connection in list(self.active_connections):
-            try:
+            with contextlib.suppress(Exception):
                 await connection.send_json({"type": "transcript", "payload": message})
-            except Exception:
-                pass
 
 
 manager = ConnectionManager()

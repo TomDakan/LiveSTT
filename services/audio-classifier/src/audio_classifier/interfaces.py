@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+
 @dataclass
 class ClassificationResult:
     label: str
     confidence: float
     timestamp: float
+
 
 class AudioClassifier(ABC):
     @abstractmethod
