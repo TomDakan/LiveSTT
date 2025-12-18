@@ -76,7 +76,7 @@ class AudioProducerService(BaseService):
 
                 # Logic: Atomic Routing (Live vs Preroll)
                 if self.is_active and self.session_id:
-                    # Publishes to "audio.live.<session_id>"
+                    # "audio.live" -> "audio.live.<session_id>"
                     await js.publish(
                         f"{SUBJECT_PREFIX_AUDIO_LIVE}.{self.session_id}", chunk
                     )

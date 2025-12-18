@@ -180,6 +180,6 @@ if _alsaaudio:
             elif hasattr(self.inp, "stop"):
                 self.inp.stop()
             else:
-                # Fallback: PCM usually has close(); explicit deletion may
-                # trigger C-extension cleanup if implemented.
+                # Fallback if no explicit close method is exposed.
+                # Explicit deletion can trigger C-extension cleanup if implemented.
                 pass

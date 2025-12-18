@@ -1,8 +1,11 @@
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
+from audio_classifier.interfaces import ClassificationResult
 from audio_classifier.main import AudioClassifierService
-from messaging.streams import SUBJECT_AUDIO_LIVE, CLASSIFICATION_STREAM_CONFIG
+from messaging.streams import SUBJECT_AUDIO_LIVE
+
 
 @pytest.fixture
 def service():
@@ -13,8 +16,10 @@ def service():
     svc.js = AsyncMock()
     return svc
 
+
 def test_run_business_logic(service):
     asyncio.run(_async_test_run_business_logic(service))
+
 
 async def _async_test_run_business_logic(service):
     stop_event = asyncio.Event()
@@ -36,13 +41,13 @@ async def _async_test_run_business_logic(service):
     js_mock.subscribe.assert_called_once_with(
         subject=SUBJECT_AUDIO_LIVE,
         queue="audio-classifier-group",
-        cb=service._handle_audio
+        cb=service._handle_audio,
     )
 
-from audio_classifier.interfaces import ClassificationResult
 
 def test_handle_audio(service):
     asyncio.run(_async_test_handle_audio(service))
+
 
 async def _async_test_handle_audio(service):
     msg = MagicMock()
@@ -51,9 +56,7 @@ async def _async_test_handle_audio(service):
     # Mock classifier to avoid OpenVINO/Stub behavior affecting this test
     service.classifier = MagicMock()
     service.classifier.classify.return_value = ClassificationResult(
-        label="test_label",
-        confidence=0.5,
-        timestamp=12345.0
+        label="test_label", confidence=0.5, timestamp=12345.0
     )
 
     await service._handle_audio(msg)
