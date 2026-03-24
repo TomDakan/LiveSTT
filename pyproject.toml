@@ -54,6 +54,8 @@ api-gateway = { workspace = true }
 audio-producer = { workspace = true }
 stt-provider = { workspace = true }
 identity-manager = { workspace = true }
+health-watchdog = { workspace = true }
+data-sweeper = { workspace = true }
 
 # ==============================================================================
 # SHARED TOOL CONFIGURATION

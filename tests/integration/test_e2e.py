@@ -3,8 +3,6 @@ import os
 
 import pytest
 import websockets
-
-from audio_producer.audiosource import FileSource
 from audio_producer.main import AudioProducerService
 from httpx import AsyncClient
 from messaging.nats import NatsJSManager
@@ -12,7 +10,6 @@ from messaging.streams import (
     AUDIO_STREAM_CONFIG,
     TRANSCRIPTION_STREAM_CONFIG,
 )
-from stt_provider.deepgram_adapter import DeepgramTranscriber
 from stt_provider.main import STTProviderService
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -141,8 +138,8 @@ async def _test_e2e_flow() -> None:
             try:
                 message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
                 print(f"Received: {message}")
-                data = json.loads(message)  # type: ignore
-                assert data["type"] == "transcript"
+                _data = json.loads(message)  # type: ignore
+                assert _data["type"] == "transcript"
             except TimeoutError:
                 # If audio is silence, maybe no transcript. But we verified connection.
                 print(
@@ -168,6 +165,7 @@ async def _test_e2e_flow() -> None:
     await prod_nats.connect(NATS_URL)
     # Create stream with explicit retention
     from messaging.streams import AUDIO_STREAM_CONFIG, TRANSCRIPTION_STREAM_CONFIG
+
     await prod_nats.ensure_stream(**AUDIO_STREAM_CONFIG)
 
     test_file = "tests/data/test_audio.wav"
@@ -183,9 +181,12 @@ async def _test_e2e_flow() -> None:
     try:
         # We need a way to stop it after one file loop
         # For E2E, maybe just run it for a few seconds
-        producer_task = asyncio.create_task(producer.start())
+        background_tasks = set()
+        task = asyncio.create_task(producer.start())
+        background_tasks.add(task)
         await asyncio.sleep(2.0)
         await producer.stop()
+        task.cancel()
     except Exception as e:
         print(f"Producer error: {e}")
         pass
@@ -201,7 +202,7 @@ async def _test_e2e_flow() -> None:
     await stt_nats.ensure_stream(**TRANSCRIPTION_STREAM_CONFIG)
 
     # Note: Mocking transcriber in the service is tricker now.
-    # We'll just check if the service publishes SOMETHING or use real Deepgram if available.
+    # We'll check if the service publishes something or use Deepgram if available.
     # For now, let's keep it simple and just start the service.
     stt_service = STTProviderService()
 
@@ -220,7 +221,9 @@ async def _test_e2e_flow() -> None:
             msg = await sub.next_msg(timeout=0.5)
             if msg:
                 messages_received = True
-                print("Catch-up successful! Revealed messages in transcript.raw.backfill.")
+                print(
+                    "Catch-up successful! Revealed messages in transcript.raw.backfill."
+                )
                 break
         except Exception:
             continue
