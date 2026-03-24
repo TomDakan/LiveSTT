@@ -1,5 +1,13 @@
 # Implementation Guide: NATS Publisher (Audio Producer)
 
+> [!NOTE]
+> **Status: ARCHIVED — Implementation Complete**
+> This guide was written as a pre-implementation scaffold. The design evolved;
+> the actual implementation is `AudioProducerService` in
+> [`services/audio-producer/src/audio_producer/main.py`](../../services/audio-producer/src/audio_producer/main.py).
+> The original `NatsAudioPublisher` concept was superseded by the `BaseService`
+> pattern in `libs/messaging`. Preserved here for historical context.
+
 ## Objective
 Implement the `main.py` entrypoint and the `NatsAudioPublisher` class. This component bridges the `AudioSource` (data) and NATS (transport).
 
