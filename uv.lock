@@ -10,6 +10,7 @@ members = [
     "data-sweeper",
     "health-watchdog",
     "identifier",
+    "identity-manager",
     "live-stt-monorepo",
     "messaging",
     "stt-provider",
@@ -788,6 +789,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/ff/e7/685de97986c916a6d
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/1c/e5fd8f973d4f375adb21565739498e2e9a1e54c858a97b9a8ccfdc81da9b/identify-2.6.15-py2.py3-none-any.whl", hash = "sha256:1181ef7608e00704db228516541eb83a88a9f94433a8c80bb9b5bd54b1d81757", size = 99183, upload-time = "2025-10-02T17:43:39.137Z" },
 ]
+
+[[package]]
+name = "identity-manager"
+version = "0.4.1"
+source = { editable = "services/identity-manager" }
+dependencies = [
+    { name = "messaging" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "messaging", editable = "libs/messaging" }]
 
 [[package]]
 name = "idna"

@@ -36,18 +36,19 @@ async def test_malformed_message_logs_error() -> None:
     app.state.nats = mock_nats
     client = TestClient(app)
 
-    with patch("api_gateway.main.logger") as mock_logger, client.websocket_connect(
-        "/ws/transcripts"
-    ) as _:
-            # Send malformed JSON
-            await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
+    with (
+        patch("api_gateway.main.logger") as mock_logger,
+        client.websocket_connect("/ws/transcripts") as _,
+    ):
+        # Send malformed JSON
+        await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
 
-            # Verify error logged
-            mock_logger.error.assert_called()
-            # The actual error message might vary, but it should log error
-            assert mock_logger.error.call_count >= 1
-            call_args = str(mock_logger.error.call_args)
-            assert "Error forwarding message" in call_args
+        # Verify error logged
+        mock_logger.error.assert_called()
+        # The actual error message might vary, but it should log error
+        assert mock_logger.error.call_count >= 1
+        call_args = str(mock_logger.error.call_args)
+        assert "Error forwarding message" in call_args
 
 
 @pytest.mark.asyncio
@@ -77,10 +78,11 @@ async def test_websocket_disconnect_handling() -> None:
     app.state.nats = mock_nats
     client = TestClient(app)
 
-    with patch("api_gateway.main.logger") as mock_logger, client.websocket_connect(
-        "/ws/transcripts"
-    ) as _:
-            pass  # just connect and close
+    with (
+        patch("api_gateway.main.logger") as mock_logger,
+        client.websocket_connect("/ws/transcripts") as _,
+    ):
+        pass  # just connect and close
 
         # Logs should show disconnect
         mock_logger.info.assert_called_with("Client disconnected.")
