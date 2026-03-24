@@ -9,7 +9,7 @@ from tests.mocks import MockAudioSource
 
 
 @pytest.mark.asyncio
-async def test_get_audio_source_file_override(monkeypatch):
+async def test_get_audio_source_file_override(monkeypatch) -> None:
     """Verify FileSource is selected when AUDIO_FILE is set."""
     monkeypatch.setenv("AUDIO_FILE", "test.wav")
     service = AudioProducerService()
@@ -23,7 +23,7 @@ async def test_get_audio_source_file_override(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_run_business_logic_preroll():
+async def test_run_business_logic_preroll() -> None:
     """Verify audio chunks are published to preroll.audio by default."""
     # Setup
     service = AudioProducerService()
@@ -52,7 +52,7 @@ async def test_run_business_logic_preroll():
 
 
 @pytest.mark.asyncio
-async def test_run_business_logic_live():
+async def test_run_business_logic_live() -> None:
     """Verify audio chunks are published to audio.live.{session_id} when active."""
     # Setup
     service = AudioProducerService()
