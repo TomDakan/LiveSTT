@@ -8,7 +8,7 @@ from messaging.streams import SUBJECT_AUDIO_LIVE
 
 
 @pytest.fixture
-def service():
+def service() -> AudioClassifierService:
     svc = AudioClassifierService()
     svc.nats_manager = MagicMock()
     svc.nats_manager.connect = AsyncMock(return_value=(MagicMock(), MagicMock()))
@@ -17,16 +17,16 @@ def service():
     return svc
 
 
-def test_run_business_logic(service):
+def test_run_business_logic(service: AudioClassifierService) -> None:
     asyncio.run(_async_test_run_business_logic(service))
 
 
-async def _async_test_run_business_logic(service):
+async def _async_test_run_business_logic(service: AudioClassifierService) -> None:
     stop_event = asyncio.Event()
     js_mock = AsyncMock()
 
     # Task to stop event after short delay
-    async def stop_later():
+    async def stop_later() -> None:
         await asyncio.sleep(0.1)
         stop_event.set()
 
@@ -35,7 +35,7 @@ async def _async_test_run_business_logic(service):
         tg.create_task(service.run_business_logic(js_mock, stop_event))
 
     # Verify stream ensured
-    service.nats_manager.ensure_stream.assert_called_once()
+    service.nats_manager.ensure_stream.assert_called_once()  # type: ignore
 
     # Verify subscription
     js_mock.subscribe.assert_called_once_with(
@@ -45,11 +45,11 @@ async def _async_test_run_business_logic(service):
     )
 
 
-def test_handle_audio(service):
+def test_handle_audio(service: AudioClassifierService) -> None:
     asyncio.run(_async_test_handle_audio(service))
 
 
-async def _async_test_handle_audio(service):
+async def _async_test_handle_audio(service: AudioClassifierService) -> None:
     msg = MagicMock()
     msg.data = b"fake_audio_data"
 
@@ -65,7 +65,8 @@ async def _async_test_handle_audio(service):
     service.classifier.classify.assert_called_once_with(b"fake_audio_data")
 
     # Verify publish
-    service.js.publish.assert_called_once()
-    call_args = service.js.publish.call_args
+    assert service.js
+    service.js.publish.assert_called_once()  # type: ignore
+    call_args = service.js.publish.call_args  # type: ignore
     assert call_args[0][0] == "classification.live"
     assert b"test_label" in call_args[0][1]
