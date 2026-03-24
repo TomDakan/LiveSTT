@@ -22,10 +22,10 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [ ] Implement "Black Box" Loopback Filesystem (`entrypoint.sh`)
 
 ### Milestone 2: Audio Pipeline
-- [ ] `audio-producer` service (ALSA -> NATS)
+- [x] `audio-producer` service (ALSA/PyAudio/File -> NATS via `BaseService`)
 - [ ] Verify Focusrite Solo input (16kHz, Linear16)
-- [ ] NATS JetStream configuration (`audio.live` & `audio.backfill` persistence)
-- [ ] Implement "Pre-Roll" Ring Buffer (Memory)
+- [x] NATS JetStream configuration (`PRE_BUFFER`, `AUDIO_STREAM`, `TRANSCRIPTION_STREAM` defined in `libs/messaging/streams.py`)
+- [x] Implement "Pre-Roll" publishing logic (`preroll.audio` when IDLE, `audio.live.<session_id>` when ACTIVE)
 
 ---
 
@@ -33,13 +33,13 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 **Goal**: End-to-End Transcription (Mic -> UI)
 
 ### Milestone 3: Cloud Transcription
-- [ ] Update `stt-provider` to consume NATS (`audio.live` & `audio.backfill`)
-- [ ] Implement Deepgram Nova-3 streaming
-- [ ] Implement Backfill Worker (Throttled Background Upload)
+- [x] Update `stt-provider` to consume NATS (`audio.live` & `audio.backfill`)
+- [x] Implement Deepgram Nova-3 streaming
+- [x] Implement Backfill Worker (Throttled Background Upload)
 - [ ] "Black Box" offline buffering logic
 
 ### Milestone 4: Full System Integration (Text Only)
-- [ ] Update `api-gateway` to consume `transcript.final`
+- [x] Update `api-gateway` to consume `transcript.raw.*` (temporary; will switch to `transcript.final` once `identity-manager` is built)
 - [ ] End-to-end testing (Mic -> NATS -> Deepgram -> UI)
 - [ ] Web UI updates (WebSocket consumer)
 

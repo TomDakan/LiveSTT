@@ -1,57 +1,56 @@
-import json
+"""
+Tests for the API Gateway WebSocket endpoint and ConnectionManager.
+"""
+
 from typing import Any
 
 import pytest
-from api_gateway.main import app
-from fastapi.testclient import TestClient
-
-
-class MockMsg:
-    def __init__(self, data: bytes) -> None:
-        self.data = data
-
-
-class MockNatsClient:
-    def __init__(self) -> None:
-        self.subscriptions: list[str] = []
-        self.callbacks: dict[str, Any] = {}
-
-    async def subscribe(self, subject: str, cb: Any) -> Any:
-        self.subscriptions.append(subject)
-        self.callbacks[subject] = cb
-        return None
-
-    async def trigger_message(self, subject: str, data: bytes) -> None:
-        if subject in self.callbacks:
-            await self.callbacks[subject](MockMsg(data))
 
 
 @pytest.mark.asyncio
-async def test_websocket_endpoint() -> None:
+async def test_connection_manager_broadcast() -> None:
     """
-    Verifies that the WebSocket endpoint:
-    1. Accepts connection.
-    2. Subscribes to NATS topic.
-    3. Forwards NATS messages to the WebSocket client.
+    Verifies the ConnectionManager broadcasts to all connected WebSocket clients.
     """
-    # Setup Mock NATS
-    mock_nats = MockNatsClient()
-    app.state.nats = mock_nats
+    from api_gateway.main import ConnectionManager
 
-    # Use TestClient for WebSocket
-    client = TestClient(app)
+    manager = ConnectionManager()
 
-    with client.websocket_connect("/ws/transcripts") as websocket:
-        # Verify subscription
-        assert "text.transcript" in mock_nats.subscriptions
+    messages_a: list[dict[str, Any]] = []
+    messages_b: list[dict[str, Any]] = []
 
-        # Simulate NATS message
-        transcript_data = {"text": "Hello World", "is_final": True, "confidence": 0.99}
-        await mock_nats.trigger_message(
-            "text.transcript", json.dumps(transcript_data).encode("utf-8")
-        )
+    class MockWS:
+        def __init__(self, store: list[dict[str, Any]]) -> None:
+            self._store = store
 
-        # Verify WebSocket received message
-        data = websocket.receive_json()
-        assert data["type"] == "transcript"
-        assert data["payload"] == transcript_data
+        async def send_json(self, data: dict[str, Any]) -> None:
+            self._store.append(data)
+
+    ws_a = MockWS(messages_a)
+    ws_b = MockWS(messages_b)
+
+    manager.active_connections.append(ws_a)  # type: ignore[arg-type]
+    manager.active_connections.append(ws_b)  # type: ignore[arg-type]
+
+    payload: dict[str, Any] = {"text": "Hello", "is_final": True, "confidence": 0.99}
+    await manager.broadcast(payload)
+
+    assert messages_a == [{"type": "transcript", "payload": payload}]
+    assert messages_b == [{"type": "transcript", "payload": payload}]
+
+
+@pytest.mark.asyncio
+async def test_connection_manager_disconnect_silences_failed_send() -> None:
+    """Verifies that a failed send does not crash the broadcast loop."""
+    from api_gateway.main import ConnectionManager
+
+    manager = ConnectionManager()
+
+    class BrokenWS:
+        async def send_json(self, data: dict[str, Any]) -> None:
+            raise RuntimeError("connection lost")
+
+    manager.active_connections.append(BrokenWS())  # type: ignore[arg-type]
+
+    # Should not raise
+    await manager.broadcast({"text": "test"})

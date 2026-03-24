@@ -143,3 +143,24 @@ extraPaths = [
     "libs/messaging/src",
     "services/stt-provider/tests",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["services", "libs/src"]
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+explicit_package_bases = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "nats.*"
+ignore_missing_imports = true
