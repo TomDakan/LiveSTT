@@ -32,7 +32,9 @@ class BaseService(ABC):
         self.kv = None
 
     @abstractmethod
-    async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
+    async def run_business_logic(
+        self, js: JetStreamContext | Any, stop_event: asyncio.Event
+    ) -> None:
         """
         Child classes MUST implement this.
         Args:
