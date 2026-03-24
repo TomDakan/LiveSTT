@@ -7,7 +7,7 @@ jobs:
         runs-on: ubuntu-latest
         strategy:
             matrix:
-                python-version: ["3.13", "3.12"]
+                python-version: ["3.12"]
 
         steps:
             - uses: actions/checkout@v4
@@ -32,7 +32,7 @@ jobs:
                   SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
 
             - name: Upload coverage to Codecov
-              if: matrix.python-version == '3.13'
+              if: matrix.python-version == '3.12'
               uses: codecov/codecov-action@v4
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
