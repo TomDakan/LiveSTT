@@ -1,5 +1,13 @@
 # Implementation Guide: STT Provider
 
+> [!NOTE]
+> **Status: ARCHIVED — Implementation Complete**
+> This guide was written as a pre-implementation scaffold. The design evolved;
+> `STTService` (planned in `service.py`) was superseded by `STTProviderService`
+> in [`services/stt-provider/src/stt_provider/main.py`](../../services/stt-provider/src/stt_provider/main.py),
+> which extends `BaseService` from `libs/messaging`. The `NatsClient` protocol
+> was replaced by `NatsJSManager`. Preserved here for historical context.
+
 ## Objective
 Implement the `stt-provider` service, which acts as the bridge between the raw audio stream (NATS) and the cloud transcription engine (Deepgram). It must be robust, handling network interruptions and API failures gracefully.
 
