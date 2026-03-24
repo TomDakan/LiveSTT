@@ -16,7 +16,7 @@ logging.basicConfig(
 
 
 class BaseService(ABC):
-    def __init__(self, service_name: str, nats_url: str = "nats://nats:4222"):
+    def __init__(self, service_name: str, nats_url: str = "nats://nats:4222") -> None:
         self.service_name = service_name
         self.nats_url = nats_url
         self.stop_event = asyncio.Event()
@@ -40,7 +40,7 @@ class BaseService(ABC):
         """
         pass
 
-    async def _heartbeat_task(self):
+    async def _heartbeat_task(self) -> None:
         """Standard Heartbeat Loop"""
         if not self.js:
             self.logger.warning("Heartbeat skipped: JS not connected")
@@ -72,7 +72,7 @@ class BaseService(ABC):
         except Exception as e:
             self.logger.warning(f"Heartbeat failed (non-fatal): {e}")
 
-    async def start(self):
+    async def start(self) -> None:
         """Lifecycle Manager"""
         # 1. Handle OS Signals
         loop = asyncio.get_running_loop()
