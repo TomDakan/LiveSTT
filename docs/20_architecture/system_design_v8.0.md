@@ -1,9 +1,18 @@
 # System Design Document: v8.0 ("Buffered Brain")
 
-**Status**: ACTIVE
+**Status**: ACTIVE — Foundation implemented in `refactor/service-specific-fixes` (March 2026)
 **Target Platform**: Industrial x86 (Intel N97)
 **Pattern**: Buffered Split-Brain (Store-and-Forward + Parallel Processing)
 **Date**: December 2025
+
+> [!NOTE]
+> **Implementation Status (March 2026)**: The `BaseService` lifecycle pattern, `NatsJSManager`,
+> and all three NATS stream configurations are implemented and deployed. `audio-producer`,
+> `stt-provider`, and `api-gateway` all use the v8.0 service pattern. `identifier` and
+> `identity-manager` are not yet built — see [ROADMAP.md](../../ROADMAP.md) for current status.
+> As a temporary transitional measure, `api-gateway` subscribes to `transcript.raw.*` directly
+> until `identity-manager` is built to produce `transcript.final`.
+
 
 ---
 

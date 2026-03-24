@@ -3,6 +3,7 @@ import json
 import logging
 import signal
 from abc import ABC, abstractmethod
+from typing import Any
 
 from messaging.nats import NatsJSManager
 from nats.js import JetStreamContext
@@ -31,7 +32,7 @@ class BaseService(ABC):
         self.kv = None
 
     @abstractmethod
-    async def run_business_logic(self, js, stop_event: asyncio.Event):
+    async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         """
         Child classes MUST implement this.
         Args:

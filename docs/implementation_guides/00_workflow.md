@@ -48,7 +48,10 @@ The User runs the project's standard verification tools.
 
 ## Toolchain Constraints
 -   **Linting**: Ruff
--   **Typing**: MyPy (Strict)
+-   **Typing**: MyPy (Strict) — **always invoke via `just type-check [service-name]`**, not bare `uv run mypy .`. Running mypy at the repo root scans `libs/` twice (once directly, once via `mypy_path`) and produces a false "source file found twice" error that blocks all checks.
+    -   Full check: `just type-check`
+    -   Single service: `just type-check stt-provider`
+    -   Direct equivalent: `uv run mypy services/stt-provider`
 -   **Tasks**: Just
 -   **Package Manager**: uv
 -   **Commits**: Conventional Commits (via `commitizen`, see [CONTRIBUTING.md](../../CONTRIBUTING.md) section 6)
