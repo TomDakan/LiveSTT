@@ -138,4 +138,4 @@ class STTProviderService(BaseService):
 if __name__ == "__main__":
     load_dotenv()
     service = STTProviderService()
-    asyncio.run(service.start())  # type: ignore
+    asyncio.run(service.start())
