@@ -13,7 +13,7 @@ class MockJsApi:
 
 
 # Helper to mock a package structure
-def mock_module(name):
+def mock_module(name: str) -> MagicMock:
     m = MagicMock()
     m.__path__ = []  # Mark as package
     sys.modules[name] = m
