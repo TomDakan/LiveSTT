@@ -69,7 +69,7 @@ safety-scan *args:
 
 # Run Bandit security linter.
 bandit-check *args:
-    uv run python -m bandit -c pyproject.toml -r services -x "tests,services/api-gateway/tests,services/audio-producer/tests,services/stt-provider/tests" {{ args }}
+    uv run python -m bandit -c pyproject.toml -r . {{ args }}
 
 # Export documentation dependencies for Read the Docs.
 export-docs-reqs *args:

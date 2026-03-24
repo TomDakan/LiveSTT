@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from messaging.nats import NatsJSManager
+from nats.aio.client import Client as NATS
 from nats.js import JetStreamContext
 from nats.js.api import KeyValueConfig
 
@@ -27,9 +28,9 @@ class BaseService(ABC):
         self.nats_manager = NatsJSManager()
 
         # These will be populated after start()
-        self.nc = None
+        self.nc: NATS | None = None
         self.js: JetStreamContext | None = None
-        self.kv = None
+        self.kv: Any | None = None
 
     @abstractmethod
     async def run_business_logic(

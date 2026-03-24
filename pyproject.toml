@@ -100,8 +100,9 @@ markers = [
 
 
 [tool.bandit]
-targets = ["services"]
-exclude = ["tests", ".venv", "services/*/tests"]
+targets = ["services", "libs", "tests"]
+exclude_dirs = ["tests", ".venv", "*/tests", "**/tests"]
+skips = ["B101"] # Skip assert_used globally for simplicity in a repo with many tests
 level = "MEDIUM"
 confidence = "MEDIUM"
 

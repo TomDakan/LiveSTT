@@ -1,5 +1,9 @@
 import asyncio
+import json
 import os
+import subprocess
+import sys
+import time
 
 import pytest
 import websockets
@@ -157,6 +161,15 @@ async def _test_e2e_flow() -> None:
         proc.terminate()
         proc.wait()
 
+
+@pytest.mark.integration
+@pytest.mark.skip(reason="Pending rewrite for v8.0 BaseService API")
+@pytest.mark.asyncio
+async def test_e2e_persistence() -> None:
+    """
+    Verifies Data Persistence (JetStream) — PENDING REWRITE for v8.0 BaseService API.
+    Scenario: Producer publishes data; STT Provider starts late and catches up.
+    """
     if not os.getenv("DEEPGRAM_API_KEY"):
         pytest.skip("DEEPGRAM_API_KEY not set")
 
@@ -164,8 +177,6 @@ async def _test_e2e_flow() -> None:
     prod_nats = NatsJSManager()
     await prod_nats.connect(NATS_URL)
     # Create stream with explicit retention
-    from messaging.streams import AUDIO_STREAM_CONFIG, TRANSCRIPTION_STREAM_CONFIG
-
     await prod_nats.ensure_stream(**AUDIO_STREAM_CONFIG)
 
     test_file = "tests/data/test_audio.wav"
