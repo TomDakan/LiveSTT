@@ -23,7 +23,10 @@ class MockNatsClient:
         return AsyncMock()
 
     async def trigger_message(self, subject: str, data: bytes) -> None:
-        print(f"Triggering message on {subject}, active subs: {list(self.subscriptions.keys())}")
+        print(
+            f"Triggering message on {subject}, active subs: "
+            f"{list(self.subscriptions.keys())}"
+        )
         if subject in self.subscriptions:
             msg = AsyncMock()
             msg.data = data
@@ -42,17 +45,17 @@ async def test_malformed_message_logs_error() -> None:
         patch("api_gateway.main.nats_client", new_callable=lambda: mock_nats),
         patch("api_gateway.main.logger") as mock_logger,
         TestClient(app) as client,
+        client.websocket_connect("/ws/transcripts") as _,
     ):
-        with client.websocket_connect("/ws/transcripts") as _:
-            # Send malformed JSON
-            await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
+        # Send malformed JSON
+        await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
 
-            # Verify error logged
-            mock_logger.error.assert_called()
-            # The actual error message might vary, but it should log error
-            assert mock_logger.error.call_count >= 1
-            call_args = str(mock_logger.error.call_args)
-            assert "Error broadcasting NATS message" in call_args
+        # Verify error logged
+        mock_logger.error.assert_called()
+        # The actual error message might vary, but it should log error
+        assert mock_logger.error.call_count >= 1
+        call_args = str(mock_logger.error.call_args)
+        assert "Error broadcasting NATS message" in call_args
 
 
 @pytest.mark.asyncio
@@ -83,7 +86,7 @@ async def test_websocket_disconnect_handling() -> None:
     client = TestClient(app)
 
     with patch("api_gateway.main.logger") as mock_logger:
-        with client.websocket_connect("/ws/transcripts") as websocket:
+        with client.websocket_connect("/ws/transcripts") as _:
             pass  # just connect and close block to trigger disconnect
 
         # Logs should show disconnect

@@ -8,7 +8,6 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-
 from nats.aio.client import Client as NATS
 
 # --- Config ---
@@ -104,7 +103,6 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     logger.info("Client connected to WebSocket.")
 
     try:
-
         while True:
             # We just wait here to keep connection open
             # Receiving a message from the client (e.g. ping) keeps it alive.

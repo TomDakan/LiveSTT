@@ -1,4 +1,3 @@
-
 """
 Tests for the API Gateway WebSocket endpoint and ConnectionManager.
 """
@@ -39,7 +38,6 @@ async def test_connection_manager_broadcast() -> None:
 
     assert messages_a == [{"type": "transcript", "payload": payload}]
     assert messages_b == [{"type": "transcript", "payload": payload}]
-
 
 
 @pytest.mark.asyncio
