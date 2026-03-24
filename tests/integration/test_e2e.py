@@ -10,12 +10,10 @@ import pytest
 import websockets
 
 # Imports from services
-from audio_producer.audiosource import FileSource
-from audio_producer.main import NatsAudioPublisher
+from audio_producer.main import AudioProducerService
 from httpx import AsyncClient
-from messaging.nats import JetStreamClient
-from stt_provider.deepgram_adapter import DeepgramTranscriber
-from stt_provider.service import STTService
+from messaging.nats import NatsJSManager
+from stt_provider.main import STTProviderService
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 
@@ -102,17 +100,17 @@ async def _test_e2e_flow() -> None:
             pytest.fail("API Gateway failed to start")
 
         # 2. Setup STT Provider
-        stt_nats = JetStreamClient()
+        stt_nats = NatsJSManager()
         await stt_nats.connect(NATS_URL)
         await stt_nats.ensure_stream("text", ["text.transcript"], 3600)
 
-        transcriber = DeepgramTranscriber()
-        stt_service = STTService(nats=stt_nats, transcriber=transcriber)
+        stt_service = STTProviderService()
+        stt_service.nats_url = NATS_URL
         stt_task = asyncio.create_task(stt_service.start())
         await asyncio.sleep(1.0)
 
         # 3. Setup Audio Producer
-        prod_nats = JetStreamClient()
+        prod_nats = NatsJSManager()
         await prod_nats.connect(NATS_URL)
         await prod_nats.ensure_stream("audio", ["audio.>"], 3600)
 
@@ -120,8 +118,9 @@ async def _test_e2e_flow() -> None:
         if not os.path.exists(test_file):
             pytest.fail(f"Test file {test_file} missing")
 
-        source = FileSource(test_file, chunk_size=1600)
-        producer = NatsAudioPublisher(source=source, nats=prod_nats)
+        os.environ["AUDIO_FILE"] = test_file
+        producer = AudioProducerService()
+        producer.nats_url = NATS_URL
 
         # 4. Execute Flow
         async with websockets.connect(ws_url) as websocket:  # type: ignore
@@ -135,6 +134,7 @@ async def _test_e2e_flow() -> None:
             try:
                 await asyncio.wait_for(producer_task, timeout=5.0)
             except TimeoutError:
+                producer.stop_event.set()
                 producer_task.cancel()
 
             # Receive message (expecting at least one)
@@ -176,7 +176,7 @@ async def test_e2e_persistence() -> None:
         pytest.skip("DEEPGRAM_API_KEY not set")
 
     # 1. Setup Audio Producer & Publish Data
-    prod_nats = JetStreamClient()
+    prod_nats = NatsJSManager()
     await prod_nats.connect(NATS_URL)
     # Create stream with explicit retention
     await prod_nats.ensure_stream("audio", ["audio.>"], 3600)
@@ -185,13 +185,17 @@ async def test_e2e_persistence() -> None:
     if not os.path.exists(test_file):
         pytest.fail(f"Test file {test_file} missing")
 
-    source = FileSource(test_file, chunk_size=1600)
-    producer = NatsAudioPublisher(source=source, nats=prod_nats)
+    os.environ["AUDIO_FILE"] = test_file
+    producer = AudioProducerService()
+    producer.nats_url = NATS_URL
 
     # Publish all data
     print("Publishing data...")
     try:
-        await producer.start()
+        prod_task = asyncio.create_task(producer.start())
+        await asyncio.sleep(2.0)
+        producer.stop_event.set()
+        await prod_task
     except Exception as e:
         print(f"Producer error: {e}")
         pass
@@ -201,13 +205,14 @@ async def test_e2e_persistence() -> None:
 
     # 2. Start STT Provider (Delayed)
     print("Starting STT Provider...")
-    stt_nats = JetStreamClient()
+    stt_nats = NatsJSManager()
     await stt_nats.connect(NATS_URL)
     # Ensure text stream exists for output
     await stt_nats.ensure_stream("text", ["text.transcript"], 3600)
 
     mock_transcriber = MockTranscriber()
-    stt_service = STTService(nats=stt_nats, transcriber=mock_transcriber)  # type: ignore
+    stt_service = STTProviderService()  # type: ignore
+    stt_service.nats_url = NATS_URL
 
     # Start service in background
     stt_task = asyncio.create_task(stt_service.start())

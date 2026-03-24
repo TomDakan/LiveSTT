@@ -1,9 +1,29 @@
 import json
+from typing import Any
 
 import pytest
 from api_gateway.main import app
 from fastapi.testclient import TestClient
-from messaging.nats import MockNatsClient
+
+
+class MockMsg:
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+
+
+class MockNatsClient:
+    def __init__(self) -> None:
+        self.subscriptions: list[str] = []
+        self.callbacks: dict[str, Any] = {}
+
+    async def subscribe(self, subject: str, cb: Any) -> Any:
+        self.subscriptions.append(subject)
+        self.callbacks[subject] = cb
+        return None
+
+    async def trigger_message(self, subject: str, data: bytes) -> None:
+        if subject in self.callbacks:
+            await self.callbacks[subject](MockMsg(data))
 
 
 @pytest.mark.asyncio
