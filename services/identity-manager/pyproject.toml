@@ -1,0 +1,23 @@
+[project]
+name = "identity-manager"
+version = "0.4.1"
+description = "Server-Side Data Fusion for Transcription and Identity"
+authors = [
+    { name = "Tom Dakan", email = "tomdakan@gmail.com" },
+]
+requires-python = ">=3.12"
+dependencies = [
+    "messaging",
+]
+
+[tool.uv.sources]
+messaging = { workspace = true }
+
+[project.scripts]
+identity-manager = "identity_manager.main:main"
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.basedpyright]
+extend = "../../pyproject.toml"
