@@ -7,7 +7,6 @@ from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from messaging.nats import NatsClient
 from nats.aio.client import Client as NATS
 
 # --- Config ---
@@ -81,7 +80,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         # websockets.
 
         # Access NATS from app state
-        nc: NatsClient = app.state.nats
+        nc: NATS = app.state.nats
         sub = await nc.subscribe(TRANSCRIPT_TOPIC, cb=message_handler)
 
         # Keep the connection open until client disconnects
