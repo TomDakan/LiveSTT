@@ -27,6 +27,7 @@ version_toml = [
     "services/data-sweeper/pyproject.toml:project.version",
     "services/health-watchdog/pyproject.toml:project.version",
     "services/identifier/pyproject.toml:project.version",
+    "services/identity-manager/pyproject.toml:project.version",
     "services/stt-provider/pyproject.toml:project.version",
     "libs/messaging/pyproject.toml:project.version",
 ]
@@ -52,6 +53,7 @@ messaging = { workspace = true }
 api-gateway = { workspace = true }
 audio-producer = { workspace = true }
 stt-provider = { workspace = true }
+identity-manager = { workspace = true }
 
 # ==============================================================================
 # SHARED TOOL CONFIGURATION
@@ -85,7 +87,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --cov=src --cov-report=term-missing"
-testpaths = ["tests"]
+testpaths = ["tests", "services/*/tests"]
 markers = [
     "unit: Marks fast, self-contained unit tests.",
     "integration: Marks tests that require external resources.",

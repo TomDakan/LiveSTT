@@ -9,7 +9,7 @@ import pytest
 
 
 @pytest.mark.skip(
-    reason="Needs refactoring due to TestClient threadloop incompatibility with lifespan AsyncMock"
+    reason="TestClient threadloop incompatibility with lifespan AsyncMock"
 )
 @pytest.mark.asyncio
 async def test_connection_manager_broadcast() -> None:
