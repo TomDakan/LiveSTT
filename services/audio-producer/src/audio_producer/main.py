@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 
 from messaging.service import BaseService
 from messaging.streams import (
@@ -11,15 +12,16 @@ from messaging.streams import (
 
 # Import the module itself so we can safely check for platform-specific classes
 from . import audiosource
+from .interfaces import AudioSource
 
 
 class AudioProducerService(BaseService):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__("audio-producer")
         self.session_id: str | None = None
         self.is_active = False
 
-    def _get_audio_source(self):
+    def _get_audio_source(self) -> AudioSource:
         """
         Factory method to select the correct Audio Source based on
         Env Vars and Platform availability.
@@ -47,7 +49,7 @@ class AudioProducerService(BaseService):
             "Set AUDIO_FILE env var or ensure PyAudio/ALSA is installed."
         )
 
-    async def run_business_logic(self, js, stop_event):
+    async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         # 1. Ensure Streams Exist
         try:
             await self.nats_manager.ensure_stream(**PREROLL_STREAM_CONFIG)
@@ -74,7 +76,7 @@ class AudioProducerService(BaseService):
 
                 # Logic: Atomic Routing (Live vs Preroll)
                 if self.is_active and self.session_id:
-                    # SUBJECT_PREFIX_AUDIO_LIVE = "audio.live" -> "audio.live.<session_id>"
+                    # Publishes to "audio.live.<session_id>"
                     await js.publish(
                         f"{SUBJECT_PREFIX_AUDIO_LIVE}.{self.session_id}", chunk
                     )

@@ -2,18 +2,17 @@ import json
 import logging
 import os
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from messaging.streams import SUBJECT_TRANSCRIPT_RAW
 from nats.aio.client import Client as NATS
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api-gateway")
-
-from messaging.streams import SUBJECT_TRANSCRIPT_RAW
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 TRANSCRIPT_TOPIC = SUBJECT_TRANSCRIPT_RAW
@@ -36,15 +35,10 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict[str, Any]) -> None:
-        # Broadcast to all connected clients
-        # Iterate over a copy to avoid modification issues if disconnects happen during send (though unlikely in this sync loop)
+        """Broadcast to all connected clients. Silently skips failed sends."""
         for connection in list(self.active_connections):
-            try:
+            with suppress(Exception):
                 await connection.send_json({"type": "transcript", "payload": message})
-            except Exception:
-                # If send fails, assume disconnected or error; cleanup might be handled by endpoint,
-                # but let's be safe. Real cleanup happens in disconnect() called by endpoint.
-                pass
 
 
 manager = ConnectionManager()
@@ -83,7 +77,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
-# Enable CORS (adjust origins for production)
 # Enable CORS (adjust origins for production)
 ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(

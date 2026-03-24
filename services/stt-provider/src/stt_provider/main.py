@@ -54,7 +54,7 @@ class STTProviderService(BaseService):
 
         try:
             # Connect both
-            # Load config (basic env var support for now, can be expanded to typed-settings later)
+            # Load config (basic env var support; can be expanded to typed settings)
             dg_model = os.getenv("DEEPGRAM_MODEL", "nova-3")
             dg_encoding = os.getenv("DEEPGRAM_ENCODING", "linear16")
 
