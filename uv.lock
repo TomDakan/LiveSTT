@@ -530,6 +530,12 @@ wheels = [
 name = "data-sweeper"
 version = "0.6.0"
 source = { editable = "services/data-sweeper" }
+dependencies = [
+    { name = "messaging" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "messaging", editable = "libs/messaging" }]
 
 [[package]]
 name = "decli"
@@ -718,6 +724,12 @@ wheels = [
 name = "health-watchdog"
 version = "0.6.0"
 source = { editable = "services/health-watchdog" }
+dependencies = [
+    { name = "messaging" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "messaging", editable = "libs/messaging" }]
 
 [[package]]
 name = "httpcore"

@@ -48,11 +48,11 @@ class IdentifierService(BaseService):
                     for msg in msgs:
                         # --- Identification Logic (OpenVINO Stub) ---
                         # Extract session_id from subject: audio.live.{session_id}
-                        session_id = msg.subject.split(".")[-1]
+                        # session_id = msg.subject.split(".")[-1]
 
                         # Stub: Emit identity event every few messages
                         # In reality, this would run vector lookup
-                        # self.logger.debug(f"Live Worker: Identified segment for {session_id}")
+                        # self.logger.debug(f"Live Worker: Identified segment")
 
                         await msg.ack()
                 except TimeoutError:
@@ -82,7 +82,7 @@ class IdentifierService(BaseService):
                     for msg in msgs:
                         # --- Identification Logic (OpenVINO Stub) ---
                         # session_id = msg.subject.split(".")[-1]
-                        # self.logger.debug(f"Backfill Worker: Processing past audio for {session_id}")
+                        # self.logger.debug("Backfill Worker: Processing past audio")
 
                         await msg.ack()
                 except TimeoutError:

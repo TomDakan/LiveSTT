@@ -17,7 +17,7 @@ class MockTranscriber(Transcriber):
         self.sent_audio: list[bytes] = []
         self.events_to_yield: asyncio.Queue[TranscriptionEvent | None] = asyncio.Queue()
 
-    async def connect(self, **kwargs: object) -> None:
+    async def connect(self, **kwargs: Any) -> None:
         self.connected = True
 
     async def send_audio(self, audio: bytes) -> None:

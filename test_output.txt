@@ -1,0 +1,193 @@
+uv run python -m pytest -m "not integration" 
+F.Fs..................F.........                                         [100%]
+================================== FAILURES ===================================
+______________________ test_malformed_message_logs_error ______________________
+
+    @pytest.mark.asyncio
+    async def test_malformed_message_logs_error() -> None:
+        """Verifies that invalid JSON in NATS message is logged and ignored."""
+        mock_nats = MockNatsClient()
+        app.state.nats = mock_nats
+        client = TestClient(app)
+    
+        with (
+            patch("api_gateway.main.logger") as mock_logger,
+            client.websocket_connect("/ws/transcripts") as _,
+        ):
+            # Send malformed JSON
+            await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
+    
+            # Verify error logged
+>           mock_logger.error.assert_called()
+
+services\api-gateway\tests\test_api_error_handling.py:47: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='logger.error' id='1672992967808'>
+
+    def assert_called(self):
+        """assert that the mock was called at least once
+        """
+        if self.call_count == 0:
+            msg = ("Expected '%s' to have been called." %
+                   (self._mock_name or 'mock'))
+>           raise AssertionError(msg)
+E           AssertionError: Expected 'error' to have been called.
+
+C:\Users\tadak\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py:918: AssertionError
+_____________________ test_websocket_disconnect_handling ______________________
+
+    @pytest.mark.asyncio
+    async def test_websocket_disconnect_handling() -> None:
+        """Verify clean shutdown on client disconnect."""
+        mock_nats = MockNatsClient()
+        app.state.nats = mock_nats
+        client = TestClient(app)
+    
+        with (
+            patch("api_gateway.main.logger") as mock_logger,
+            client.websocket_connect("/ws/transcripts") as _,
+        ):
+            pass  # just connect and close
+    
+            # Logs should show disconnect
+>           mock_logger.info.assert_called_with("Client disconnected.")
+
+services\api-gateway\tests\test_api_error_handling.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <MagicMock name='logger.info' id='1673024528528'>
+args = ('Client disconnected.',), kwargs = {}
+expected = call('Client disconnected.')
+actual = call('Client connected to WebSocket.')
+_error_message = <function NonCallableMock.assert_called_with.<locals>._error_message at 0x00000185881345E0>
+cause = None
+
+    def assert_called_with(self, /, *args, **kwargs):
+        """assert that the last call was made with the specified arguments.
+    
+        Raises an AssertionError if the args and keyword args passed in are
+        different to the last call to the mock."""
+        if self.call_args is None:
+            expected = self._format_mock_call_signature(args, kwargs)
+            actual = 'not called.'
+            error_message = ('expected call not found.\nExpected: %s\n  Actual: %s'
+                    % (expected, actual))
+            raise AssertionError(error_message)
+    
+        def _error_message():
+            msg = self._format_mock_failure_message(args, kwargs)
+            return msg
+        expected = self._call_matcher(_Call((args, kwargs), two=True))
+        actual = self._call_matcher(self.call_args)
+        if actual != expected:
+            cause = expected if isinstance(expected, Exception) else None
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: info('Client disconnected.')
+E             Actual: info('Client connected to WebSocket.')
+
+C:\Users\tadak\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\unittest\mock.py:949: AssertionError
+___________________________ test_stt_provider_flow ____________________________
+
+    @pytest.mark.asyncio
+    async def test_stt_provider_flow() -> None:
+        """
+        Verifies:
+        1. Service sets up Dual Transcribers.
+        2. Live Audio -> Live Transcriber.
+        3. Backfill Audio -> Backfill Transcriber.
+        4. Events from both are published to NATS.
+        """
+        # 1. Setup Service & Mocks
+        service = STTProviderService()
+        service.nats_manager = MagicMock()
+        service.nats_manager.ensure_stream = AsyncMock()
+    
+        # Create distinct mocks for live/backfill
+        mock_live = MockTranscriber()
+        mock_backfill = MockTranscriber()
+    
+        # 2. Patch DeepgramTranscriber to return our mocks sequentially
+        with patch(
+            "stt_provider.main.DeepgramTranscriber", side_effect=[mock_live, mock_backfill]
+        ):
+            # 3. Setup JS Context Mock
+            mock_js = AsyncMock()
+            stop_event = asyncio.Event()
+    
+            # Capture callbacks so we can trigger them manually
+    
+            # Capture callbacks so we can trigger them manually
+            callbacks: dict[str, Any] = {}
+    
+            async def mock_subscribe(subject: str, queue: str, cb: Any) -> None:
+                callbacks[subject] = cb
+    
+            mock_js.subscribe.side_effect = mock_subscribe
+    
+            # 4. Run Business Logic (in background task)
+            task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+    
+            # Wait for setup
+            await asyncio.sleep(0.1)
+    
+            # Verify Subscriptions
+>           assert "audio.live.>" in callbacks
+E           AssertionError: assert 'audio.live.>' in {}
+
+services\stt-provider\tests\test_stt_provider.py:84: AssertionError
+------------------------------ Captured log call ------------------------------
+CRITICAL stt-provider:main.py:65 Deepgram connection failed: MockTranscriber.connect() got an unexpected keyword argument 'model'
+============================== warnings summary ===============================
+.venv\Lib\site-packages\websockets\legacy\__init__.py:6
+  D:\LiveSTT\.venv\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.12.12-final-0 _______________
+
+Name                                                            Stmts   Miss  Cover   Missing
+---------------------------------------------------------------------------------------------
+libs\messaging\src\messaging\nats.py                               33     20    39%   25-28, 32-34, 40-63
+libs\messaging\src\messaging\service.py                            62     38    39%   44, 48-76, 81-121
+libs\messaging\src\messaging\streams.py                            17      0   100%
+services\api-gateway\src\api_gateway\__init__.py                    0      0   100%
+services\api-gateway\src\api_gateway\main.py                       74     22    70%   40-42, 56-61, 65-73, 94, 114-116, 121-124, 128
+services\api-gateway\tests\test_api_error_handling.py              50     11    78%   16, 19, 22-23, 27-29, 49-51, 68
+services\api-gateway\tests\test_integration.py                     42     26    38%   29-94
+services\api-gateway\tests\test_main.py                            43     27    37%   15, 18, 21, 24-25, 28-31, 44-84
+services\audio-classifier\src\audio_classifier\__init__.py          0      0   100%
+services\audio-classifier\src\audio_classifier\classifiers.py      39      5    87%   9-10, 53-57
+services\audio-classifier\src\audio_classifier\interfaces.py       11      1    91%   24
+services\audio-classifier\src\audio_classifier\main.py             39     10    74%   27-29, 44, 57-58, 62-64, 68
+services\audio-classifier\tests\conftest.py                        28      7    75%   24, 27, 30, 33, 36-38
+services\audio-classifier\tests\test_classifiers.py                37      0   100%
+services\audio-classifier\tests\test_service.py                    41      0   100%
+services\audio-producer\src\audio_producer\__init__.py              0      0   100%
+services\audio-producer\src\audio_producer\audiosource.py         113     72    36%   18-19, 44-53, 57-63, 71-72, 86-96, 101-112, 117-118, 128-131, 136-185
+services\audio-producer\src\audio_producer\interfaces.py           10      2    80%   12, 21
+services\audio-producer\src\audio_producer\main.py                 48     16    67%   36-47, 58-60, 65-67, 75, 88-89
+services\audio-producer\tests\__init__.py                           0      0   100%
+services\audio-producer\tests\mocks.py                             21      0   100%
+services\audio-producer\tests\test_audioproducer.py                42      0   100%
+services\audio-producer\tests\test_audiosource.py                  27      0   100%
+services\audio-producer\tests\test_integration.py                  38     29    24%   20-74
+services\stt-provider\src\stt_provider\__init__.py                  0      0   100%
+services\stt-provider\src\stt_provider\deepgram_adapter.py         65     19    71%   25, 57-58, 61, 66, 70, 74, 84-85, 88, 95-98, 101-105
+services\stt-provider\src\stt_provider\interfaces.py               14      0   100%
+services\stt-provider\src\stt_provider\main.py                     75      9    88%   97-98, 101-102, 113, 117, 139-141
+services\stt-provider\tests\test_deepgram_adapter.py               54      0   100%
+services\stt-provider\tests\test_stt_error_handling.py             64      0   100%
+services\stt-provider\tests\test_stt_provider.py                   73     39    47%   21, 24, 27, 30-34, 38, 73, 85-130
+---------------------------------------------------------------------------------------------
+TOTAL                                                            1160    353    70%
+Coverage XML written to file coverage.xml
+=========================== short test summary info ===========================
+SKIPPED [1] services\api-gateway\tests\test_main.py:34: TestClient threadloop incompatibility with lifespan AsyncMock
+FAILED services/api-gateway/tests/test_api_error_handling.py::test_malformed_message_logs_error
+FAILED services/api-gateway/tests/test_api_error_handling.py::test_websocket_disconnect_handling
+FAILED services/stt-provider/tests/test_stt_provider.py::test_stt_provider_flow
+3 failed, 28 passed, 1 skipped, 4 deselected, 1 warning in 3.47s
+error: Recipe `test` failed on line 56 with exit code 1

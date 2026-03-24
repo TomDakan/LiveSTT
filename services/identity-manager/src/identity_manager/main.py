@@ -19,7 +19,8 @@ class IdentityManager(BaseService):
 
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         """
-        Subscribes to raw transcripts and identity events, fuses them, and publishes final results.
+        Subscribes to raw transcripts and identity events,
+        fuses them, and publishes final results.
         """
         self.logger.info("Identity Manager: Starting Fusion Logic...")
 
@@ -93,7 +94,8 @@ class IdentityManager(BaseService):
             try:
                 # Matching logic:
                 # For each transcript, find the closest identity within a time window.
-                # If found, merge and publish. If not, maybe wait or publish with 'Unknown'.
+                # If found, merge and publish.
+                # If not, maybe wait or publish with 'Unknown'.
 
                 # Simple implementation:
                 # Drain buffers and publish everything as 'final' for now

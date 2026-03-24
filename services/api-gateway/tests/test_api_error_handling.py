@@ -23,10 +23,14 @@ class MockNatsClient:
         return AsyncMock()
 
     async def trigger_message(self, subject: str, data: bytes) -> None:
+        print(f"Triggering message on {subject}, active subs: {list(self.subscriptions.keys())}")
         if subject in self.subscriptions:
             msg = AsyncMock()
             msg.data = data
             await self.subscriptions[subject](msg)
+            print("Message triggered successfully")
+        else:
+            print(f"No subscription found for {subject}")
 
 
 @pytest.mark.asyncio
@@ -34,21 +38,21 @@ async def test_malformed_message_logs_error() -> None:
     """Verifies that invalid JSON in NATS message is logged and ignored."""
     mock_nats = MockNatsClient()
     app.state.nats = mock_nats
-    client = TestClient(app)
-
     with (
+        patch("api_gateway.main.nats_client", new_callable=lambda: mock_nats),
         patch("api_gateway.main.logger") as mock_logger,
-        client.websocket_connect("/ws/transcripts") as _,
+        TestClient(app) as client,
     ):
-        # Send malformed JSON
-        await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
+        with client.websocket_connect("/ws/transcripts") as _:
+            # Send malformed JSON
+            await mock_nats.trigger_message("transcript.final.>", b"{invalid json")
 
-        # Verify error logged
-        mock_logger.error.assert_called()
-        # The actual error message might vary, but it should log error
-        assert mock_logger.error.call_count >= 1
-        call_args = str(mock_logger.error.call_args)
-        assert "Error forwarding message" in call_args
+            # Verify error logged
+            mock_logger.error.assert_called()
+            # The actual error message might vary, but it should log error
+            assert mock_logger.error.call_count >= 1
+            call_args = str(mock_logger.error.call_args)
+            assert "Error broadcasting NATS message" in call_args
 
 
 @pytest.mark.asyncio
@@ -78,11 +82,9 @@ async def test_websocket_disconnect_handling() -> None:
     app.state.nats = mock_nats
     client = TestClient(app)
 
-    with (
-        patch("api_gateway.main.logger") as mock_logger,
-        client.websocket_connect("/ws/transcripts") as _,
-    ):
-        pass  # just connect and close
+    with patch("api_gateway.main.logger") as mock_logger:
+        with client.websocket_connect("/ws/transcripts") as websocket:
+            pass  # just connect and close block to trigger disconnect
 
         # Logs should show disconnect
         mock_logger.info.assert_called_with("Client disconnected.")

@@ -2,15 +2,22 @@
 name = "health-watchdog"
 version = "0.6.0"
 description = "Health Watchdog Service"
+authors = [
+    { name = "Tom Dakan", email = "tomdakan@gmail.com" },
+]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "messaging",
+]
+
+[tool.uv.sources]
+messaging = { workspace = true }
 
 [project.scripts]
 health-watchdog = "health_watchdog.main:main"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.ruff]
-extend = "../../ruff.toml"
+extend = "../../pyproject.toml"
+
+[tool.basedpyright]
+extend = "../../pyproject.toml"
