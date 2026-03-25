@@ -1,0 +1,6 @@
+# Override for file-based E2E testing (no ALSA/USB hardware required).
+# Usage: docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d nats audio-producer
+services:
+  audio-producer:
+    devices: !reset []
+    group_add: !reset []

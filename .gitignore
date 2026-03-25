@@ -188,3 +188,6 @@ dmypy.json
 
 # copier
 .copier-answers.yml
+
+# mise local config (machine-specific env vars, secrets)
+mise.local.toml

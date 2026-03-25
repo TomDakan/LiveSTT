@@ -24,9 +24,9 @@ def _copy_file_if_exists(source: Path, dest: Path, repo_root: Path) -> None:
     """Copy a file if it exists, with status message."""
     if source.exists():
         shutil.copy2(source, dest)
-        print(f"✅ Copied {source.relative_to(repo_root)}")
+        print(f"[OK] Copied {source.relative_to(repo_root)}")
     else:
-        print(f"⚠️  Warning: {source} not found")
+        print(f"[WARN] {source} not found")
 
 
 def _copy_workspace_pyprojects(
@@ -48,7 +48,7 @@ def _copy_workspace_pyprojects(
         dest_dir = docker_context / workspace_name / item_path.name
         dest_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pyproject, dest_dir / "pyproject.toml")
-        print(f"✅ Copied {workspace_name}/{item_path.name}/pyproject.toml")
+        print(f"[OK] Copied {workspace_name}/{item_path.name}/pyproject.toml")
 
 
 def scaffold_docker_context(repo_root: Path | None = None) -> None:
@@ -74,7 +74,7 @@ def scaffold_docker_context(repo_root: Path | None = None) -> None:
     _copy_workspace_pyprojects(repo_root / "services", docker_context, "services")
     _copy_workspace_pyprojects(repo_root / "libs", docker_context, "libs")
 
-    print(f"\n✨ Docker build context scaffolded at: {docker_context}")
+    print(f"\n[DONE] Docker build context scaffolded at: {docker_context}")
 
 
 if __name__ == "__main__":

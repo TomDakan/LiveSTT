@@ -109,7 +109,7 @@ def generate_dockerignore() -> None:
         f.write("\n".join(ignore_patterns))
         f.write("\n")
 
-    print(f"✅ Generated {dockerignore_path}")
+    print(f"[OK] Generated {dockerignore_path}")
 
 
 if __name__ == "__main__":

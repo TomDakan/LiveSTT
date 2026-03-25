@@ -19,6 +19,8 @@ from messaging.streams import (
 from .deepgram_adapter import DeepgramTranscriber
 from .interfaces import Transcriber
 
+TranscriberFactory = type[Transcriber]
+
 
 @dataclass
 class TranscriptPayload:
@@ -34,8 +36,11 @@ logging.basicConfig(level=logging.INFO)
 
 
 class STTProviderService(BaseService):
-    def __init__(self) -> None:
+    def __init__(self, transcriber_factory: TranscriberFactory | None = None) -> None:
         super().__init__("stt-provider")
+        self._transcriber_factory: TranscriberFactory = (
+            transcriber_factory or DeepgramTranscriber
+        )
         self.live_transcriber: Transcriber | None = None
         self.backfill_transcriber: Transcriber | None = None
 
@@ -49,8 +54,8 @@ class STTProviderService(BaseService):
             return
 
         # 2. Setup Transcribers (Dual Pipeline)
-        self.live_transcriber = DeepgramTranscriber()
-        self.backfill_transcriber = DeepgramTranscriber()
+        self.live_transcriber = self._transcriber_factory()
+        self.backfill_transcriber = self._transcriber_factory()
 
         try:
             # Connect both

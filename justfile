@@ -88,6 +88,12 @@ up: scaffold
 up-build: scaffold
     docker compose up -d --build
 
+# Start audio-producer + NATS using a WAV file instead of live mic.
+# Strips the /dev/snd device mount so it works without ALSA/USB hardware.
+# Usage: just file-test tests/data/test_speaker.wav
+file-test wav_file="tests/data/test_speaker.wav": scaffold
+    $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d nats audio-producer
+
 # The "Nuclear Option": Stop containers and DELETE volumes
 nuke:
     docker compose down --volumes --remove-orphans
@@ -141,6 +147,29 @@ nats-tail subject="audio.raw":
 # NATS health check
 nats-health:
     docker run --network=host natsio/nats-box:latest nats server check
+
+# --- USB/ALSA Passthrough (Windows dev environment) ---
+
+# Wake WSL2 (if idle) and attach the RME Babyface Pro to WSL2 for ALSA passthrough.
+# Discovers the bus ID dynamically — safe across reboots.
+# Run this before `just up` when using live mic input.
+attach-usb:
+    #!/usr/bin/env pwsh
+    $busid = (usbipd list | Select-String "Babyface" | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+    if (-not $busid) { Write-Error "RME Babyface Pro not found. Check USB connection."; exit 1 }
+    Write-Host "Waking WSL2..."
+    wsl echo "WSL2 ready"
+    Write-Host "Attaching RME Babyface Pro (busid $busid) to WSL2..."
+    usbipd attach --wsl --busid $busid
+    Write-Host "Done! Run 'just up' to start the stack."
+
+# Detach the RME Babyface Pro from WSL2 (returns audio control to Windows).
+detach-usb:
+    #!/usr/bin/env pwsh
+    $busid = (usbipd list | Select-String "Babyface" | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+    if (-not $busid) { Write-Error "RME Babyface Pro not found."; exit 1 }
+    usbipd detach --busid $busid
+    Write-Host "RME Babyface Pro detached."
 
 # Run the full quality assurance suite.
 qa:
