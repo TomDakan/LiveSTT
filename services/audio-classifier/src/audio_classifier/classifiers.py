@@ -3,72 +3,96 @@ import time
 from pathlib import Path
 
 try:
-    from openvino.runtime import Core  # type: ignore
+    import numpy as np
+    import onnxruntime as ort
 
-    OPENVINO_AVAILABLE = True
+    ONNXRUNTIME_AVAILABLE = True
 except ImportError:
-    OPENVINO_AVAILABLE = False
+    ONNXRUNTIME_AVAILABLE = False
 
 from .interfaces import AudioClassifier, ClassificationResult
 
 logger = logging.getLogger(__name__)
 
+# Must match the chunk size published by audio-producer (ADR-0012)
+_CHUNK_SAMPLES = 1536
+
 
 class StubClassifier(AudioClassifier):
-    """Fallback classifier when model is missing."""
+    """Fallback classifier when runtime or model is unavailable."""
 
     def classify(self, audio_data: bytes) -> ClassificationResult:
-        # Simple energy-based heuristic for "Music" vs "Speech" placeholder
-        # This is just a stub to prove the pipeline works
-        return ClassificationResult(
-            label="speech", confidence=0.99, timestamp=time.time()
-        )
+        return ClassificationResult(label="speech", confidence=0.99, timestamp=time.time())
 
 
-class OpenVinoClassifier(AudioClassifier):
-    def __init__(self, model_path: str = "models/classifier.xml"):
-        self.classifier: AudioClassifier
+class SileroVADClassifier(AudioClassifier):
+    """
+    Voice Activity Detection using Silero VAD (ONNX Runtime).
 
-        if not OPENVINO_AVAILABLE:
-            logger.warning("OpenVINO not installed. Falling back to StubClassifier.")
-            self.classifier = StubClassifier()
+    Maintains LSTM hidden state across calls for accurate streaming VAD.
+    Falls back to StubClassifier if onnxruntime is unavailable or the model
+    file is missing — the rest of the pipeline continues unaffected.
+    """
+
+    def __init__(
+        self,
+        model_path: str = "models/silero_vad.onnx",
+        threshold: float = 0.5,
+    ) -> None:
+        self._threshold = threshold
+        self._delegate: AudioClassifier
+
+        if not ONNXRUNTIME_AVAILABLE:
+            logger.warning("onnxruntime not installed. Falling back to StubClassifier.")
+            self._delegate = StubClassifier()
             return
 
         path = Path(model_path)
         if not path.exists():
             logger.warning(
-                f"Model file not found at {model_path}. Falling back to StubClassifier."
+                f"Silero VAD model not found at {model_path}. "
+                "Falling back to StubClassifier."
             )
-            self.classifier = StubClassifier()
+            self._delegate = StubClassifier()
             return
 
         try:
-            self.core = Core()
-            self.model = self.core.read_model(model=path)
-            self.compiled_model = self.core.compile_model(
-                model=self.model, device_name="AUTO"
-            )
-            self.classifier = self  # Self is the classifier now
-            logger.info(f"OpenVINO model loaded: {model_path}")
+            self._session = ort.InferenceSession(str(path))
+            self._reset_state()
+            self._delegate = self
+            logger.info(f"Silero VAD model loaded: {model_path}")
         except Exception as e:
             logger.error(
-                f"Failed to load OpenVINO model: {e}. Falling back to StubClassifier."
+                f"Failed to load Silero VAD model: {e}. Falling back to StubClassifier."
             )
-            self.classifier = StubClassifier()
+            self._delegate = StubClassifier()
+
+    def _reset_state(self) -> None:
+        self._h = np.zeros((2, 1, 64), dtype=np.float32)
+        self._c = np.zeros((2, 1, 64), dtype=np.float32)
 
     def classify(self, audio_data: bytes) -> ClassificationResult:
-        if self.classifier is not self:
-            return self.classifier.classify(audio_data)
+        if self._delegate is not self:
+            return self._delegate.classify(audio_data)
 
-        # TODO: Implement actual Pre-processing and Inference here when model is available
-        # For now, we just pass through to ensure the class structure is valid
-        timestamp = time.time()
+        # Convert int16 PCM bytes to float32 in [-1, 1]
+        audio = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
+        audio = audio[:_CHUNK_SAMPLES]
 
-        # Placeholder for inference logic
-        # input_tensor = preprocess(audio_data)
-        # results = self.compiled_model(input_tensor)
-        # label, conf = postprocess(results)
+        if len(audio) < 512:
+            return ClassificationResult(
+                label="non-speech", confidence=0.0, timestamp=time.time()
+            )
 
+        ort_inputs = {
+            "input": audio[np.newaxis, :],
+            "h0": self._h,
+            "c0": self._c,
+        }
+        output, self._h, self._c = self._session.run(None, ort_inputs)
+        speech_prob = float(output[0][0])
+
+        label = "speech" if speech_prob >= self._threshold else "non-speech"
         return ClassificationResult(
-            label="uncertain", confidence=0.0, timestamp=timestamp
+            label=label, confidence=speech_prob, timestamp=time.time()
         )

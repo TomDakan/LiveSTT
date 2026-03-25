@@ -2,16 +2,6 @@ import sys
 from unittest.mock import MagicMock
 
 
-# Mock NATS and OpenVINO if missing
-class MockNats:
-    pass
-
-
-class MockJsApi:
-    RetentionPolicy = MagicMock()
-    StorageType = MagicMock()
-
-
 # Helper to mock a package structure
 def mock_module(name: str) -> MagicMock:
     m = MagicMock()
@@ -21,7 +11,7 @@ def mock_module(name: str) -> MagicMock:
 
 
 if "nats" not in sys.modules:
-    nats = mock_module("nats")
+    mock_module("nats")
 
 if "nats.aio" not in sys.modules:
     mock_module("nats.aio")
@@ -37,8 +27,5 @@ if "nats.js.api" not in sys.modules:
     m.RetentionPolicy = MagicMock()
     m.StorageType = MagicMock()
 
-if "openvino" not in sys.modules:
-    mock_module("openvino")
-
-if "openvino.runtime" not in sys.modules:
-    mock_module("openvino.runtime")
+if "onnxruntime" not in sys.modules:
+    mock_module("onnxruntime")

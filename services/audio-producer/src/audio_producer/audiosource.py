@@ -31,7 +31,7 @@ class FileSource(AudioSource):
     wf: wave.Wave_read
 
     def __init__(
-        self, file_path: str, chunk_size: int = 1600, loop: bool = False
+        self, file_path: str, chunk_size: int = 1536, loop: bool = False
     ) -> None:
         self.file_path = file_path
         self.chunk_size = chunk_size
@@ -82,7 +82,7 @@ if _pyaudio:
         chunk_size: int
         sample_rate: int
 
-        def __init__(self, sample_rate: int = 16000, chunk_size: int = 1600) -> None:
+        def __init__(self, sample_rate: int = 16000, chunk_size: int = 1536) -> None:
             self.pyaudio_instance = _pyaudio.PyAudio()
             self.stream_obj = self.pyaudio_instance.open(
                 format=_pyaudio.paInt16,

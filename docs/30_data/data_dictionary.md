@@ -19,10 +19,10 @@ This document defines all data structures, message formats, database schemas, an
 **Format**: Binary PCM
 **Payload**:
 ```
-Bytes 0-1599: 16-bit signed PCM samples (800 samples × 2 bytes)
+Bytes 0-3071: 16-bit signed PCM samples (1536 samples × 2 bytes)
 Sample Rate: 16kHz
 Channels: 1 (mono)
-Chunk Duration: 50ms
+Chunk Duration: 96ms
 ```
 
 ### 1.3 `transcript.raw`

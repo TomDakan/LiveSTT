@@ -3,7 +3,6 @@ import json
 from dataclasses import asdict
 from typing import Any
 
-from dotenv import load_dotenv
 from messaging.service import BaseService
 from messaging.streams import (
     CLASSIFICATION_STREAM_CONFIG,
@@ -11,13 +10,13 @@ from messaging.streams import (
     SUBJECT_PREFIX_CLASSIFICATION,
 )
 
-from .classifiers import OpenVinoClassifier
+from .classifiers import SileroVADClassifier
 
 
 class AudioClassifierService(BaseService):
     def __init__(self) -> None:
         super().__init__("audio-classifier")
-        self.classifier = OpenVinoClassifier()  # Will fallback if needed
+        self.classifier = SileroVADClassifier()  # Falls back to StubClassifier if unavailable
 
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         # 1. Ensure Output Stream
@@ -59,7 +58,6 @@ class AudioClassifierService(BaseService):
 
 
 def main() -> None:
-    load_dotenv()
     service = AudioClassifierService()
     asyncio.run(service.start())
 

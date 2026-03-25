@@ -30,7 +30,7 @@ class AudioProducerService(BaseService):
         audio_file = os.getenv("AUDIO_FILE")
         if audio_file:
             self.logger.info(f"Source: File ({audio_file})")
-            return audiosource.FileSource(audio_file, chunk_size=1600, loop=True)
+            return audiosource.FileSource(audio_file, chunk_size=1536, loop=True)
 
         # 2. Windows Microphone
         if hasattr(audiosource, "WindowsSource"):
@@ -41,7 +41,7 @@ class AudioProducerService(BaseService):
         if hasattr(audiosource, "LinuxSource"):
             self.logger.info("Source: Linux Microphone (ALSA)")
             # You might want to make sample/chunk configurable via env vars
-            return audiosource.LinuxSource(sample_rate=16000, chunk_size=1600)
+            return audiosource.LinuxSource(sample_rate=16000, chunk_size=1536)
 
         # 4. Fallback / Error
         raise RuntimeError(

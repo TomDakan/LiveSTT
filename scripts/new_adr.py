@@ -8,7 +8,7 @@ from pathlib import Path
 
 # --- Configuration ---
 # [ ]: ADR_DIR should probably be configurable in the future
-ADR_DIR = Path("docs/adr")
+ADR_DIR = Path("docs/20_architecture/adrs")
 TEMPLATE_FILE = ADR_DIR / "0000-template.md"
 TITLE_PLACEHOLDER = "ADR_TITLE_PLACEHOLDER"
 DATE_PLACEHOLDER = "YYYY-MM-DD"
