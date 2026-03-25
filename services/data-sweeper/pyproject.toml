@@ -1,6 +1,6 @@
 [project]
 name = "data-sweeper"
-version = "0.7.0"
+version = "0.8.0"
 description = "Data Sweeper Service"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
