@@ -63,7 +63,9 @@ class IdentifierService(BaseService):
 
         async with asyncio.TaskGroup() as tg:
             tg.create_task(self._worker(js, stop_event, SUBJECT_AUDIO_LIVE, "live"))
-            tg.create_task(self._worker(js, stop_event, SUBJECT_AUDIO_BACKFILL, "backfill"))
+            tg.create_task(
+                self._worker(js, stop_event, SUBJECT_AUDIO_BACKFILL, "backfill")
+            )
 
     async def _worker(
         self,

@@ -1,10 +1,10 @@
 import asyncio
-from collections.abc import AsyncIterator
+import contextlib
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from stt_provider.interfaces import Transcriber, TranscriptionEvent
+from stt_provider.interfaces import TranscriptionEvent
 from stt_provider.main import STTProviderService
 
 from .mock_transcriber import MockTranscriber
@@ -23,20 +23,70 @@ async def test_stream_verification_failure() -> None:
 
 
 @pytest.mark.asyncio
-async def test_transcriber_connection_failure() -> None:
-    """Service exits gracefully if transcriber connection fails."""
+async def test_transcriber_connection_failure_retries() -> None:
+    """Service retries Deepgram connection; exits cleanly once stop_event fires."""
+    attempt_count = 0
 
-    class FailingTranscriber(MockTranscriber):
+    class AlwaysFailingTranscriber(MockTranscriber):
         async def connect(self, **kwargs: Any) -> None:
+            nonlocal attempt_count
+            attempt_count += 1
             raise Exception("Auth Error")
 
-    service = STTProviderService(transcriber_factory=FailingTranscriber)
+    service = STTProviderService(transcriber_factory=AlwaysFailingTranscriber)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
 
-    with patch.object(service.logger, "critical") as mock_log:
-        await service.run_business_logic(AsyncMock(), asyncio.Event())
-        mock_log.assert_called_with("Deepgram connection failed: Auth Error")
+    mock_js = AsyncMock()
+    mock_js.subscribe.return_value = AsyncMock()
+    stop_event = asyncio.Event()
+
+    with patch("stt_provider.main._RECONNECT_INITIAL_DELAY_S", 0.01):
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(0.15)
+        assert attempt_count >= 2, "Expected at least 2 connection attempts"
+        stop_event.set()
+        await asyncio.wait_for(task, timeout=1.0)
+
+
+@pytest.mark.asyncio
+async def test_transcriber_connection_succeeds_after_failure(
+    mock_transcriber_factory: Any,
+) -> None:
+    """Service connects successfully after an initial failure."""
+    attempts = 0
+
+    class FailFirstTranscriber(MockTranscriber):
+        async def connect(self, **kwargs: Any) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts <= 2:  # first attempt per lane fails
+                raise Exception("Temporary Error")
+            await super().connect(**kwargs)
+
+    service = STTProviderService(transcriber_factory=FailFirstTranscriber)
+    service.nats_manager = MagicMock()
+    service.nats_manager.ensure_stream = AsyncMock()
+
+    mock_js = AsyncMock()
+    stop_event = asyncio.Event()
+    mock_sub = AsyncMock()
+    mock_js.subscribe.return_value = mock_sub
+
+    async def fetch(n: int, timeout: float) -> list[Any]:
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_sub.fetch.side_effect = fetch
+
+    with patch("stt_provider.main._RECONNECT_INITIAL_DELAY_S", 0.01):
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(0.2)
+
+    stop_event.set()
+    await asyncio.wait_for(task, timeout=1.0)
+    assert attempts > 2, "Expected retries and eventual success"
 
 
 @pytest.mark.asyncio
@@ -47,23 +97,31 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
     service.nats_manager.ensure_stream = AsyncMock()
 
     mock_js = AsyncMock()
-    mock_js.subscribe = AsyncMock()
     mock_js.publish.side_effect = Exception("Publish Failed")
+    stop_event = asyncio.Event()
+    mock_sub = AsyncMock()
+    mock_js.subscribe.return_value = mock_sub
+
+    async def fetch(n: int, timeout: float) -> list[Any]:
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_sub.fetch.side_effect = fetch
 
     with patch.object(service.logger, "error") as mock_log:
-        task = asyncio.create_task(
-            service.run_business_logic(mock_js, asyncio.Event())
-        )
-        await asyncio.sleep(0.1)
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(0.05)
 
-        mock_live, mock_backfill = mock_transcriber_factory.instances
-        await mock_live.inject_event(
+        # Inject event into first available transcriber
+        first_transcriber = mock_transcriber_factory.instances[0]
+        await first_transcriber.inject_event(
             TranscriptionEvent(text="test", is_final=True, confidence=1.0)
         )
-        await asyncio.sleep(0.1)
-        await mock_live.finish()
-        await mock_backfill.finish()
-        await asyncio.wait_for(task, timeout=1.0)
+        await asyncio.sleep(0.05)
+
+        stop_event.set()
+        await asyncio.wait_for(task, timeout=2.0)
 
     found = any(
         "Failed to publish" in str(call) and "Publish Failed" in str(call)

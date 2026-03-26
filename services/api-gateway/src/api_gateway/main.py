@@ -4,10 +4,13 @@ import logging
 import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from nats.aio.client import Client as NATS
 
 # --- Config ---
@@ -75,7 +78,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await nats_client.close()
 
 
+_STATIC_DIR = Path(__file__).parent / "static"
+
 app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 # Enable CORS (adjust origins for production)
 ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
@@ -86,6 +92,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/")
+async def root() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "index.html")
 
 
 @app.get("/health")

@@ -1,21 +1,25 @@
 import asyncio
+import contextlib
 import json
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from stt_provider.interfaces import TranscriptionEvent
-from stt_provider.main import STTProviderService
+from stt_provider.main import (
+    _DURABLE_BACKFILL,
+    _DURABLE_LIVE,
+    STTProviderService,
+)
 
 
 @pytest.mark.asyncio
 async def test_stt_provider_flow(mock_transcriber_factory: Any) -> None:
     """
     Verifies:
-    1. Service sets up Dual Transcribers.
-    2. Live Audio -> Live Transcriber.
-    3. Backfill Audio -> Backfill Transcriber.
-    4. Events from both are published to NATS.
+    1. Service creates durable pull consumers for live and backfill.
+    2. Live audio → live transcriber (send_audio called, message ACKed).
+    3. Transcript events are published to transcript.raw.live.
     """
     service = STTProviderService(transcriber_factory=mock_transcriber_factory)
     service.nats_manager = MagicMock()
@@ -23,52 +27,75 @@ async def test_stt_provider_flow(mock_transcriber_factory: Any) -> None:
 
     mock_js = AsyncMock()
     stop_event = asyncio.Event()
-    callbacks: dict[str, Any] = {}
 
-    async def mock_subscribe(subject: str, queue: str, cb: Any) -> None:
-        callbacks[subject] = cb
+    # Separate mock subscriptions per subject
+    mock_live_sub = AsyncMock()
+    mock_backfill_sub = AsyncMock()
+
+    from messaging.streams import SUBJECT_AUDIO_LIVE
+
+    async def mock_subscribe(subject: str, durable: str) -> AsyncMock:
+        return mock_live_sub if subject == SUBJECT_AUDIO_LIVE else mock_backfill_sub
 
     mock_js.subscribe.side_effect = mock_subscribe
 
+    # Live sub: deliver one message, then block until stop_event
+    live_msg = MagicMock()
+    live_msg.data = b"live_chunk"
+    live_msg.ack = AsyncMock()
+    live_delivered = False
+
+    async def live_fetch(n: int, timeout: float) -> list[Any]:
+        nonlocal live_delivered
+        if not live_delivered:
+            live_delivered = True
+            return [live_msg]
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_live_sub.fetch.side_effect = live_fetch
+
+    # Backfill sub: always block
+    async def backfill_fetch(n: int, timeout: float) -> list[Any]:
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_backfill_sub.fetch.side_effect = backfill_fetch
+
     task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
-    await asyncio.sleep(0.1)
+    await asyncio.sleep(0.15)
 
-    # Two transcribers created by the factory
-    mock_live, mock_backfill = mock_transcriber_factory.instances
-    assert mock_live.connected
-    assert mock_backfill.connected
+    # Durable consumers registered with correct names
+    subscribe_calls = {
+        call.kwargs.get("durable") or call.args[1]
+        for call in mock_js.subscribe.call_args_list
+    }
+    assert _DURABLE_LIVE in subscribe_calls
+    assert _DURABLE_BACKFILL in subscribe_calls
 
-    # Subscriptions registered
-    assert "audio.live.>" in callbacks
-    assert "audio.backfill.>" in callbacks
+    # Live audio was routed to a transcriber and ACKed
+    assert live_msg.ack.called
+    live_transcribers = [
+        t for t in mock_transcriber_factory.instances if b"live_chunk" in t.sent_audio
+    ]
+    assert len(live_transcribers) == 1, "Exactly one transcriber should have live_chunk"
+    mock_live_transcriber = live_transcribers[0]
 
-    # Live audio routed to live transcriber
-    msg_live = MagicMock()
-    msg_live.data = b"live_chunk"
-    await callbacks["audio.live.>"](msg_live)
-    assert mock_live.sent_audio == [b"live_chunk"]
-
-    # Backfill audio routed to backfill transcriber
-    msg_backfill = MagicMock()
-    msg_backfill.data = b"backfill_chunk"
-    await callbacks["audio.backfill.>"](msg_backfill)
-    assert mock_backfill.sent_audio == [b"backfill_chunk"]
-
-    # Transcript event published to correct NATS subject
-    await mock_live.inject_event(
+    # Inject a transcript event and verify NATS publish
+    await mock_live_transcriber.inject_event(
         TranscriptionEvent(text="Hello Live", is_final=True, confidence=0.9)
     )
     await asyncio.sleep(0.1)
 
     found = any(
-        call[0][0] == "transcript.raw.live"
-        and json.loads(call[0][1].decode())["text"] == "Hello Live"
+        call.args[0] == "transcript.raw.live"
+        and json.loads(call.args[1].decode())["text"] == "Hello Live"
         for call in mock_js.publish.call_args_list
     )
     assert found, "Live transcript not published to transcript.raw.live"
 
-    # Cleanup
+    # Cleanup: stop_event → lanes exit → transcribers finish → task completes
     stop_event.set()
-    await mock_live.finish()
-    await mock_backfill.finish()
-    await asyncio.wait_for(task, timeout=1.0)
+    await asyncio.wait_for(task, timeout=2.0)

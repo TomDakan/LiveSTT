@@ -29,6 +29,7 @@ dependencies = [
     "sqladmin>=0.16.0",       # The Admin Dashboard
     "wtforms",                # underlying dep for sqladmin
     "messaging",
+    "aiofiles>=23.0.0",       # Required by FastAPI StaticFiles
 ]
 
 [project.scripts]

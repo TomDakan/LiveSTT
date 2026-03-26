@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from identity_manager.main import (
-    MATCH_WINDOW_S,
     MAX_BUFFER,
     PUBLISH_TIMEOUT_S,
     IdentityManager,
@@ -52,9 +51,9 @@ def _make_service() -> IdentityManager:
 def test_find_identity_returns_closest_within_window() -> None:
     service = _make_service()
     service._identities = [
-        _identity("Alice", ts_offset=-3.0),   # outside window
-        _identity("Bob", ts_offset=-0.5),     # inside window, closer
-        _identity("Carol", ts_offset=-1.8),   # inside window, further
+        _identity("Alice", ts_offset=-3.0),  # outside window
+        _identity("Bob", ts_offset=-0.5),  # inside window, closer
+        _identity("Carol", ts_offset=-1.8),  # inside window, further
     ]
     ts = _ts(0.0)
     result = service._find_identity(ts)
@@ -87,7 +86,14 @@ async def test_final_transcript_published_with_matching_identity() -> None:
 
     t = _transcript(text="Hello world", is_final=True)
     service._pending = [
-        type("P", (), {"data": t, "received_at": asyncio.get_event_loop().time() - PUBLISH_TIMEOUT_S - 1})()
+        type(
+            "P",
+            (),
+            {
+                "data": t,
+                "received_at": asyncio.get_event_loop().time() - PUBLISH_TIMEOUT_S - 1,
+            },
+        )()
     ]
     service._identities = [_identity("Alice", ts_offset=0.0)]
 
@@ -113,7 +119,14 @@ async def test_final_transcript_published_with_unknown_after_timeout() -> None:
 
     t = _transcript(text="Timeout test", is_final=True)
     service._pending = [
-        type("P", (), {"data": t, "received_at": asyncio.get_event_loop().time() - PUBLISH_TIMEOUT_S - 1})()
+        type(
+            "P",
+            (),
+            {
+                "data": t,
+                "received_at": asyncio.get_event_loop().time() - PUBLISH_TIMEOUT_S - 1,
+            },
+        )()
     ]
 
     task = asyncio.create_task(service._fusion_loop(mock_js, stop_event))

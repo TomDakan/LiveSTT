@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
 from identifier.store import LanceDBVoiceprintStore, StubVoiceprintStore
 
 
@@ -13,17 +12,19 @@ def _vec(seed: int = 0) -> np.ndarray:
 
 # --- StubVoiceprintStore ---
 
+
 def test_stub_identify_always_none() -> None:
     assert StubVoiceprintStore().identify(_vec()) is None
 
 
 def test_stub_enroll_and_delete_are_nops() -> None:
     store = StubVoiceprintStore()
-    store.enroll("Alice", _vec())   # should not raise
-    store.delete("Alice")           # should not raise
+    store.enroll("Alice", _vec())  # should not raise
+    store.delete("Alice")  # should not raise
 
 
 # --- LanceDBVoiceprintStore ---
+
 
 @patch("identifier.store.LANCEDB_AVAILABLE", False)
 def test_lancedb_raises_when_unavailable() -> None:
@@ -34,7 +35,9 @@ def test_lancedb_raises_when_unavailable() -> None:
 @patch("identifier.store.LANCEDB_AVAILABLE", True)
 @patch("identifier.store.lancedb")
 @patch("pathlib.Path.mkdir")
-def test_lancedb_enroll_and_identify(mock_mkdir: MagicMock, mock_lancedb: MagicMock) -> None:
+def test_lancedb_enroll_and_identify(
+    mock_mkdir: MagicMock, mock_lancedb: MagicMock
+) -> None:
     mock_table = MagicMock()
     mock_table.name = "voiceprints"
     mock_db = MagicMock()

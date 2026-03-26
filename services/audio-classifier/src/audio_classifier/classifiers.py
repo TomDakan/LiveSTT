@@ -22,7 +22,9 @@ class StubClassifier(AudioClassifier):
     """Fallback classifier when runtime or model is unavailable."""
 
     def classify(self, audio_data: bytes) -> ClassificationResult:
-        return ClassificationResult(label="speech", confidence=0.99, timestamp=time.time())
+        return ClassificationResult(
+            label="speech", confidence=0.99, timestamp=time.time()
+        )
 
 
 class SileroVADClassifier(AudioClassifier):

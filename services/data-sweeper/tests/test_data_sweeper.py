@@ -12,7 +12,9 @@ def _make_service() -> DataSweeper:
     return service
 
 
-def _make_stream_info(messages: int = 10, bytes_: int = 4096, consumers: int = 1) -> MagicMock:
+def _make_stream_info(
+    messages: int = 10, bytes_: int = 4096, consumers: int = 1
+) -> MagicMock:
     info = MagicMock()
     info.state.messages = messages
     info.state.bytes = bytes_

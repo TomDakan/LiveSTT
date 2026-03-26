@@ -155,7 +155,9 @@ class IdentityManager(BaseService):
                 identity = self._find_identity(pending.data.get("timestamp"))
 
                 if identity is not None or age >= PUBLISH_TIMEOUT_S:
-                    speaker = identity.get("speaker", "Unknown") if identity else "Unknown"
+                    speaker = (
+                        identity.get("speaker", "Unknown") if identity else "Unknown"
+                    )
                     await self._publish(js, pending.data, speaker=speaker)
                 else:
                     still_pending.append(pending)
@@ -163,9 +165,7 @@ class IdentityManager(BaseService):
             self._pending = still_pending
             await asyncio.sleep(0.1)
 
-    async def _publish(
-        self, js: Any, data: dict[str, Any], speaker: str | None
-    ) -> None:
+    async def _publish(self, js: Any, data: dict[str, Any], speaker: str | None) -> None:
         source = data.get("source", "live")
         subject = f"transcript.final.{source}"
         payload = {**data, "speaker": speaker}

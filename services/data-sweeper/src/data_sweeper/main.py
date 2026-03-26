@@ -1,5 +1,4 @@
 import asyncio
-import logging
 from typing import Any
 
 from messaging.service import BaseService

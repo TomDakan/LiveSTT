@@ -24,11 +24,13 @@ _SCHEMA = None  # built lazily when lancedb is available
 
 
 def _schema() -> "pa.Schema":
-    return pa.schema([
-        pa.field("id", pa.string()),
-        pa.field("vector", pa.list_(pa.float32(), _EMBEDDING_DIM)),
-        pa.field("enrolled_at", pa.string()),
-    ])
+    return pa.schema(
+        [
+            pa.field("id", pa.string()),
+            pa.field("vector", pa.list_(pa.float32(), _EMBEDDING_DIM)),
+            pa.field("enrolled_at", pa.string()),
+        ]
+    )
 
 
 class StubVoiceprintStore(VoiceprintStore):
@@ -77,11 +79,15 @@ class LanceDBVoiceprintStore(VoiceprintStore):
             self._table.delete(f"id = '{name}'")
         except Exception:
             pass
-        self._table.add([{
-            "id": name,
-            "vector": embedding.astype(np.float32).tolist(),
-            "enrolled_at": datetime.now(UTC).isoformat(),
-        }])
+        self._table.add(
+            [
+                {
+                    "id": name,
+                    "vector": embedding.astype(np.float32).tolist(),
+                    "enrolled_at": datetime.now(UTC).isoformat(),
+                }
+            ]
+        )
         logger.info(f"Enrolled voiceprint for '{name}'")
 
     def identify(
@@ -89,8 +95,7 @@ class LanceDBVoiceprintStore(VoiceprintStore):
     ) -> tuple[str, float] | None:
         try:
             results = (
-                self._table
-                .search(embedding.astype(np.float32))
+                self._table.search(embedding.astype(np.float32))
                 .metric("cosine")
                 .limit(1)
                 .to_list()

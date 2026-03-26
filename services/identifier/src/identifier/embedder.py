@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 _SAMPLE_RATE = 16000
 _N_MELS = 80
-_WIN_LENGTH = 400   # 25 ms at 16 kHz
-_HOP_LENGTH = 160   # 10 ms at 16 kHz
+_WIN_LENGTH = 400  # 25 ms at 16 kHz
+_HOP_LENGTH = 160  # 10 ms at 16 kHz
 _N_FFT = 512
 _MIN_SAMPLES = _SAMPLE_RATE // 4  # 250 ms minimum
 
@@ -97,6 +97,7 @@ class OpenVinoEmbedder(Embedder):
 # ---------------------------------------------------------------------------
 # Numpy-only log mel-filterbank (no librosa / scipy required)
 # ---------------------------------------------------------------------------
+
 
 def _log_mel_features(audio: np.ndarray) -> np.ndarray:
     """Return log mel-filterbank features with CMVN, shape [1, T, 80]."""

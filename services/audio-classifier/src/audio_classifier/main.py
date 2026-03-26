@@ -16,7 +16,9 @@ from .classifiers import SileroVADClassifier
 class AudioClassifierService(BaseService):
     def __init__(self) -> None:
         super().__init__("audio-classifier")
-        self.classifier = SileroVADClassifier()  # Falls back to StubClassifier if unavailable
+        self.classifier = (
+            SileroVADClassifier()
+        )  # Falls back to StubClassifier if unavailable
 
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         # 1. Ensure Output Stream

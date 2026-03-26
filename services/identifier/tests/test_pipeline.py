@@ -5,16 +5,15 @@ from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
-
 from identifier.embedder import StubEmbedder
 from identifier.interfaces import Embedder, VoiceprintStore
-from identifier.main import IdentifierService, _AudioBuffer, _WINDOW_SAMPLES
+from identifier.main import _WINDOW_SAMPLES, IdentifierService, _AudioBuffer
 from identifier.store import StubVoiceprintStore
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 class _FixedEmbedder(Embedder):
     """Always returns the same normalised embedding."""
@@ -67,6 +66,7 @@ def _make_service(
 # _AudioBuffer unit tests
 # ---------------------------------------------------------------------------
 
+
 def test_buffer_not_ready_below_window() -> None:
     buf = _AudioBuffer()
     buf.add(_chunk(1000))
@@ -91,6 +91,7 @@ def test_buffer_consume_clears_state() -> None:
 # ---------------------------------------------------------------------------
 # Pipeline integration tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.asyncio
 async def test_no_publish_when_stub_embedder() -> None:
@@ -160,6 +161,7 @@ async def test_worker_buffers_chunks_until_window_full() -> None:
 
     # Build enough msgs to fill one window (ceil(WINDOW_SAMPLES / 1536) chunks)
     import math
+
     n_chunks = math.ceil(_WINDOW_SAMPLES / 1536)
     chunk_bytes = _chunk(1536)
 

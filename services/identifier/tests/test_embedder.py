@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-
 from identifier.embedder import OpenVinoEmbedder, StubEmbedder, _log_mel_features
 
 
@@ -21,11 +20,13 @@ def _noise_pcm(seconds: float = 1.5, sr: int = 16000) -> bytes:
 
 # --- StubEmbedder ---
 
+
 def test_stub_always_returns_none() -> None:
     assert StubEmbedder().embed(_pcm()) is None
 
 
 # --- OpenVinoEmbedder fallbacks ---
+
 
 @patch("identifier.embedder.OPENVINO_AVAILABLE", False)
 def test_openvino_fallback_no_lib() -> None:
@@ -92,11 +93,12 @@ def test_openvino_returns_none_for_short_audio(
 
 # --- Mel feature extraction ---
 
+
 def test_log_mel_features_shape() -> None:
     audio = np.zeros(24000, dtype=np.float32)
     features = _log_mel_features(audio)
     assert features.ndim == 3
-    assert features.shape[0] == 1   # batch
+    assert features.shape[0] == 1  # batch
     assert features.shape[2] == 80  # mel bins
 
 
