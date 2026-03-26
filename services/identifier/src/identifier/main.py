@@ -1,98 +1,137 @@
 import asyncio
+import json
 import logging
+import os
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from messaging.service import BaseService
 from messaging.streams import SUBJECT_AUDIO_BACKFILL, SUBJECT_AUDIO_LIVE
 
+from .embedder import OpenVinoEmbedder
+from .interfaces import Embedder, VoiceprintStore
+from .store import LanceDBVoiceprintStore, StubVoiceprintStore
+
 logger = logging.getLogger("identifier")
+
+# 1.5 s window at 16 kHz (16 chunks × 1536 samples — see ADR-0012)
+_WINDOW_SAMPLES: int = 24576
+# Cosine distance threshold for accepting a speaker match
+_MATCH_THRESHOLD: float = float(os.getenv("IDENTIFIER_THRESHOLD", "0.25"))
+
+
+@dataclass
+class _AudioBuffer:
+    chunks: list[bytes] = field(default_factory=list)
+    sample_count: int = 0
+
+    def add(self, chunk: bytes) -> None:
+        self.chunks.append(chunk)
+        self.sample_count += len(chunk) // 2  # int16 = 2 bytes / sample
+
+    def ready(self) -> bool:
+        return self.sample_count >= _WINDOW_SAMPLES
+
+    def consume(self) -> bytes:
+        data = b"".join(self.chunks)
+        self.chunks.clear()
+        self.sample_count = 0
+        return data
+
+
+def _build_store() -> VoiceprintStore:
+    try:
+        return LanceDBVoiceprintStore()
+    except Exception as e:
+        logger.warning(f"LanceDB unavailable ({e}). Using StubVoiceprintStore.")
+        return StubVoiceprintStore()
 
 
 class IdentifierService(BaseService):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        embedder: Embedder | None = None,
+        store: VoiceprintStore | None = None,
+    ) -> None:
         super().__init__("identifier")
+        self._embedder: Embedder = embedder or OpenVinoEmbedder()
+        self._store: VoiceprintStore = store or _build_store()
 
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
-        """
-        Implementation of the Dual-Lane Pipeline for Identification.
-        """
-        self.logger.info("Identifier Service: Starting Dual Pipeline...")
+        self.logger.info("Identifier starting dual-lane pipeline...")
 
         async with asyncio.TaskGroup() as tg:
-            # Lane 1: Live Worker (High Priority)
-            tg.create_task(self._live_worker(js, stop_event))
+            tg.create_task(self._worker(js, stop_event, SUBJECT_AUDIO_LIVE, "live"))
+            tg.create_task(self._worker(js, stop_event, SUBJECT_AUDIO_BACKFILL, "backfill"))
 
-            # Lane 2: Backfill Worker (Background)
-            tg.create_task(self._backfill_worker(js, stop_event))
-
-            # Wait for shutdown signal
-            await stop_event.wait()
-            self.logger.info("Identifier Service: Shutdown signal received.")
-
-    async def _live_worker(self, js: Any, stop_event: asyncio.Event) -> None:
-        """
-        Processes real-time audio for rapid identification.
-        """
+    async def _worker(
+        self,
+        js: Any,
+        stop_event: asyncio.Event,
+        subject: str,
+        source: str,
+    ) -> None:
+        durable = f"identifier_{source}"
         try:
-            # Subscribe to Live Audio
-            # We use a pull subscription for reliability in v8.0
-            sub = await js.subscribe(
-                SUBJECT_AUDIO_LIVE,
-                durable="identifier_live",
-            )
-            self.logger.info(f"Live Worker: Subscribed to {SUBJECT_AUDIO_LIVE}")
-
-            while not stop_event.is_set():
-                try:
-                    msgs = await sub.fetch(1, timeout=1)
-                    for msg in msgs:
-                        # --- Identification Logic (OpenVINO Stub) ---
-                        # Extract session_id from subject: audio.live.{session_id}
-                        # session_id = msg.subject.split(".")[-1]
-
-                        # Stub: Emit identity event every few messages
-                        # In reality, this would run vector lookup
-                        # self.logger.debug(f"Live Worker: Identified segment")
-
-                        await msg.ack()
-                except TimeoutError:
-                    continue
-                except Exception as e:
-                    self.logger.error(f"Live Worker Error: {e}")
-                    await asyncio.sleep(1)
-
+            sub = await js.subscribe(subject, durable=durable)
+            self.logger.info(f"{source} worker subscribed to {subject}")
         except Exception as e:
-            self.logger.critical(f"Live Worker Failed to initialize: {e}")
+            self.logger.critical(f"{source} worker failed to subscribe: {e}")
+            return
 
-    async def _backfill_worker(self, js: Any, stop_event: asyncio.Event) -> None:
-        """
-        Processes historical audio from the pre-roll buffer.
-        """
+        buffers: dict[str, _AudioBuffer] = {}
+
+        while not stop_event.is_set():
+            try:
+                msgs = await sub.fetch(1, timeout=1)
+            except TimeoutError:
+                continue
+            except Exception as e:
+                self.logger.error(f"{source} worker fetch error: {e}")
+                await asyncio.sleep(1)
+                continue
+
+            for msg in msgs:
+                session_id = msg.subject.split(".")[-1]
+                buf = buffers.setdefault(session_id, _AudioBuffer())
+                buf.add(msg.data)
+
+                if buf.ready():
+                    audio = buf.consume()
+                    await self._identify_and_publish(js, audio, session_id, source)
+
+                await msg.ack()
+
+    async def _identify_and_publish(
+        self,
+        js: Any,
+        audio_pcm: bytes,
+        session_id: str,
+        source: str,
+    ) -> None:
+        embedding = await asyncio.to_thread(self._embedder.embed, audio_pcm)
+        if embedding is None:
+            return  # No embedding — identity-manager will time out to Unknown
+
+        result = await asyncio.to_thread(
+            self._store.identify, embedding, _MATCH_THRESHOLD
+        )
+        if result is None:
+            return  # No match — Unknown handled by identity-manager timeout
+
+        speaker, confidence = result
+        payload = {
+            "speaker": speaker,
+            "confidence": confidence,
+            "timestamp": datetime.now(UTC).isoformat(),
+        }
+        subject = f"transcript.identity.{source}"
         try:
-            # Subscribe to Backfill Audio
-            sub = await js.subscribe(
-                SUBJECT_AUDIO_BACKFILL,
-                durable="identifier_backfill",
-            )
-            self.logger.info(f"Backfill Worker: Subscribed to {SUBJECT_AUDIO_BACKFILL}")
-
-            while not stop_event.is_set():
-                try:
-                    msgs = await sub.fetch(1, timeout=1)
-                    for msg in msgs:
-                        # --- Identification Logic (OpenVINO Stub) ---
-                        # session_id = msg.subject.split(".")[-1]
-                        # self.logger.debug("Backfill Worker: Processing past audio")
-
-                        await msg.ack()
-                except TimeoutError:
-                    continue
-                except Exception as e:
-                    self.logger.error(f"Backfill Worker Error: {e}")
-                    await asyncio.sleep(1)
-
+            await js.publish(subject, json.dumps(payload).encode())
+            self.logger.debug(f"Identified '{speaker}' ({confidence:.2f}) → {subject}")
         except Exception as e:
-            self.logger.critical(f"Backfill Worker Failed to initialize: {e}")
+            self.logger.error(f"Failed to publish identity event: {e}")
 
 
 def main() -> None:

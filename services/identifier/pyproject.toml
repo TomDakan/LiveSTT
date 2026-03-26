@@ -3,7 +3,12 @@ name = "identifier"
 version = "0.8.0"
 description = "Identifier Service"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "messaging",
+    "numpy>=1.26.0",
+    "openvino>=2024.0.0",
+    "lancedb>=0.4.0 ; sys_platform == 'linux'",
+]
 
 [project.scripts]
 identifier = "identifier.main:main"
@@ -11,6 +16,9 @@ identifier = "identifier.main:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.uv.sources]
+messaging = { workspace = true }
 
 [tool.ruff]
 extend = "../../pyproject.toml"
