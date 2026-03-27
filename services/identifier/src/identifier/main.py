@@ -15,7 +15,7 @@ from .store import LanceDBVoiceprintStore, StubVoiceprintStore
 
 logger = logging.getLogger("identifier")
 
-# 1.5 s window at 16 kHz (16 chunks × 1536 samples — see ADR-0012)
+# 1.5 s window at 16 kHz (16 chunks x 1536 samples — see ADR-0012)
 _WINDOW_SAMPLES: int = 24576
 # Cosine distance threshold for accepting a speaker match
 _MATCH_THRESHOLD: float = float(os.getenv("IDENTIFIER_THRESHOLD", "0.25"))

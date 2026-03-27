@@ -23,7 +23,7 @@ import websockets
 HEALTH_URL = os.getenv("GATEWAY_URL", "http://localhost:8000") + "/health"
 WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/transcripts")
 
-_HEALTH_TIMEOUT_S = 30   # wait for api-gateway to be ready
+_HEALTH_TIMEOUT_S = 30  # wait for api-gateway to be ready
 _TRANSCRIPT_TIMEOUT_S = 90  # wait for first final transcript from Deepgram
 
 
@@ -46,7 +46,7 @@ async def test_e2e_transcript_reaches_websocket() -> None:
             final = await asyncio.wait_for(
                 _first_final_transcript(ws), timeout=_TRANSCRIPT_TIMEOUT_S
             )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         pytest.fail(
             f"No final transcript received within {_TRANSCRIPT_TIMEOUT_S}s — "
             "check container logs with `just logs`"

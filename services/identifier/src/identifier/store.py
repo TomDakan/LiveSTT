@@ -1,3 +1,4 @@
+import contextlib
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
@@ -75,10 +76,8 @@ class LanceDBVoiceprintStore(VoiceprintStore):
 
     def enroll(self, name: str, embedding: np.ndarray) -> None:
         # Remove existing entry before inserting (upsert)
-        try:
+        with contextlib.suppress(Exception):
             self._table.delete(f"id = '{name}'")
-        except Exception:
-            pass
         self._table.add(
             [
                 {
@@ -116,8 +115,6 @@ class LanceDBVoiceprintStore(VoiceprintStore):
     def delete(self, name: str) -> None:
         self._table.delete(f"id = '{name}'")
         # Compact to physically remove the row (crypto-shred support)
-        try:
+        with contextlib.suppress(Exception):
             self._table.compact_files()
-        except Exception:
-            pass
         logger.info(f"Deleted voiceprint for '{name}'")
