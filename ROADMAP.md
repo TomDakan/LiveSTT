@@ -185,8 +185,7 @@ text, confidence). The api-gateway writes segments as they arrive from `transcri
 - [ ] Set `DEEPGRAM_API_KEY` and other runtime secrets via Balena Cloud fleet environment
   variables (injected at runtime — no `.env` file on device, secrets never in image/git);
   support per-device API key overrides for sites with separate Deepgram accounts
-- [ ] Add `restart: unless-stopped` to all services (currently missing on api-gateway,
-  audio-producer, identity-manager, nats)
+- [x] Add `restart: unless-stopped` to all services
 - [ ] `just deploy` — `balena push <fleet>` wrapper
 - [ ] `just deploy-check` — smoke-test a device by UUID (`curl /health`, NATS ping via
   Balena public URL)

@@ -31,7 +31,7 @@ These were open design questions raised during the review. All are now decided.
 
 ## Findings
 
-### 🔴 Critical — Production-blocking
+### 🟢 Critical — Resolved
 
 ---
 
@@ -48,6 +48,8 @@ the transcript is permanently lost — NATS considers it consumed.
 *Recommendation*: Ack final transcripts only after `transcript.final.*` is successfully
 published. Use NATS `nak()` to requeue on failure, or implement a write-ahead approach
 (publish first, ack second).
+
+🟢 **Resolved**: Final transcripts are now acked only after `_publish()` succeeds; failures call `msg.nak()`.
 
 ---
 
@@ -66,6 +68,8 @@ normal speech load this is reliably reproducible.
 self._pending = []`. Process `batch`; new arrivals go into the fresh `self._pending`
 and are picked up next iteration.
 
+🟢 **Resolved**: `_fusion_loop` now snapshots with `batch = self._pending; self._pending = []` at the top of each cycle.
+
 ---
 
 **[CRITICAL-3] api-gateway uses a core NATS subscription, not a JetStream durable consumer**
@@ -82,6 +86,8 @@ transcript history is recoverable.
 (`deliver_new` or `deliver_last_per_subject` as appropriate). This is consistent with
 how stt-provider and identity-manager consume their subjects.
 
+🟢 **Resolved**: api-gateway now uses a JetStream durable pull consumer (`deliver_new`, durable name `api_gateway`).
+
 ---
 
 **[CRITICAL-4] audio-producer, api-gateway, and nats have no `restart: unless-stopped`**
@@ -96,6 +102,8 @@ silences transcription for the rest of the service.
 
 *Recommendation*: Add `restart: unless-stopped` to all services. This is already noted in
 Milestone 7.5 of the roadmap; it should be treated as a hotfix, not a milestone item.
+
+🟢 **Resolved**: All services now have `restart: unless-stopped` in `docker-compose.yml`.
 
 ---
 
@@ -171,6 +179,8 @@ and information leakage (internal architecture visible).
 *Recommendation*: Remove the `ports` block for NATS entirely. No service outside the
 Docker bridge network needs direct NATS access. Debug via `docker exec` or Balena SSH.
 
+🟢 **Resolved**: `ports` block removed from the `nats` service in `docker-compose.yml`. `just nats-spy/nats-tail/nats-health` updated to use `--network container:nats`.
+
 ---
 
 **[HIGH-5] identity-manager matched identity events are never removed from the pool**
@@ -217,6 +227,8 @@ no operator-visible indication. Late arrivals lose the promised context.
 visual style (dimmed, `[PRE-ROLL]` timestamp prefix, or a separator line). Publish a
 `session.events` NATS message when the backfill consumer is exhausted so the UI can show
 "Pre-roll complete ✓" or "Pre-roll failed ⚠".
+
+🟢 **Resolved**: UI now renders backfill with dimmed text, `[PRE-ROLL]` timestamp prefix, and a separator line before the first live segment.
 
 ---
 
@@ -405,11 +417,13 @@ metrics to NATS KV for the admin dashboard) or remove it from the architecture.
 
 ## Top 5 Production-Blocking Items (Ordered)
 
-1. **CRITICAL-4** — Add `restart: unless-stopped` to audio-producer, api-gateway, and nats. Two-line docker-compose change; no design work required.
-2. **CRITICAL-1 + CRITICAL-2** — Fix identity-manager ack-before-processing bug and fusion loop race condition together (same file, related patterns).
-3. **HIGH-4** — Remove NATS port bindings from docker-compose.
-4. **CRITICAL-3** — Convert api-gateway NATS subscription to a JetStream durable pull consumer.
-5. **HIGH-7** — Show backfill transcripts in UI (now a confirmed requirement per design decision #1).
+All resolved as of 2026-03-27.
+
+1. 🟢 **CRITICAL-4** — `restart: unless-stopped` added to all services.
+2. 🟢 **CRITICAL-1 + CRITICAL-2** — Identity-manager ack ordering and fusion loop race condition fixed.
+3. 🟢 **HIGH-4** — NATS port bindings removed from docker-compose.
+4. 🟢 **CRITICAL-3** — api-gateway converted to JetStream durable pull consumer.
+5. 🟢 **HIGH-7** — Backfill transcripts shown in UI with visual distinction.
 
 ---
 
