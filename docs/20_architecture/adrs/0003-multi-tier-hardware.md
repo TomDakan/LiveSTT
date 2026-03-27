@@ -1,6 +1,6 @@
 # Multi-Tier Hardware Strategy
 
-* **Status:** Accepted
+* **Status:** Accepted (Tier 1 hardware amended — see ADR-0007)
 * **Date:** 2025-11-19
 
 ---
@@ -113,8 +113,21 @@ export IDENTIFIER_BASE_IMAGE=pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 
 ---
 
+## Amendment (ADR-0007, 2025-11-26)
+
+**Tier 1 hardware changed from Jetson Orin Nano to ASRock Industrial NUC BOX-N97.**
+
+The Jetson Orin Nano was retired due to memory corruption issues and higher cost. The NUC N97
+is x86_64 (not ARM64), fanless, and includes industrial-grade NVMe with Power Loss Protection.
+The three-tier strategy and graceful-degradation pattern remain valid; only the Tier 1 row
+in the hardware table above is outdated. The implementation strategy (unified Dockerfile,
+Docker Compose profiles) still applies, but the Tier 1 base image references (`l4t-pytorch`)
+are no longer used — OpenVINO replaces CUDA/SpeechBrain for biometric inference (ADR-0008).
+
+See [ADR-0007](0007-platform-pivot-x86.md) for full rationale.
+
 ## References
 
-- [System Design](../../system_design.md) - Section 2.2 (Hardware Tiers)
+- [ADR-0007](0007-platform-pivot-x86.md) - Platform pivot to x86 NUC (amends Tier 1)
+- [ADR-0008](0008-split-brain-architecture.md) - OpenVINO replaces SpeechBrain
 - [Deployment Runbooks](../../60_ops/runbooks.md) - Tier-specific deploy procedures
-- [Hardware BOM](../../40_hardware/hbom.md) - Recommended hardware per tier

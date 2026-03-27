@@ -21,3 +21,28 @@ Set the following retention policies (MaxAge) for JetStream streams:
 -   **Positive**: Efficient disk usage. Sufficient buffer for "Split-Brain" recovery (Cloud STT catching up).
 -   **Negative**: If an outage lasts longer than 1 hour, raw audio will be lost.
 -   **Mitigation**: The system is designed for real-time usage. Prolonged outages should trigger other alerts.
+
+---
+
+## Amendment (ADR-0013 / ADR-0014, 2026-03)
+
+**Subject names, stream names, and retention semantics have changed since this ADR was written.**
+
+| Original (this ADR) | Current |
+|---------------------|---------|
+| `audio.raw` | `AUDIO_STREAM`: subjects `audio.live.>`, `audio.backfill.>` |
+| `text.transcript` | `TRANSCRIPTION_STREAM`: subjects `transcript.raw.>`, `transcript.identity.>`, `transcript.final.>` |
+| `identity.event` | merged into `TRANSCRIPTION_STREAM` above |
+
+**Consumer semantics (WORK_QUEUE → LIMITS)**: The `AUDIO_STREAM` originally used
+`RetentionPolicy.WORK_QUEUE` (messages deleted after the single consumer acknowledged them).
+This was changed to `RetentionPolicy.LIMITS` so that `stt-provider` and `identifier` can
+independently consume audio via separate durable pull consumers, each tracking their own
+position. Messages are now retained for the full `max_age` window (1 hour) regardless of
+consumer acknowledgement state.
+
+The 1-hour and 7-day retention windows remain unchanged and are still correct.
+
+See [ADR-0013](0013-stt-provider-pull-consumers-and-deepgram-reconnection.md) for pull
+consumer rationale and [ADR-0014](0014-audio-stream-limits-retention.md) for the
+WORK_QUEUE → LIMITS decision.

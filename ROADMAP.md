@@ -41,14 +41,27 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] "Black Box" offline buffering: detect Deepgram disconnection and resume from buffered NATS position on reconnect
 
 ### Milestone 4: Full System Integration (Text Only)
-- [x] `api-gateway` consumes `transcript.raw.*` (temporary; switches to `transcript.final.*` once identity pipeline is active)
-- [x] End-to-end test: Mic → NATS → Deepgram → UI (`just e2e` recipe)
-- [x] Web UI updates (WebSocket consumer)
+- [x] `api-gateway` consumes `transcript.final.*` via identity-manager
+- [x] End-to-end test: File audio → NATS → Deepgram → identity-manager → WebSocket UI (`just e2e`)
+- [x] Web UI: live transcript display with speaker badges, interim results, auto-scroll
+
+### Milestone 4.5: Session Control
+**Goal**: Replace the `AUTO_SESSION` env-var hack with real session lifecycle management.
+
+- [ ] Add `session.control` NATS subject + `SESSION_STREAM` JetStream config
+- [ ] `audio-producer`: subscribe to `session.control`; on `start` command, generate session ID,
+  flush pre-roll buffer to `audio.backfill.<session_id>`, begin publishing to `audio.live.<session_id>`;
+  on `stop`, return to IDLE
+- [ ] `api-gateway`: `POST /session/start` and `POST /session/stop` endpoints that publish to
+  `session.control` (no auth required — any audience member can start transcription)
+- [ ] UI: prominent "Start / Stop Recording" button visible on the main transcript page;
+  show session status (idle / recording / elapsed time)
+- [ ] Unit tests for session state machine in audio-producer
 
 ---
 
 ## Phase 3: The "Edge Eye" (Week 3)
-**Goal**: Biometric Identification & Hybrid Tagging
+**Goal**: Biometric Identification, Admin Interface & Vocabulary Tuning
 
 ### Milestone 5: Audio Classification & Model Preparation
 - [x] `audio-classifier` service with Silero VAD (ONNX Runtime, pre-trained model bundled in Docker image)
@@ -59,23 +72,98 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] `identifier` service: dual-lane pipeline, `OpenVinoEmbedder` (fallback to stub), `LanceDBVoiceprintStore`
 - [x] `identity-manager` "Time Zipper": fuses `transcript.raw.*` + `transcript.identity.*` → `transcript.final.*`
 - [x] `identity-manager` Dockerfile
-- [ ] Wire speaker enrollment: `POST /v1/admin/enrollment` (api-gateway) → `identifier` NATS command channel
+- [ ] Wire speaker enrollment: `POST /v1/admin/speakers` (api-gateway) → `identifier` NATS command channel
 - [ ] End-to-end biometric test: enroll voiceprint → verify speaker label appears in `transcript.final.*`
 
-### Milestone 6.5: Supporting Services
-- [x] `health-watchdog`: reads NATS KV `service_health` bucket, alerts on missing heartbeats
-- [x] `data-sweeper`: periodic JetStream stream stats reporting (retention handled by JetStream limits)
-- [x] Dockerfiles for all 8 services
+### Milestone 6.5: Admin Interface & Authentication
+**Goal**: Secure admin panel for managing enrollment, vocabulary, and system state.
+
+**Authentication**
+- [ ] Single admin token (bcrypt-hashed env var `ADMIN_PASSWORD_HASH`) + JWT issuance
+- [ ] `POST /admin/auth` → returns short-lived JWT; all `/admin/*` routes require Bearer token
+- [ ] JWT middleware in api-gateway; token expiry configurable via `ADMIN_TOKEN_TTL_S`
+
+**Admin UI** (separate route `/admin`, same server)
+- [ ] Admin login page (simple token form, no username)
+- [ ] Speaker enrollment panel: list enrolled speakers, upload audio sample to enroll,
+  delete voiceprint
+- [ ] System status panel: service heartbeat table (from NATS KV `service_health`),
+  NATS stream stats (message counts, bytes, consumer lag), disk usage
+
+**Log Viewer**
+- [ ] `GET /admin/logs` WebSocket: stream structured log lines from all services in real time
+  (api-gateway subscribes to a `logs.>` NATS subject; each service publishes structured log
+  records there in addition to stdout)
+- [ ] Filter by service name and log level in the UI
+
+### Milestone 7: Vocabulary Intelligence
+**Goal**: Close the feedback loop between transcription errors and Deepgram custom vocabulary.
+
+- [ ] **Pre-seeded domain vocabulary**: admin can import known domain-specific word lists
+  (e.g. books of the Bible, speaker names, local place names) before a single service runs;
+  stored in `custom_vocab` table and immediately active for Deepgram `keywords`
+- [ ] **Low-confidence word tracking**: `stt-provider` records words/phrases where
+  `confidence < LOW_CONF_THRESHOLD` (default 0.75) to a SQLite table in `api-gateway`'s
+  data volume (`/data/db/vocab.db`)
+- [ ] **Admin review UI**: table of candidate words sorted by frequency; admin can
+  approve (add to custom vocab) or dismiss; approved words merge with pre-seeded list
+- [ ] **Deepgram keyword injection**: words in `custom_vocab` are passed as `keywords` in
+  Deepgram connection options; `stt-provider` reloads the list on `vocab.updated` NATS event
+  without restarting
+- [ ] **Export/import**: `GET /admin/vocab/export` (CSV) and `POST /admin/vocab/import`
+  for migrating vocabulary lists between deployments; ship a starter `church_vocab.csv`
+  (books of the Bible + common liturgical terms) in `data/vocab/`
+
+### Milestone 7.5: Ops & Hardware Tooling
+**Goal**: Make deploying and debugging on the NUC N97 fast and low-friction.
+
+**BalenaOS deployment preparation**
+- [ ] Add `balena.yml` to repo root (`defaultDeviceType: intel-nuc`, fleet name, `version: "2.1"`)
+- [ ] Audit `docker-compose.yml` for Balena compatibility: replace all bind mounts with
+  named volumes under `/data/` (BalenaOS persistent NVMe partition that survives OTA
+  updates): `nats_data:/data/nats`, `db_data:/data/db`, `lancedb_data:/data/lancedb`;
+  ensure audio device passthrough (`/dev/snd`) and `group_add: audio` work under supervisor
+- [ ] Set `DEEPGRAM_API_KEY` and other runtime secrets via Balena Cloud fleet environment
+  variables (injected at runtime — no `.env` file on device, secrets never in image/git);
+  support per-device API key overrides for sites with separate Deepgram accounts
+- [ ] Add `restart: unless-stopped` to all services (currently missing on api-gateway,
+  audio-producer, identity-manager, nats)
+- [ ] `just deploy` — `balena push <fleet>` wrapper
+- [ ] `just deploy-check` — smoke-test a device by UUID (`curl /health`, NATS ping via
+  Balena public URL)
+- [ ] Document Balena SSH workflow for live debugging in `docs/60_ops/runbooks.md`
+
+**Docker / Compose**
+- [ ] Add `healthcheck:` directives to all services in `docker-compose.yml` so
+  `restart: unless-stopped` only kicks in after a true health failure (not a cold-start race)
+- [ ] `docker-compose.override.yml` for local dev (relaxed health timeouts, mounted source dirs)
+
+**`justfile` recipes**
+- [ ] `just status` — one-shot summary: container health, NATS stream stats
+  (message counts, consumer lag per service), disk usage at `/data`
+- [ ] `just nats-streams` — pretty-print all stream configs and current state
+
+**Backup & restore**
+- [ ] `POST /admin/backup` → streams a tar archive of `/data/db` (vocab, transcripts) and
+  `/data/lancedb` (voiceprints); downloadable via admin UI or `just backup-device <uuid>`
+- [ ] `POST /admin/restore` → accepts tar archive, restores vocab and voiceprints
+- [ ] Reserve `BACKUP_DESTINATION` env var for future cloud backup (S3/GCS); not
+  implemented in v8.0 but architecture accommodates it
+- [ ] Audio NATS data (`/data/nats`) explicitly excluded from backup — transient by design
+
+**Web-accessible status page**
+- [ ] `GET /admin/status` — read-only JSON view of service health and stream stats
+  (no auth required; safe to expose on local network)
 
 ---
 
 ## Phase 4: Integration & Burn-In (Week 4)
 **Goal**: Deployment Ready
 
-### Milestone 7: Full System Integration
+### Milestone 8: Full System Integration
 - [ ] End-to-end test: Mic → NATS → Deepgram + Identifier → UI with speaker labels
-- [ ] Web UI updates (WebSocket consumer, speaker name display)
 - [ ] 7-Day Burn-in Test on ASRock NUC N97
+- [ ] Word Error Rate (WER) benchmark against gold-standard recordings from Milestone 0.5
 
 ---
 
