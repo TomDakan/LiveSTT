@@ -59,14 +59,25 @@ class AudioProducerService(BaseService):
             self.logger.critical(f"Failed to verify streams: {e}")
             return
 
-        # 2. Initialize the appropriate source
+        # 2. Auto-start session when AUTO_SESSION env var is set or file mode is active.
+        # Production session management (IDLE → ACTIVE transitions) is not yet implemented;
+        # this allows the e2e test and file-based development to bypass that flow.
+        auto_session = os.getenv("AUTO_SESSION") or os.getenv("AUDIO_FILE")
+        if auto_session:
+            import uuid
+
+            self.session_id = os.getenv("SESSION_ID", uuid.uuid4().hex[:8])
+            self.is_active = True
+            self.logger.info(f"Auto-starting session: {self.session_id}")
+
+        # 3. Initialize the appropriate source
         try:
             source = self._get_audio_source()
         except Exception as e:
             self.logger.critical(f"Failed to initialize audio source: {e}")
             return
 
-        # 3. Start Streaming
+        # 4. Start Streaming
         self.logger.info("Audio Stream Started")
 
         async with source as stream:

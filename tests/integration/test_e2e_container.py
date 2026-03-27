@@ -46,6 +46,11 @@ async def test_e2e_transcript_reaches_websocket() -> None:
             final = await asyncio.wait_for(
                 _first_final_transcript(ws), timeout=_TRANSCRIPT_TIMEOUT_S
             )
+    except asyncio.TimeoutError:
+        pytest.fail(
+            f"No final transcript received within {_TRANSCRIPT_TIMEOUT_S}s — "
+            "check container logs with `just logs`"
+        )
     except (OSError, ConnectionRefusedError) as exc:
         pytest.skip(f"Could not connect to api-gateway WebSocket: {exc}")
 
