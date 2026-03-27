@@ -86,6 +86,7 @@ class DeepgramTranscriber(Transcriber):
 
     async def _on_error(self, error: Any, **kwargs: Any) -> None:
         logger.error(f"Deepgram Error: {error}")
+        await self._event_queue.put(None)
 
     async def send_audio(self, audio: bytes) -> None:
         if self.connection:
