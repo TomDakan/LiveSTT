@@ -106,6 +106,8 @@
     // ── State ─────────────────────────────────────────────────────────────────
     let ws = null;
     let reconnectTimer = null;
+    let backfillRendered = false;
+    let separatorInserted = false;
 
     const container   = document.getElementById('transcript-container');
     const interimText = document.getElementById('interim-text');
@@ -151,7 +153,7 @@
       } catch { return ''; }
     }
 
-    function appendFinalLine(text, speaker, timestamp) {
+    function appendFinalLine(text, speaker, timestamp, isBackfill) {
       if (!text.trim()) return;
 
       const row = document.createElement('div');
@@ -160,12 +162,14 @@
       // Timestamp
       const ts = document.createElement('span');
       ts.className = 'text-xs text-white/20 tabular-nums mt-0.5 shrink-0 w-16';
-      ts.textContent = formatTime(timestamp);
+      ts.textContent = isBackfill ? '[PRE-ROLL]' : formatTime(timestamp);
       row.appendChild(ts);
 
       // Body
       const body = document.createElement('span');
-      body.className = 'text-sm text-white/85 leading-relaxed';
+      body.className = isBackfill
+        ? 'text-sm text-white/40 leading-relaxed'
+        : 'text-sm text-white/85 leading-relaxed';
 
       // Speaker badge
       const colours = speakerColour(speaker);
@@ -194,6 +198,8 @@
     function clearTranscript() {
       container.innerHTML = '';
       setInterim('');
+      backfillRendered = false;
+      separatorInserted = false;
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────────────
@@ -214,17 +220,26 @@
         if (msg.type !== 'transcript') return;
         const p = msg.payload || {};
 
-        // Only show live source in main view; skip backfill or others
-        if (p.source && p.source !== 'live') return;
+        const isBackfill = p.source === 'backfill';
+        const isLive     = !p.source || p.source === 'live';
+        if (!isBackfill && !isLive) return;
 
         const text    = (p.text || '').trim();
         const speaker = p.speaker || null;
         const ts      = p.timestamp || null;
 
         if (p.is_final) {
+          // Insert separator once, above the first live segment after backfill.
+          if (isLive && backfillRendered && !separatorInserted) {
+            separatorInserted = true;
+            const sep = document.createElement('div');
+            sep.className = 'my-2 border-t border-white/10';
+            container.appendChild(sep);
+          }
           setInterim('');
-          appendFinalLine(text, speaker, ts);
-        } else {
+          appendFinalLine(text, speaker, ts, isBackfill);
+          if (isBackfill) backfillRendered = true;
+        } else if (isLive) {
           setInterim(text);
         }
       };
