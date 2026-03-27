@@ -1,6 +1,6 @@
 [project]
 name = "stt-provider"
-version = "0.8.0"
+version = "0.9.0"
 description = "Speech-to-Text Provider Service using Deepgram"
 authors = [
     {name = "Engineering Team", email = "tomdakan@gmail.com"},

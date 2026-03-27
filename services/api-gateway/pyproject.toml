@@ -1,6 +1,6 @@
 [project]
 name = "api-gateway"
-version = "0.8.0"
+version = "0.9.0"
 description = "UI Server and Orchestrator for STT Kiosk"
 authors = [
     { name = "Tom Dakan", email = "" },
