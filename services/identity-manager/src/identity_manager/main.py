@@ -22,6 +22,7 @@ MAX_BUFFER: int = 500
 class _Pending:
     data: dict[str, Any]
     received_at: float  # monotonic loop time
+    msg: Any  # raw NATS message — acked after successful publish
 
 
 def _parse_ts(iso_str: str | None) -> float | None:
@@ -86,14 +87,16 @@ class IdentityManager(BaseService):
                             _Pending(
                                 data=data,
                                 received_at=asyncio.get_running_loop().time(),
+                                msg=msg,
                             )
                         )
                         if len(self._pending) > MAX_BUFFER:
-                            self._pending.pop(0)
+                            evicted = self._pending.pop(0)
+                            await evicted.msg.ack()
                     else:
                         # Interim: forward immediately with no speaker tag
                         await self._publish(js, data, speaker=None)
-                    await msg.ack()
+                        await msg.ack()
             except TimeoutError:
                 continue
             except Exception as e:
@@ -148,9 +151,12 @@ class IdentityManager(BaseService):
     async def _fusion_loop(self, js: Any, stop_event: asyncio.Event) -> None:
         while not stop_event.is_set():
             now = asyncio.get_running_loop().time()
+            # Snapshot pending so items appended during awaits are not lost.
+            batch = self._pending
+            self._pending = []
             still_pending: list[_Pending] = []
 
-            for pending in self._pending:
+            for pending in batch:
                 age = now - pending.received_at
                 identity = self._find_identity(pending.data.get("timestamp"))
 
@@ -158,21 +164,24 @@ class IdentityManager(BaseService):
                     speaker = (
                         identity.get("speaker", "Unknown") if identity else "Unknown"
                     )
-                    await self._publish(js, pending.data, speaker=speaker)
+                    try:
+                        await self._publish(js, pending.data, speaker=speaker)
+                        await pending.msg.ack()
+                    except Exception as e:
+                        self.logger.error(f"Publish failed, naking message: {e}")
+                        await pending.msg.nak()
                 else:
                     still_pending.append(pending)
 
-            self._pending = still_pending
+            # Prepend still-pending items before any newly arrived ones.
+            self._pending = still_pending + self._pending
             await asyncio.sleep(0.1)
 
     async def _publish(self, js: Any, data: dict[str, Any], speaker: str | None) -> None:
         source = data.get("source", "live")
         subject = f"transcript.final.{source}"
         payload = {**data, "speaker": speaker}
-        try:
-            await js.publish(subject, json.dumps(payload).encode())
-        except Exception as e:
-            self.logger.error(f"Failed to publish to {subject}: {e}")
+        await js.publish(subject, json.dumps(payload).encode())
 
 
 def main() -> None:
