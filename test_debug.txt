@@ -1,0 +1,99 @@
+============================= test session starts =============================
+platform win32 -- Python 3.12.12, pytest-9.0.1, pluggy-1.6.0 -- C:\Users\Tom\repos\live-stt\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Users\Tom\repos\live-stt
+configfile: pytest.ini (WARNING: ignoring pytest config in pyproject.toml!)
+plugins: anyio-4.12.0, asyncio-1.3.0, cov-7.0.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+services/audio-producer/tests/test_integration.py::test_audio_producer_integration FAILED [100%]
+
+================================== FAILURES ===================================
+_______________________ test_audio_producer_integration _______________________
+
+    @pytest.mark.integration
+    @pytest.mark.asyncio
+    async def test_audio_producer_integration() -> None:
+        """
+        Integration test for Audio Producer.
+        Verifies that the producer can ingest a WAV file and publish audio chunks to NATS.
+        """
+        import audio_producer.main
+        print(f"DEBUG: audio_producer.main file: {audio_producer.main.__file__}")
+        print(f"DEBUG: PREROLL_STREAM_CONFIG in dir? {'PREROLL_STREAM_CONFIG' in dir(audio_producer.main)}")
+
+        # 1. Setup NATS Subscriber (Verification)
+        sub_nc = NATS()
+        await sub_nc.connect(NATS_URL)
+
+        received_chunks = []
+
+        async def msg_handler(msg):
+            received_chunks.append(msg.data)
+
+        # v8.0 Architecture: Default stream is preroll.audio
+        await sub_nc.subscribe("preroll.audio", cb=msg_handler)
+
+        # 2. Setup Audio Producer with FileSource override
+        # We use env var to trigger the FileSource logic in _get_audio_source
+        os.environ["AUDIO_FILE"] = "tests/data/test_audio.wav"
+
+        # Ensure test file exists
+        test_file = "tests/data/test_audio.wav"
+        assert os.path.exists(test_file), "Test audio file not found"
+
+        service = AudioProducerService()
+        # Override NATS URL if needed, though BaseService default is usually fine for local
+        service.nats_url = NATS_URL
+
+        # 3. Run Producer
+        # We run it in a task because start() runs until source is exhausted or stopped
+        task = asyncio.create_task(service.start())
+
+        # Let it run for 5 seconds to gather data
+        await asyncio.sleep(5.0)
+
+        # Stop the service
+        service.stop_event.set()
+
+        try:
+            await asyncio.wait_for(task, timeout=5.0)
+        except TimeoutError:
+            task.cancel()
+            # This is expected if it hangs, but we prefer graceful exit
+            pass
+        except asyncio.CancelledError:
+            pass
+
+        # 4. Verify Data Received
+        # Give NATS a moment to flush
+        await asyncio.sleep(0.5)
+
+>       assert len(received_chunks) > 0
+E       assert 0 > 0
+E        +  where 0 = len([])
+
+services\audio-producer\tests\test_integration.py:71: AssertionError
+---------------------------- Captured stdout call -----------------------------
+DEBUG: audio_producer.main file: C:\Users\Tom\repos\live-stt\services\audio-producer\src\audio_producer\main.py
+DEBUG: PREROLL_STREAM_CONFIG in dir? False
+------------------------------ Captured log call ------------------------------
+CRITICAL audio-producer:main.py:50 Failed to verify streams: name 'PREROLL_STREAM_CONFIG' is not defined
+=============================== tests coverage ================================
+______________ coverage: platform win32, python 3.12.12-final-0 _______________
+
+Name                                                        Stmts   Miss  Cover   Missing
+-----------------------------------------------------------------------------------------
+libs\messaging\src\messaging\nats.py                           34     13    62%   40-63
+libs\messaging\src\messaging\service.py                        61     14    77%   39, 44-45, 66-67, 84-86, 101-107
+services\audio-producer\src\audio_producer\__init__.py          0      0   100%
+services\audio-producer\src\audio_producer\audiosource.py      87     50    43%   18-19, 36-38, 43-52, 56-61, 69, 83-92, 97-101, 106, 116, 121-152
+services\audio-producer\src\audio_producer\interfaces.py       10      2    80%   12, 21
+services\audio-producer\src\audio_producer\main.py             47     28    40%   21-38, 47-48, 54-72, 75-76
+services\audio-producer\tests\__init__.py                       0      0   100%
+services\audio-producer\tests\test_integration.py              41     11    73%   31, 60-65, 73-78
+-----------------------------------------------------------------------------------------
+TOTAL                                                         280    118    58%
+Coverage XML written to file coverage.xml
+============================== 1 failed in 6.84s ==============================

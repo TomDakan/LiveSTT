@@ -75,7 +75,7 @@ async def test_api_gateway_integration() -> None:
                 "confidence": 1.0,
             }
             await nc.publish(
-                "text.transcript", json.dumps(transcript_data).encode("utf-8")
+                "transcript.final.>", json.dumps(transcript_data).encode("utf-8")
             )
             await nc.flush()
 

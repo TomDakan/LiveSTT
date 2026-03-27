@@ -41,7 +41,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: '3.12'
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
@@ -187,7 +187,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
 
 # Stage 2: Runtime (minimal image)
-FROM python:3.13-slim
+FROM python:3.12-slim
 WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
@@ -212,7 +212,7 @@ docker buildx build \
 
 **Supported Platforms**:
 - `linux/amd64`: Tier 2/3 (desktop, cloud)
-- `linux/arm64`: Tier 1 (Jetson Orin Nano)
+- `linux/amd64`: Tier 1 (Industrial NUC) & Tier 2 (Desktop)
 
 ### 3.3 Docker Build Scaffolding (Cross-Platform)
 

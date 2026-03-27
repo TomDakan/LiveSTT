@@ -1,4 +1,4 @@
-# Hardware/Software Interface (HSI) Document (v7.3)
+# Hardware/Software Interface (HSI) Document (v8.0)
 
 ## 1. Overview
 This document defines the hardware/software interface for the Live STT system (v7.3), including Docker service configurations, NATS topology, volume mounts, and hardware dependencies.
@@ -34,10 +34,11 @@ networks:
 ### 3.2 Subject Hierarchy
 | Subject | Publisher | Subscriber(s) | Payload Format |
 |---------|-----------|---------------|----------------|
-| `audio.raw` | audio-producer | stt-provider, identifier | Binary PCM (16-bit, 16kHz, mono) |
-| `text.transcript` | stt-provider | identity-manager | JSON: `{"text": "...", "speaker": 0}` |
-| `identity.event` | identifier | identity-manager | JSON: `{"user": "Alice", "conf": 0.92}` |
-| `events.merged` | identity-manager | api-gateway | JSON: `{"text": "...", "user": "Alice"}` |
+| `audio.live` | audio-producer | stt-provider, identifier | Binary PCM (16-bit, 16kHz, mono) |
+| `audio.backfill` | audio-producer | stt-provider, identifier | Binary PCM (delayed) |
+| `transcript.raw` | stt-provider | identity-manager | JSON: `{"text": "...", "speaker": 0}` |
+| `transcript.identity` | identifier | identity-manager | JSON: `{"user": "Alice", "conf": 0.92}` |
+| `transcript.final` | identity-manager | api-gateway | JSON: `{"text": "...", "user": "Alice"}` |
 
 ## 4. Volume Mounts
 
@@ -100,4 +101,4 @@ services:
 
 **See Also:**
 - [Architecture Definition](architecture_definition.md) - High-level system design
-- [System Design v7.3](../system_design_v7.3.md) - Detailed technical specs
+- [System Design v8.0](../system_design_v8.0.md) - Detailed technical specs

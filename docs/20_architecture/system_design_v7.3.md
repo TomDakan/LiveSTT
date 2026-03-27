@@ -1,5 +1,8 @@
 # System Design Document: v7.3 (Industrial Split-Brain)
 
+> [!WARNING]
+> **DEPRECATED**: This design has been superseded by [v8.0 (Buffered Brain)](system_design_v8.0.md). This document is retained for historical context only.
+
 **Status**: ARCHITECTURE LOCKED
 **Target Platform**: Industrial x86 (Intel N97)
 **Pattern**: Parallel Processing Streams (Cloud Text + Edge Identity)

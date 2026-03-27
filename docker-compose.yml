@@ -34,9 +34,15 @@ services:
     container_name: audio-producer
     environment:
       - NATS_URL=nats://nats:4222
-      - AUDIO_FILE=/data/test_audio.wav
+      - AUDIO_FILE=${AUDIO_FILE:-}   # Leave blank to use live mic (ALSA)
     volumes:
       - ./tests/data:/data
+    # --- USB/ALSA Passthrough (for dev E2E testing on Windows/WSL2) ---
+    # Requires: usbipd attach --wsl --busid <BUSID> before running
+    devices:
+      - /dev/snd:/dev/snd
+    group_add:
+      - audio
     networks:
       - internal_overlay
     depends_on:
@@ -70,17 +76,18 @@ services:
 #     depends_on:
 #       - nats
 
-#   identity-manager:
-#     build:
-#       context: .
-#       dockerfile: services/identity-manager/Dockerfile
-#     container_name: identity-manager
-#     environment:
-#       - NATS_URL=nats://nats:4222
-#     networks:
-#       - internal_overlay
-#     depends_on:
-#       - nats
+  identity-manager:
+    build:
+      context: .
+      dockerfile: services/identity-manager/Dockerfile
+    container_name: identity-manager
+    restart: unless-stopped
+    environment:
+      - NATS_URL=nats://nats:4222
+    networks:
+      - internal_overlay
+    depends_on:
+      - nats
 
 networks:
   internal_overlay:

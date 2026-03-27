@@ -26,10 +26,10 @@ nats stream ls
 nats stream info EVENTS
 
 # Publish a test message
-nats pub audio.raw "test-data"
+nats pub audio.live "test-data"
 
 # Benchmark pub/sub performance
-nats bench audio.raw --pub 1 --sub 1 --msgs 10000
+nats bench audio.live --pub 1 --sub 1 --msgs 10000
 ```
 
 ## 2. Observability (NATS Surveyor)
@@ -66,7 +66,7 @@ nats sub ">" --headers
 
 **Output Example**:
 ```
-[#1] Received on "text.transcript"
+[#1] Received on "transcript.raw"
 Nats-Msg-Id: nuid_12345
 Trace-Id: 550e8400-e29b-41d4-a716-446655440000
 Timestamp: 2025-11-26T12:00:00Z
@@ -86,7 +86,7 @@ Services log to stdout in JSON format, including the `trace_id`.
   "service": "stt-provider",
   "trace_id": "550e8400-e29b-41d4-a716-446655440000",
   "message": "Published transcript event",
-  "subject": "text.transcript"
+  "subject": "transcript.raw"
 }
 ```
 

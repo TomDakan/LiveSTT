@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live STT</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --accent: #6366f1;
+      --accent-dim: #4f46e5;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e2e2e8;
+    }
+
+    #transcript-container::-webkit-scrollbar { width: 4px; }
+    #transcript-container::-webkit-scrollbar-track { background: transparent; }
+    #transcript-container::-webkit-scrollbar-thumb { background: #3f3f50; border-radius: 4px; }
+
+    .line-enter {
+      animation: fadeSlideIn 0.25s ease forwards;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .speaker-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-right: 6px;
+      vertical-align: middle;
+      opacity: 0.9;
+    }
+
+    .dot-pulse {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a]">
+    <div class="flex items-center gap-3">
+      <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4M9 11V5a3 3 0 116 0v6"/>
+      </svg>
+      <span class="font-semibold text-sm tracking-wide text-white/80">Live STT</span>
+    </div>
+
+    <div class="flex items-center gap-4">
+      <!-- Status indicator -->
+      <div id="status-badge" class="flex items-center gap-2 text-xs font-medium">
+        <span id="status-dot" class="dot-pulse bg-yellow-400"></span>
+        <span id="status-text" class="text-white/50">Connecting…</span>
+      </div>
+
+      <!-- Controls -->
+      <button id="btn-clear"
+              class="text-xs px-3 py-1.5 rounded-md border border-white/10 text-white/40
+                     hover:text-white/70 hover:border-white/20 transition-colors">
+        Clear
+      </button>
+    </div>
+  </header>
+
+  <!-- Transcript area -->
+  <main class="flex-1 overflow-hidden flex flex-col px-6 py-4 max-w-4xl w-full mx-auto">
+    <div id="transcript-container"
+         class="flex-1 overflow-y-auto space-y-1 pr-1 pb-4">
+      <!-- Lines inserted here by JS -->
+    </div>
+
+    <!-- Interim line -->
+    <div id="interim-row" class="min-h-[2rem] flex items-start gap-2 pt-2 border-t border-white/[0.05]">
+      <span id="interim-text" class="text-sm italic text-white/35 leading-relaxed"></span>
+    </div>
+  </main>
+
+  <script>
+    // ── Config ────────────────────────────────────────────────────────────────
+    const WS_URL = `ws://${window.location.host}/ws/transcripts`;
+    const RECONNECT_MS = 3000;
+
+    // ── State ─────────────────────────────────────────────────────────────────
+    let ws = null;
+    let reconnectTimer = null;
+
+    const container   = document.getElementById('transcript-container');
+    const interimText = document.getElementById('interim-text');
+    const statusDot   = document.getElementById('status-dot');
+    const statusText  = document.getElementById('status-text');
+    const btnClear    = document.getElementById('btn-clear');
+
+    // ── Speaker colours ───────────────────────────────────────────────────────
+    const SPEAKER_PALETTE = [
+      ['#6366f1', '#1e1b4b'],  // indigo
+      ['#10b981', '#064e3b'],  // emerald
+      ['#f59e0b', '#451a03'],  // amber
+      ['#ec4899', '#500724'],  // pink
+      ['#06b6d4', '#082f49'],  // cyan
+      ['#a855f7', '#2e1065'],  // purple
+      ['#f97316', '#431407'],  // orange
+    ];
+
+    function speakerColour(name) {
+      if (!name || name === 'Unknown') return null;
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
+      return SPEAKER_PALETTE[Math.abs(hash) % SPEAKER_PALETTE.length];
+    }
+
+    // ── DOM helpers ───────────────────────────────────────────────────────────
+    function setStatus(state) {
+      const states = {
+        connecting: { dot: 'bg-yellow-400', text: 'Connecting…',  dotClass: 'dot-pulse' },
+        live:       { dot: 'bg-green-400',  text: 'Live',         dotClass: '' },
+        offline:    { dot: 'bg-red-500',    text: 'Disconnected', dotClass: '' },
+      };
+      const s = states[state] || states.offline;
+      statusDot.className  = `dot-pulse ${s.dot}`;
+      statusDot.style.animation = s.dotClass ? '' : 'none';
+      statusText.textContent = s.text;
+    }
+
+    function formatTime(isoStr) {
+      try {
+        const d = isoStr ? new Date(isoStr) : new Date();
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      } catch { return ''; }
+    }
+
+    function appendFinalLine(text, speaker, timestamp) {
+      if (!text.trim()) return;
+
+      const row = document.createElement('div');
+      row.className = 'line-enter flex items-start gap-2 py-0.5';
+
+      // Timestamp
+      const ts = document.createElement('span');
+      ts.className = 'text-xs text-white/20 tabular-nums mt-0.5 shrink-0 w-16';
+      ts.textContent = formatTime(timestamp);
+      row.appendChild(ts);
+
+      // Body
+      const body = document.createElement('span');
+      body.className = 'text-sm text-white/85 leading-relaxed';
+
+      // Speaker badge
+      const colours = speakerColour(speaker);
+      if (colours) {
+        const badge = document.createElement('span');
+        badge.className = 'speaker-badge';
+        badge.style.color = colours[0];
+        badge.style.background = colours[1];
+        badge.style.border = `1px solid ${colours[0]}44`;
+        badge.textContent = speaker;
+        body.appendChild(badge);
+      }
+
+      body.appendChild(document.createTextNode(text));
+      row.appendChild(body);
+      container.appendChild(row);
+
+      // Auto-scroll
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function setInterim(text) {
+      interimText.textContent = text || '';
+    }
+
+    function clearTranscript() {
+      container.innerHTML = '';
+      setInterim('');
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+    function connect() {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      setStatus('connecting');
+
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        setStatus('live');
+      };
+
+      ws.onmessage = (event) => {
+        let msg;
+        try { msg = JSON.parse(event.data); } catch { return; }
+
+        if (msg.type !== 'transcript') return;
+        const p = msg.payload || {};
+
+        // Only show live source in main view; skip backfill or others
+        if (p.source && p.source !== 'live') return;
+
+        const text    = (p.text || '').trim();
+        const speaker = p.speaker || null;
+        const ts      = p.timestamp || null;
+
+        if (p.is_final) {
+          setInterim('');
+          appendFinalLine(text, speaker, ts);
+        } else {
+          setInterim(text);
+        }
+      };
+
+      ws.onclose = () => {
+        setStatus('offline');
+        reconnectTimer = setTimeout(connect, RECONNECT_MS);
+      };
+
+      ws.onerror = () => {
+        ws.close();
+      };
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    btnClear.addEventListener('click', clearTranscript);
+    connect();
+  </script>
+</body>
+</html>

@@ -59,6 +59,13 @@ test *args:
 test-service service *args:
     uv run python -m pytest services/{{service}} {{args}}
 
+# E2E smoke test: file audio → NATS → Deepgram → identity-manager → WebSocket.
+# Requires: DEEPGRAM_API_KEY in .env, Docker running.
+# Containers are left running after the test so you can inspect logs with: just logs
+e2e: scaffold
+    $env:AUDIO_FILE = "/data/test_speaker_30s.wav"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d --build nats api-gateway stt-provider identity-manager audio-producer
+    uv run python -m pytest tests/integration/test_e2e_container.py -v -s -m integration
+
 # Placeholder for deployment tasks.
 deploy *args:
     echo 'Deploying...' {{ args }}
@@ -69,7 +76,7 @@ safety-scan *args:
 
 # Run Bandit security linter.
 bandit-check *args:
-    uv run python -m bandit -c pyproject.toml -r services -x "tests,services/api-gateway/tests,services/audio-producer/tests,services/stt-provider/tests" {{ args }}
+    uv run python -m bandit -c pyproject.toml -r . {{ args }}
 
 # Export documentation dependencies for Read the Docs.
 export-docs-reqs *args:
@@ -88,9 +95,18 @@ up: scaffold
 up-build: scaffold
     docker compose up -d --build
 
-# The "Nuclear Option": Stop containers and DELETE volumes
+# Start audio-producer + NATS using a WAV file instead of live mic.
+# Strips the /dev/snd device mount so it works without ALSA/USB hardware.
+# Usage: just file-test tests/data/test_speaker.wav
+file-test wav_file="tests/data/test_speaker.wav": scaffold
+    $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d nats audio-producer
+
+# The "Nuclear Option": Stop containers, DELETE named volumes, and wipe NATS bind-mount data.
+# Required when changing NATS stream config (e.g. retention policy) — NATS refuses to
+# update an existing stream's retention policy via the API.
 nuke:
     docker compose down --volumes --remove-orphans
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue data\nats
 
 # Stop the stack
 down:
@@ -141,6 +157,29 @@ nats-tail subject="audio.raw":
 # NATS health check
 nats-health:
     docker run --network=host natsio/nats-box:latest nats server check
+
+# --- USB/ALSA Passthrough (Windows dev environment) ---
+
+# Wake WSL2 (if idle) and attach the RME Babyface Pro to WSL2 for ALSA passthrough.
+# Discovers the bus ID dynamically — safe across reboots.
+# Run this before `just up` when using live mic input.
+attach-usb:
+    #!/usr/bin/env pwsh
+    $busid = (usbipd list | Select-String "Babyface" | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+    if (-not $busid) { Write-Error "RME Babyface Pro not found. Check USB connection."; exit 1 }
+    Write-Host "Waking WSL2..."
+    wsl echo "WSL2 ready"
+    Write-Host "Attaching RME Babyface Pro (busid $busid) to WSL2..."
+    usbipd attach --wsl --busid $busid
+    Write-Host "Done! Run 'just up' to start the stack."
+
+# Detach the RME Babyface Pro from WSL2 (returns audio control to Windows).
+detach-usb:
+    #!/usr/bin/env pwsh
+    $busid = (usbipd list | Select-String "Babyface" | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1)
+    if (-not $busid) { Write-Error "RME Babyface Pro not found."; exit 1 }
+    usbipd detach --busid $busid
+    Write-Host "RME Babyface Pro detached."
 
 # Run the full quality assurance suite.
 qa:

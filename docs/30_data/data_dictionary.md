@@ -1,25 +1,31 @@
-# Data Dictionary (v7.3)
+# Data Dictionary (v8.0)
 
 ## Overview
-This document defines all data structures, message formats, database schemas, and file formats used in the Live STT system (v7.3 Industrial Split-Brain).
+This document defines all data structures, message formats, database schemas, and file formats used in the Live STT system (v8.0 Buffered Brain).
 
 ---
 
 ## 1. NATS JetStream Subjects
 
-### 1.1 `audio.raw`
+### 1.1 `preroll.audio`
+**Publisher**: audio-producer
+**Subscribers**: audio-producer (internal ring buffer)
+**Format**: Binary PCM (Memory Only)
+**Role**: Rolling 6-minute buffer for "Time Travel" starts.
+
+### 1.2 `audio.live` & `audio.backfill`
 **Publisher**: audio-producer
 **Subscribers**: stt-provider, identifier
 **Format**: Binary PCM
 **Payload**:
 ```
-Bytes 0-1599: 16-bit signed PCM samples (800 samples × 2 bytes)
+Bytes 0-3071: 16-bit signed PCM samples (1536 samples × 2 bytes)
 Sample Rate: 16kHz
 Channels: 1 (mono)
-Chunk Duration: 50ms
+Chunk Duration: 96ms
 ```
 
-### 1.2 `text.transcript`
+### 1.3 `transcript.raw`
 **Publisher**: stt-provider
 **Subscribers**: identity-manager
 **Format**: JSON
@@ -30,13 +36,13 @@ Chunk Duration: 50ms
   "confidence": "float - 0.0 to 1.0",
   "speaker": "int - Deepgram speaker label (0, 1)",
   "is_final": "bool",
-  "start": "float - Audio timestamp (seconds)",
-  "end": "float - Audio timestamp (seconds)",
-  "trace_id": "string - UUID for correlation"
+  "start": "float",
+  "end": "float",
+  "trace_id": "string"
 }
 ```
 
-### 1.3 `identity.event`
+### 1.4 `transcript.identity`
 **Publisher**: identifier
 **Subscribers**: identity-manager
 **Format**: JSON
@@ -51,7 +57,7 @@ Chunk Duration: 50ms
 }
 ```
 
-### 1.4 `events.merged`
+### 1.5 `transcript.final`
 **Publisher**: identity-manager
 **Subscribers**: api-gateway
 **Format**: JSON
@@ -99,9 +105,9 @@ Chunk Duration: 50ms
 **Location**: `/data/nats` (Loopback Mount)
 **Format**: NATS JetStream File Store
 **Retention**:
-- `audio.raw`: 60 Minutes (Configurable via `NATS_AUDIO_RETENTION`)
-- `text.transcript`: 7 Days (Configurable via `NATS_TEXT_RETENTION`)
-- `events.merged`: 30 Days
+- `audio.live` & `audio.backfill`: 60 Minutes (Configurable)
+- `transcript.raw` & `transcript.final`: 7 Days
+
 
 ---
 

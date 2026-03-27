@@ -1,4 +1,4 @@
-# API Reference (v7.3)
+# API Reference (v8.0)
 
 ## Overview
 This document documents the internal APIs used for inter-service communication (NATS) and the external REST API exposed by the `api-gateway`.
@@ -102,10 +102,11 @@ Clients (Web UI) connect to receive real-time updates.
 
 | Subject | Publisher | Subscriber | Payload Format |
 |---------|-----------|------------|----------------|
-| `audio.raw` | audio-producer | stt-provider, identifier | Binary PCM (16kHz, S16LE) |
-| `text.transcript` | stt-provider | identity-manager | JSON |
-| `identity.event` | identifier | identity-manager | JSON |
-| `events.merged` | identity-manager | api-gateway | JSON |
+| `audio.live` | audio-producer | stt-provider, identifier | Binary PCM (16kHz, S16LE, Real-time) |
+| `audio.backfill` | audio-producer | stt-provider, identifier | Binary PCM (16kHz, S16LE, Delayed) |
+| `transcript.raw` | stt-provider | identity-manager | JSON (Deepgram/Text) |
+| `transcript.identity` | identifier | identity-manager | JSON (OpenVINO/Who) |
+| `transcript.final` | identity-manager | api-gateway | JSON (Fused Result) |
 | `system.alert` | all | api-gateway | JSON |
 
 ### Message Schemas

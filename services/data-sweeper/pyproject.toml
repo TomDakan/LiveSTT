@@ -1,16 +1,23 @@
 [project]
 name = "data-sweeper"
-version = "0.4.1"
+version = "0.8.0"
 description = "Data Sweeper Service"
+authors = [
+    { name = "Tom Dakan", email = "tomdakan@gmail.com" },
+]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "messaging",
+]
+
+[tool.uv.sources]
+messaging = { workspace = true }
 
 [project.scripts]
 data-sweeper = "data_sweeper.main:main"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.ruff]
-extend = "../../ruff.toml"
+extend = "../../pyproject.toml"
+
+[tool.basedpyright]
+extend = "../../pyproject.toml"

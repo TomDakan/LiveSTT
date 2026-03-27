@@ -1,0 +1,107 @@
+uv run ruff check --fix .
+SIM117 Use a single `with` statement with multiple contexts instead of nested `with` statements
+  --> services\api-gateway\tests\test_main.py:44:5
+   |
+42 |       """
+43 |       # Patch the global nats_client used in the app's lifespan
+44 | /     with patch("api_gateway.main.nats_client", new_callable=AsyncMock) as mock_nats:
+45 | |         # Use TestClient for WebSocket (triggers lifespan)
+46 | |         with TestClient(app) as client:
+   | |_______________________________________^
+47 |               with client.websocket_connect("/ws/transcripts") as websocket:
+48 |                   # Verify subscription happened during startup
+   |
+help: Combine `with` statements
+
+F841 Local variable `session_id` is assigned to but never used
+  --> services\identifier\src\identifier\main.py:51:25
+   |
+49 |                         # --- Identification Logic (OpenVINO Stub) ---
+50 |                         # Extract session_id from subject: audio.live.{session_id}
+51 |                         session_id = msg.subject.split(".")[-1]
+   |                         ^^^^^^^^^^
+52 |
+53 |                         # Stub: Emit identity event every few messages
+   |
+help: Remove assignment to unused variable `session_id`
+
+E501 Line too long (96 > 90)
+  --> services\identifier\src\identifier\main.py:55:91
+   |
+53 |                         # Stub: Emit identity event every few messages
+54 |                         # In reality, this would run vector lookup
+55 |                         # self.logger.debug(f"Live Worker: Identified segment for {session_id}")
+   |                                                                                           ^^^^^^
+56 |
+57 |                         await msg.ack()
+   |
+
+E501 Line too long (103 > 90)
+  --> services\identifier\src\identifier\main.py:85:91
+   |
+83 |                         # --- Identification Logic (OpenVINO Stub) ---
+84 |                         # session_id = msg.subject.split(".")[-1]
+85 |                         # self.logger.debug(f"Backfill Worker: Processing past audio for {session_id}")
+   |                                                                                           ^^^^^^^^^^^^^
+86 |
+87 |                         await msg.ack()
+   |
+
+E501 Line too long (99 > 90)
+  --> services\identity-manager\src\identity_manager\main.py:22:91
+   |
+20 |     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
+21 |         """
+22 |         Subscribes to raw transcripts and identity events, fuses them, and publishes final results.
+   |                                                                                           ^^^^^^^^^
+23 |         """
+24 |         self.logger.info("Identity Manager: Starting Fusion Logic...")
+   |
+
+E501 Line too long (92 > 90)
+  --> services\identity-manager\src\identity_manager\main.py:96:91
+   |
+94 |                 # Matching logic:
+95 |                 # For each transcript, find the closest identity within a time window.
+96 |                 # If found, merge and publish. If not, maybe wait or publish with 'Unknown'.
+   |                                                                                           ^^
+97 |
+98 |                 # Simple implementation:
+   |
+
+F841 Local variable `producer_task` is assigned to but never used
+   --> tests\integration\test_e2e.py:200:9
+    |
+198 |         # We need a way to stop it after one file loop
+199 |         # For E2E, maybe just run it for a few seconds
+200 |         producer_task = asyncio.create_task(producer.start())
+    |         ^^^^^^^^^^^^^
+201 |         await asyncio.sleep(2.0)
+202 |         await producer.stop()
+    |
+help: Remove assignment to unused variable `producer_task`
+
+RUF006 Store a reference to the return value of `asyncio.create_task`
+   --> tests\integration\test_e2e.py:200:25
+    |
+198 |         # We need a way to stop it after one file loop
+199 |         # For E2E, maybe just run it for a few seconds
+200 |         producer_task = asyncio.create_task(producer.start())
+    |                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+201 |         await asyncio.sleep(2.0)
+202 |         await producer.stop()
+    |
+
+E501 Line too long (92 > 90)
+   --> tests\integration\test_e2e.py:218:91
+    |
+217 |     # Note: Mocking transcriber in the service is tricker now.
+218 |     # We'll just check if the service publishes SOMETHING or use real Deepgram if available.
+    |                                                                                           ^^
+219 |     # For now, let's keep it simple and just start the service.
+220 |     stt_service = STTProviderService()
+    |
+
+Found 9 errors.
+No fixes available (2 hidden fixes can be enabled with the `--unsafe-fixes` option).
+error: Recipe `lint` failed on line 48 with exit code 1

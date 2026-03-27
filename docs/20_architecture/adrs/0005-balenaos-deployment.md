@@ -1,6 +1,6 @@
 # Use BalenaOS for Edge Deployment
 
-* **Status:** Accepted
+* **Status:** Accepted (hardware target updated — see ADR-0007)
 * **Date:** 2025-11-19
 
 ---
@@ -110,8 +110,62 @@ balena push live-stt-fleet
 
 ---
 
+## Amendment (ADR-0007, 2025-11-26)
+
+**Hardware target changed from Jetson Orin Nano to ASRock Industrial NUC BOX-N97 (x86_64).**
+
+BalenaOS fully supports x86_64 (`intel-nuc` device type), so this decision remains valid.
+The TPM reference above no longer applies (NUC N97 uses the standard BalenaOS flow, not
+Jetson-specific TPM integration). All other features — fleet management, delta updates,
+public device URL, SSH tunnelling, log aggregation — apply unchanged.
+
+### Data Persistence Across OTA Updates
+
+BalenaOS provides a persistent `/data/` partition on the NVMe that survives container
+updates. All stateful data **must** use named volumes mapped into `/data/`, not bind mounts:
+
+| Data | Volume | Path |
+|------|--------|------|
+| NATS JetStream store | `nats_data` | `/data/nats` |
+| Vocabulary & transcript SQLite DB | `db_data` | `/data/db` |
+| LanceDB voiceprint store | `lancedb_data` | `/data/lancedb` |
+
+Bind mounts (`./data/nats`) work for local development but are not suitable for production
+as they are relative to the project directory and reset on each Balena deploy.
+
+Vocabulary lists and enrolled voiceprints are **device-local** and survive software updates
+but are not automatically replicated across the fleet. They must be backed up explicitly.
+
+### Backup Strategy
+
+Device-local persistent data (vocabulary, voiceprints) must be backed up separately from
+the container images. The following strategy applies:
+
+- **Local backup**: `POST /admin/backup` triggers a tar archive of `/data/db` and
+  `/data/lancedb` downloadable via the admin UI or `just backup-device <uuid>`
+- **Cloud backup**: architecture leaves the door open for periodic sync to object storage
+  (S3/GCS/Azure Blob); not implemented in v8.0 but a `backup.destination` env var is
+  reserved for this purpose
+
+Audio data (`/data/nats`) is intentionally excluded from backup — it is transient by design
+(1-hour retention window) and cannot be meaningfully restored out of order.
+
+### Per-Device Environment Variables
+
+Balena supports layered environment variable overrides:
+
+1. **Fleet defaults**: set at fleet level in balenaCloud dashboard (e.g. a shared
+   `DEEPGRAM_API_KEY` for a primary account)
+2. **Device overrides**: individual devices can override any fleet variable (e.g. a church
+   with its own Deepgram account sets `DEEPGRAM_API_KEY` at the device level)
+
+This allows a single fleet definition to support multiple deployment sites with different
+API credentials without modifying the image or repository.
+
+See [ADR-0007](0007-platform-pivot-x86.md) for platform pivot rationale.
+
 ## References
 
+- [ADR-0007](0007-platform-pivot-x86.md) - Platform pivot to x86 NUC
 - [Balena Documentation](https://www.balena.io/docs/)
 - [Deployment Runbooks](../../60_ops/runbooks.md) - Balena deploy procedures
-- [System Design](../../system_design.md) - Section 2.1 (Discovery), Section 7 (Deployment)

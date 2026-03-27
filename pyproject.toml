@@ -1,6 +1,6 @@
 [project]
 name = "live-stt-monorepo"
-version = "0.4.1"
+version = "0.8.0"
 description = "Monorepo for High-Reliability STT Appliance"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
@@ -15,6 +15,7 @@ classifiers = [
 # The root has NO runtime dependencies.
 # Dependencies (like typed-settings) belong in services/*/pyproject.toml
 dependencies = [
+    "nats-py>=2.12.0",
 ]
 
 [tool.semantic_release]
@@ -26,6 +27,7 @@ version_toml = [
     "services/data-sweeper/pyproject.toml:project.version",
     "services/health-watchdog/pyproject.toml:project.version",
     "services/identifier/pyproject.toml:project.version",
+    "services/identity-manager/pyproject.toml:project.version",
     "services/stt-provider/pyproject.toml:project.version",
     "libs/messaging/pyproject.toml:project.version",
 ]
@@ -51,6 +53,11 @@ messaging = { workspace = true }
 api-gateway = { workspace = true }
 audio-producer = { workspace = true }
 stt-provider = { workspace = true }
+identity-manager = { workspace = true }
+health-watchdog = { workspace = true }
+data-sweeper = { workspace = true }
+audio-classifier = { workspace = true }
+identifier = { workspace = true }
 
 # ==============================================================================
 # SHARED TOOL CONFIGURATION
@@ -84,7 +91,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q --cov=src --cov-report=term-missing"
-testpaths = ["tests"]
+testpaths = ["tests", "services/*/tests"]
 markers = [
     "unit: Marks fast, self-contained unit tests.",
     "integration: Marks tests that require external resources.",
@@ -95,8 +102,9 @@ markers = [
 
 
 [tool.bandit]
-targets = ["services"]
-exclude = ["tests", ".venv", "services/*/tests"]
+targets = ["services", "libs", "tests"]
+exclude_dirs = ["tests", ".venv", "*/tests", "**/tests"]
+skips = ["B101"] # Skip assert_used globally for simplicity in a repo with many tests
 level = "MEDIUM"
 confidence = "MEDIUM"
 
@@ -122,6 +130,11 @@ dev = [
     "audio-producer",
     "messaging",
     "stt-provider",
+    "audio-classifier",
+    "identifier",
+    "identity-manager",
+    "health-watchdog",
+    "data-sweeper",
     "basedpyright>=1.35.0",
     "python-dotenv>=1.2.1",
 ]
@@ -139,6 +152,28 @@ extraPaths = [
     "services/data-sweeper/src",
     "services/health-watchdog/src",
     "services/identifier/src",
+    "services/audio-classifier/src",
     "libs/messaging/src",
     "services/stt-provider/tests",
 ]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = ["services", "libs/src"]
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+explicit_package_bases = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "nats.*"
+ignore_missing_imports = true

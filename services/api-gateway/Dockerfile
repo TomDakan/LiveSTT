@@ -1,6 +1,6 @@
 # services/api-gateway/Dockerfile
 
-FROM python:3.12-slim as builder
+FROM python:3.12-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 ENV UV_COMPILE_BYTECODE=1 \
@@ -8,29 +8,19 @@ ENV UV_COMPILE_BYTECODE=1 \
 
 WORKDIR /app
 
-# Copy scaffolded Docker build context (created by scripts/scaffold_context.py)
-# This includes: uv.lock, pyproject.toml, and all service/lib pyproject.toml files
 COPY .docker-context/ ./
 
-# Sync dependencies (caching layer)
 RUN uv sync --frozen --no-install-project --package api-gateway
 
 FROM python:3.12-slim
 WORKDIR /app
 
-# Copy venv
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 
-# Copy shared libs
 COPY libs/messaging ./libs/messaging
-
-# Copy service code
 COPY services/api-gateway ./services/api-gateway
 
-# Install project
-# RUN uv sync --frozen --package api-gateway
-
-# Run
 ENV PYTHONPATH="/app/services/api-gateway/src:/app/libs/messaging/src:$PYTHONPATH"
 CMD ["uvicorn", "api_gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]

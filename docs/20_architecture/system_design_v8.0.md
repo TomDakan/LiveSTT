@@ -1,9 +1,18 @@
 # System Design Document: v8.0 ("Buffered Brain")
 
-**Status**: DRAFT
+**Status**: ACTIVE — Foundation implemented in `refactor/service-specific-fixes` (March 2026)
 **Target Platform**: Industrial x86 (Intel N97)
 **Pattern**: Buffered Split-Brain (Store-and-Forward + Parallel Processing)
 **Date**: December 2025
+
+> [!NOTE]
+> **Implementation Status (March 2026)**: The `BaseService` lifecycle pattern, `NatsJSManager`,
+> and all three NATS stream configurations are implemented and deployed. `audio-producer`,
+> `stt-provider`, and `api-gateway` all use the v8.0 service pattern. `identifier` and
+> `identity-manager` are not yet built — see [ROADMAP.md](../../ROADMAP.md) for current status.
+> As a temporary transitional measure, `api-gateway` subscribes to `transcript.raw.*` directly
+> until `identity-manager` is built to produce `transcript.final`.
+
 
 ---
 
@@ -26,14 +35,18 @@ The v8.0 architecture combines the "Split-Brain" reliability of v7.3 with a robu
 - **Storage**: Transcend 256GB NVMe (Power Loss Protected) + Loopback Journaling.
 - **Audio**: Focusrite Scarlett Solo (-127dB EIN).
 
-### 2.2 NATS Stream Topology (The Backbone)
+#### NATS Stream Topology (Single Source of Truth)
+
+> [!NOTE]
+> Detailed configuration (Storage Type, Retention, Limits) is defined in code at `libs/messaging/src/messaging/streams.py`.
 
 We utilize 3 distinct persistence layers to manage data lifecycle and separation of concerns.
 
 #### A. `PRE_BUFFER` (The Rolling Cache)
 Captures "Idle" audio.
+- **Stream Name**: `PRE_BUFFER`
 - **Subjects**: `preroll.audio`
-- **Storage**: **Memory** (Ring Buffer)
+- **Storage**: **Memory**
 - **Retention**: Limits (Max Age: 6 Minutes)
 - **Role**: Allows the user to "Go Back in Time" 5 minutes when hitting Record.
 

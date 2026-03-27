@@ -1,7 +1,7 @@
-# Deployment Pre-Flight Checklist (v7.3)
+# Deployment Pre-Flight Checklist (v8.0)
 
 ## Overview
-Complete this checklist before deploying Live STT (v7.3 Industrial Split-Brain) to production.
+Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to production.
 
 ---
 
@@ -28,7 +28,7 @@ Complete this checklist before deploying Live STT (v7.3 Industrial Split-Brain) 
 ### 2.1 NATS Messaging
 - [ ] **Health Check**: `just nats-health` returns OK.
 - [ ] **Persistence**: "Black Box" mount (`/data/nats`) is writable.
-- [ ] **Spy Test**: `just nats-spy` shows `audio.raw` traffic when speaking.
+- [ ] **Spy Test**: `just nats-spy` shows `audio.live` traffic when speaking.
 
 ### 2.2 Deepgram Connectivity
 - [ ] **API Key**: Valid (Check `stt-provider` logs).
