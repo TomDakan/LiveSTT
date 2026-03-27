@@ -4,11 +4,11 @@ from pathlib import Path
 import numpy as np
 
 try:
-    from openvino import Core  # type: ignore[import-not-found]
+    from openvino import Core  # type: ignore[import-untyped]
 
     OPENVINO_AVAILABLE = True
 except ImportError:
-    Core = None  # type: ignore[assignment]
+    Core = None
     OPENVINO_AVAILABLE = False
 
 from .interfaces import Embedder
@@ -60,6 +60,7 @@ class OpenVinoEmbedder(Embedder):
             return
 
         try:
+            assert Core is not None
             core = Core()
             model = core.read_model(model=path)
             self._compiled = core.compile_model(model=model, device_name="AUTO")
@@ -91,7 +92,7 @@ class OpenVinoEmbedder(Embedder):
         norm = np.linalg.norm(embedding)
         if norm < 1e-10:
             return None
-        return (embedding / norm).astype(np.float32)
+        return (embedding / norm).astype(np.float32)  # type: ignore[no-any-return]
 
 
 # ---------------------------------------------------------------------------
@@ -123,7 +124,7 @@ def _log_mel_features(audio: np.ndarray) -> np.ndarray:
     # CMVN
     mean = log_mel.mean(axis=0, keepdims=True)
     std = log_mel.std(axis=0, keepdims=True) + 1e-8
-    return ((log_mel - mean) / std)[np.newaxis].astype(np.float32)  # [1, T, 80]
+    return ((log_mel - mean) / std)[np.newaxis].astype(np.float32)  # type: ignore[no-any-return]  # [1, T, 80]
 
 
 def _mel_filterbank() -> np.ndarray:

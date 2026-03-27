@@ -4,7 +4,7 @@ from pathlib import Path
 
 try:
     import numpy as np
-    import onnxruntime as ort
+    import onnxruntime as ort  # type: ignore[import-untyped]
 
     ONNXRUNTIME_AVAILABLE = True
 except ImportError:
@@ -92,7 +92,7 @@ class SileroVADClassifier(AudioClassifier):
             "c0": self._c,
         }
         output, self._h, self._c = self._session.run(None, ort_inputs)
-        speech_prob = float(output[0][0])
+        speech_prob = float(output[0][0])  # pyright: ignore[reportIndexIssue]
 
         label = "speech" if speech_prob >= self._threshold else "non-speech"
         return ClassificationResult(

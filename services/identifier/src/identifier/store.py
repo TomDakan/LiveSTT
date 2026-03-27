@@ -11,8 +11,8 @@ try:
 
     LANCEDB_AVAILABLE = True
 except ImportError:
-    lancedb = None  # type: ignore[assignment]
-    pa = None  # type: ignore[assignment]
+    lancedb = None
+    pa = None
     LANCEDB_AVAILABLE = False
 
 from .interfaces import VoiceprintStore
@@ -24,7 +24,8 @@ _EMBEDDING_DIM = 256
 _SCHEMA = None  # built lazily when lancedb is available
 
 
-def _schema() -> "pa.Schema":
+def _schema() -> "pa.Schema":  # pyright: ignore[reportInvalidTypeForm]
+    assert pa is not None
     return pa.schema(
         [
             pa.field("id", pa.string()),
@@ -64,12 +65,13 @@ class LanceDBVoiceprintStore(VoiceprintStore):
                 "lancedb and pyarrow are required for LanceDBVoiceprintStore. "
                 "Install them or use StubVoiceprintStore."
             )
+        assert lancedb is not None
         Path(db_path).mkdir(parents=True, exist_ok=True)
         self._db = lancedb.connect(db_path)
         self._table = self._open_or_create_table()
         logger.info(f"LanceDB voiceprint store ready at {db_path}")
 
-    def _open_or_create_table(self) -> "lancedb.table.Table":
+    def _open_or_create_table(self) -> "lancedb.table.Table":  # pyright: ignore[reportInvalidTypeForm]
         if _TABLE_NAME in self._db.table_names():
             return self._db.open_table(_TABLE_NAME)
         return self._db.create_table(_TABLE_NAME, schema=_schema())

@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @dataclass
@@ -16,7 +16,7 @@ class TranscriptionEvent:
 class Transcriber(Protocol):
     """Interface for a Speech-to-Text engine."""
 
-    async def connect(self) -> None:
+    async def connect(self, **kwargs: Any) -> None:
         """Establishes connection to the STT provider."""
         ...
 
