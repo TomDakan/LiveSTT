@@ -160,6 +160,13 @@ extraPaths = [
 
 [tool.mypy]
 python_version = "3.12"
+# "services" is included so mypy can find service packages via namespace traversal
+# when running per-service (e.g. `just type-check identifier`).
+# WARNING: do NOT add py.typed to any package under services/ — it causes mypy to
+# follow editable-install source files AND find the same files via namespace traversal
+# through services/, resulting in "Source file found twice" errors. libs/messaging is
+# exempt because it lives under libs/, not services/. If a service needs typed imports
+# in its own tests, use [[tool.mypy.overrides]] to disable import-untyped instead.
 mypy_path = ["services", "libs/src"]
 strict = true
 warn_unused_configs = true

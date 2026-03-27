@@ -55,6 +55,15 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) sections 5–6 for the full branching and
 - Pre-commit hooks enforce ruff, mypy, bandit, and detect-secrets — run `just qa` before committing
 - Design standards (OOP patterns, dataclasses, dependency injection, Protocol interfaces): see [docs/implementation_guides/00_workflow.md](docs/implementation_guides/00_workflow.md)
 
+### Adding a New Service
+When scaffolding a new service, update **two places** in [pyproject.toml](pyproject.toml):
+1. `[tool.basedpyright] extraPaths` — add `"services/<name>/src"`
+2. `[dependency-groups] dev` — add the package name (so it is installed in the root venv)
+
+Test directory rules (violations break `just test` for the whole repo):
+- **Do not create `services/<name>/tests/__init__.py`** — the service-level `__init__.py` files (which enable `just test-service <name>`) cause pytest to walk up to `services/` when both are present, producing `ModuleNotFoundError` during collection
+- Use **absolute imports** in test conftest files (e.g. `from mock_transcriber import ...`), not relative imports — `tests/` is intentionally not a Python package
+
 ### Docker Context
 The `.docker-context/` directory is **auto-generated** by `scripts/scaffold_context.py`. Never edit files inside it directly. Run `just scaffold` after adding/removing service files.
 
