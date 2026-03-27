@@ -12,6 +12,24 @@ COPY .docker-context/ ./
 
 RUN uv sync --frozen --no-install-project --package api-gateway
 
+FROM python:3.12-slim AS tailwind-builder
+WORKDIR /app
+
+COPY services/api-gateway/src/api_gateway/static/index.html \
+     /app/services/api-gateway/src/api_gateway/static/index.html
+
+# Download Tailwind standalone CLI and generate CSS
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -sLo /tmp/tailwindcss \
+         https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
+    && chmod +x /tmp/tailwindcss \
+    && /tmp/tailwindcss \
+         --input /dev/null \
+         --content /app/services/api-gateway/src/api_gateway/static/index.html \
+         --output /app/services/api-gateway/src/api_gateway/static/tailwind.css \
+         --minify
+
 FROM python:3.12-slim
 WORKDIR /app
 
@@ -21,6 +39,9 @@ ENV PYTHONUNBUFFERED=1
 
 COPY libs/messaging ./libs/messaging
 COPY services/api-gateway ./services/api-gateway
+COPY --from=tailwind-builder \
+     /app/services/api-gateway/src/api_gateway/static/tailwind.css \
+     /app/services/api-gateway/src/api_gateway/static/tailwind.css
 
 ENV PYTHONPATH="/app/services/api-gateway/src:/app/libs/messaging/src:$PYTHONPATH"
 CMD ["uvicorn", "api_gateway.main:app", "--host", "0.0.0.0", "--port", "8000"]
