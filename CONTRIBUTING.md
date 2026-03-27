@@ -213,7 +213,15 @@ When adding a new service (e.g., `services/new-app`), you must update several co
     - Add a new `Build and push` step to the `build-and-push` job.
     - This ensures the Docker image is built and pushed to Docker Hub during release.
 
-5.  **Documentation**:
+5.  **Type Checking (`pyproject.toml`)**:
+    - Add `"services/new-app/src"` to `[tool.basedpyright] extraPaths` in the root `pyproject.toml`.
+    - Add the package name to `[dependency-groups] dev` so it is installed in the root venv (required for `just test` and `just type-check` to find it).
+
+6.  **Test Directory**:
+    - Do **not** create `services/new-app/tests/__init__.py`. The service-level `__init__.py` (created by the scaffold) causes pytest to walk up to `services/` when both are present, breaking test collection across the whole repo.
+    - Use absolute imports in `conftest.py` (e.g. `from mock_foo import Foo`), not relative imports — `tests/` is intentionally not a Python package.
+
+7.  **Documentation**:
     - Update `docs/20_architecture/system_design_v8.0.md` to include the new component.
 
 ---
