@@ -127,6 +127,8 @@ the stream's first available sequence (available via JetStream consumer info API
 consumer has fallen behind the stream head, log a structured WARNING with the estimated
 lost duration.
 
+🟢 **Resolved**: After each `_connect_with_retry`, `stt-provider` queries `consumer_info()` and `stream_info("AUDIO_STREAM")` and logs a structured WARNING with estimated lost seconds when the consumer sequence lags the stream head.
+
 ---
 
 **[HIGH-2] Transcript timestamps are publish-time, not audio-capture-time**
@@ -163,6 +165,8 @@ during which no audio is consumed.
 *Recommendation*: Replace `contextlib.suppress(Exception)` with explicit exception logging.
 Add `await asyncio.wait_for(drain_task, timeout=5.0)` with a fallback cancel.
 
+🟢 **Resolved**: `finish()` now logs a WARNING on exception instead of suppressing; `drain_task` is wrapped in `asyncio.wait_for(..., timeout=_DRAIN_TIMEOUT_S)` with cancel-on-timeout fallback.
+
 ---
 
 **[HIGH-4] NATS ports 4222 and 8222 exposed on all interfaces — no authentication**
@@ -196,6 +200,8 @@ transcript attribution for all transcripts within 2.0 seconds of its timestamp.
 *Recommendation*: Segregate `_identities` by `source` (live vs. backfill). Mark matched
 events as consumed to prevent re-use. Use `collections.deque` with `maxlen` per source.
 
+🟢 **Resolved**: `_identities` replaced with `_live_identities` and `_backfill_identities` deques (maxlen=MAX_BUFFER each); `_identity_subscriber` routes by `source`; `_find_identity` searches only the matching pool.
+
 ---
 
 **[HIGH-6] Heartbeat loop exits on first exception and never restarts**
@@ -210,6 +216,8 @@ if its business logic is running correctly.
 
 *Recommendation*: Move try/except inside the while loop so individual failures are retried
 on the next 2-second tick.
+
+🟢 **Resolved**: `try/except` moved inside the `while` loop in `_heartbeat_task`; transient put failures are logged and retried on the next 2-second tick.
 
 ---
 
@@ -245,6 +253,8 @@ normally. Calling services continue to publish to a stream that may not exist.
 *Recommendation*: Raise an exception on double failure so calling services halt cleanly
 rather than publishing into a void.
 
+🟢 **Resolved**: `ensure_stream` now raises `RuntimeError` on double failure instead of logging a warning.
+
 ---
 
 **[MEDIUM-2] `ConnectionManager.broadcast()` never disconnects stuck WebSocket clients**
@@ -257,6 +267,8 @@ a suppressed error on every broadcast.
 *Recommendation*: Track per-connection failure counts; disconnect after a threshold.
 Add WebSocket ping/pong to detect dead connections proactively.
 
+🟢 **Resolved**: `broadcast()` now collects failed connections in a `dead` list and calls `disconnect()` on each after iterating.
+
 ---
 
 **[MEDIUM-3] Audio-producer `js.publish()` has no error handling**
@@ -266,6 +278,8 @@ A NATS publish failure raises an unhandled exception that terminates `run_busine
 Without `restart: unless-stopped` (see CRITICAL-4), this permanently stops audio capture.
 
 *Recommendation*: Wrap publishes in try/except, log errors, and continue the loop.
+
+🟢 **Resolved**: Both `js.publish()` calls in `audio-producer` are wrapped in try/except; errors are logged and the loop continues.
 
 ---
 
@@ -316,6 +330,8 @@ The default CORS origin is a React dev server. Production access from the church
 *Recommendation*: Default to `*` for this LAN appliance (all access is local) or
 document the correct value; set it explicitly in docker-compose.
 
+🟢 **Resolved**: `ALLOWED_ORIGINS` default changed to `"*"`.
+
 ---
 
 **[MEDIUM-8] Tailwind CSS loaded from external CDN — no SRI hash**
@@ -325,6 +341,8 @@ The UI fails to render (unstyled) during internet outages. No Subresource Integr
 means a CDN compromise could inject arbitrary JavaScript.
 
 *Recommendation*: Bundle the Tailwind output as a static asset during the Docker build.
+
+🟢 **Resolved**: api-gateway Dockerfile adds a `tailwind-builder` stage that downloads the Tailwind standalone CLI and generates `tailwind.css`; `index.html` loads it via `<link>` instead of the CDN script tag.
 
 ---
 
@@ -358,6 +376,8 @@ Duplicate constant definition (same value). Harmless but confusing.
 
 *Recommendation*: Remove the duplicate on line 10.
 
+🟢 **Resolved**: Duplicate `SUBJECT_PREFIX_AUDIO_BACKFILL` definition removed.
+
 ---
 
 **[LOW-2] `_on_error` in Deepgram adapter does not signal the fetch loop**
@@ -368,6 +388,8 @@ that sends errors without closing continues to receive audio silently dropped by
 
 *Recommendation*: In `_on_error`, put `None` into `_event_queue` to trigger the same
 shutdown-and-reconnect path as `_on_close`.
+
+🟢 **Resolved**: `_on_error` now puts `None` into `_event_queue`, triggering the same reconnect path as `_on_close`.
 
 ---
 
