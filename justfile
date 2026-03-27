@@ -144,19 +144,19 @@ adr *args:
 
 # Interactive NATS debugging
 nats-cli:
-    docker run -it --network=host natsio/nats-box:latest
+    docker run -it --network container:nats natsio/nats-box:latest
 
 # View all messages (dev spy mode)
 nats-spy:
-    docker run --network=host natsio/nats-box:latest nats sub ">"
+    docker run --network container:nats natsio/nats-box:latest nats sub ">"
 
 # Inspect specific subject
 nats-tail subject="audio.raw":
-    docker run --network=host natsio/nats-box:latest nats sub {{subject}}
+    docker run --network container:nats natsio/nats-box:latest nats sub {{subject}}
 
 # NATS health check
 nats-health:
-    docker run --network=host natsio/nats-box:latest nats server check
+    docker run --network container:nats natsio/nats-box:latest nats server check
 
 # --- USB/ALSA Passthrough (Windows dev environment) ---
 

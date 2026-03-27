@@ -3,9 +3,7 @@ services:
     image: nats:2.10-alpine
     container_name: nats
     command: "-js -sd /data/nats"
-    ports:
-      - "4222:4222"
-      - "8222:8222"
+    restart: unless-stopped
     volumes:
       - ./data/nats:/data/nats
     networks:
@@ -16,6 +14,7 @@ services:
       context: .
       dockerfile: services/api-gateway/Dockerfile
     container_name: api-gateway
+    restart: unless-stopped
     ports:
       - "8000:8000"
     environment:
@@ -32,6 +31,7 @@ services:
       context: .
       dockerfile: services/audio-producer/Dockerfile
     container_name: audio-producer
+    restart: unless-stopped
     environment:
       - NATS_URL=nats://nats:4222
       - AUDIO_FILE=${AUDIO_FILE:-}   # Leave blank to use live mic (ALSA)
