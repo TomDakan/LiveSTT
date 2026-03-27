@@ -66,7 +66,8 @@ def test_lancedb_identify_match(mock_mkdir: MagicMock, mock_lancedb: MagicMock) 
     mock_db.open_table.return_value = mock_table
     mock_lancedb.connect.return_value = mock_db
 
-    mock_table.search.return_value.metric.return_value.limit.return_value.to_list.return_value = [
+    search_result = mock_table.search.return_value
+    search_result.metric.return_value.limit.return_value.to_list.return_value = [
         {"id": "Alice", "vector": _vec(0).tolist(), "_distance": 0.1}
     ]
 
@@ -91,7 +92,8 @@ def test_lancedb_identify_no_match_above_threshold(
     mock_db.open_table.return_value = mock_table
     mock_lancedb.connect.return_value = mock_db
 
-    mock_table.search.return_value.metric.return_value.limit.return_value.to_list.return_value = [
+    search_result = mock_table.search.return_value
+    search_result.metric.return_value.limit.return_value.to_list.return_value = [
         {"id": "Bob", "_distance": 0.6}  # above default threshold of 0.25
     ]
 
@@ -111,7 +113,8 @@ def test_lancedb_identify_empty_store(
     mock_db.open_table.return_value = mock_table
     mock_lancedb.connect.return_value = mock_db
 
-    mock_table.search.return_value.metric.return_value.limit.return_value.to_list.return_value = []
+    search_result = mock_table.search.return_value
+    search_result.metric.return_value.limit.return_value.to_list.return_value = []
 
     store = LanceDBVoiceprintStore(db_path="/fake/db")
     assert store.identify(_vec()) is None

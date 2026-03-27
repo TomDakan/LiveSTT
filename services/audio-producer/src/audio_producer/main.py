@@ -60,7 +60,8 @@ class AudioProducerService(BaseService):
             return
 
         # 2. Auto-start session when AUTO_SESSION env var is set or file mode is active.
-        # Production session management (IDLE → ACTIVE transitions) is not yet implemented;
+        # Production session management (IDLE → ACTIVE transitions) is not yet
+        # implemented;
         # this allows the e2e test and file-based development to bypass that flow.
         auto_session = os.getenv("AUTO_SESSION") or os.getenv("AUDIO_FILE")
         if auto_session:

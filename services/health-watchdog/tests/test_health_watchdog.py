@@ -66,7 +66,7 @@ async def test_kv_unavailable_logs_warning() -> None:
 async def test_unexpected_service_logs_info() -> None:
     service = _make_service()
     extra = "mystery-service"
-    mock_js = _make_js(alive_keys=list(MONITORED_SERVICES) + [extra])
+    mock_js = _make_js(alive_keys=[*MONITORED_SERVICES, extra])
 
     with patch.object(service.logger, "info") as mock_info:
         await service._check_services(mock_js)
