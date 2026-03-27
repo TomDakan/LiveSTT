@@ -8,121 +8,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-### Setup
-```bash
-just install          # uv sync — installs all workspace dependencies
-```
+See [justfile](justfile) for all available recipes. Run `just --list` for a summary.
 
-### Testing
-```bash
-just test                         # Run unit tests (excludes integration tests)
-just test-service audio-producer  # Test a specific service
-```
-Pytest markers: `unit`, `integration`, `slow`, `network`. Integration tests are skipped by default (require external resources).
+Always prefer `just` recipes over raw commands — they handle platform differences (Windows/WSL2/Linux) and other non-obvious environment considerations. Only fall back to raw commands when no recipe exists.
 
-### Linting & Type Checking
-```bash
-just format-check     # Check formatting (Ruff)
-just format           # Apply formatting
-just lint             # Fix imports + lint (Ruff)
-just type-check       # MyPy strict mode
-just bandit-check     # Security linting
-just safety-scan      # Vulnerability scan
-just qa               # Full suite: format, lint, type-check, test, security
-```
-
-### Docker
-```bash
-just scaffold         # Regenerate .docker-context/ (must run before up if services changed)
-just up               # docker compose up -d (auto-scaffolds)
-just up-build         # Force rebuild all images
-just down             # Stop services
-just nuke             # Delete all volumes (destructive)
-```
-
-### Local Development (without Docker)
-```bash
-docker compose up -d nats        # Start only NATS broker
-just start api-gateway            # Run a single service locally
-just shell api-gateway            # Shell into a running container
-just logs                         # Tail all service logs
-just log stt-provider             # Tail a specific service
-```
-
-### NATS Debugging
-```bash
-just nats-spy                     # Watch all NATS messages in real-time
-just nats-tail audio.live         # Watch a specific subject
-just nats-cli                     # Interactive NATS shell
-just nats-health                  # Server health check
-```
-
-### Hardware (Windows WSL2 with RME Babyface Pro) #This may not end up being used due to WSL2 lack of audio drivers
-```bash
-just attach-usb       # Attach USB audio device to WSL2
-just detach-usb       # Return audio to Windows
-```
+Note: `just nuke` deletes all Docker volumes and is destructive — confirm before running.
 
 ## Architecture
 
-### Microservices (under `services/`)
+Full details in [docs/20_architecture/system_design_v8.0.md](docs/20_architecture/system_design_v8.0.md). **Update the summary below when the design changes.**
 
-| Service | Purpose | Status |
-|---------|---------|--------|
-| **audio-producer** | Captures audio from mic (ALSA/PyAudio) or file → publishes to NATS | Active |
-| **stt-provider** | Streams audio to Deepgram → publishes raw transcripts | Active |
-| **api-gateway** | FastAPI REST + WebSocket server (port 8000) | Active |
-| **audio-classifier** | VAD (Voice Activity Detection) via OpenVINO | Stub |
-| **identifier** | Speaker biometrics via WeSpeaker/OpenVINO + LanceDB | Stub |
-| **identity-manager** | "Time Zipper" — fuses raw transcripts + speaker IDs | Stub |
-| **health-watchdog** | Monitors service heartbeats via NATS KV | Stub |
-| **data-sweeper** | 7-day transcript retention/cleanup | Stub |
+### Summary (v8.0 "Buffered Brain")
+8 microservices communicate exclusively via NATS JetStream. Audio flows from `audio-producer` into a pre-roll ring buffer (always-on) and a live session stream on record start. `stt-provider` pulls audio and streams it to Deepgram, publishing raw transcripts. `api-gateway` currently subscribes to raw transcripts directly (temporary — `identity-manager` will fuse transcripts + speaker ID in future). Speaker identification (`identifier`, `identity-manager`) and VAD (`audio-classifier`) are stubs.
 
-### Message Bus (NATS JetStream)
-
-All services communicate exclusively through NATS. Subject hierarchy:
-
-```
-preroll.audio            → pre-roll ring buffer (IDLE state, ~10 min audio in memory)
-audio.live.<session_id>  → live audio chunks (ACTIVE recording)
-audio.backfill           → offline backfill audio
-transcript.raw.live      → Deepgram output (live)
-transcript.raw.backfill  → Deepgram output (backfill)
-transcript.identity.>    → speaker ID results (future)
-transcript.final.>       → fused transcript + identity (future, consumed by api-gateway)
-```
-
-**Stream definitions** are in [libs/messaging/src/messaging/streams.py](libs/messaging/src/messaging/streams.py):
-- `PRE_BUFFER`: Memory-based, 64MB, ~10 min audio pre-roll
-- `AUDIO_STREAM`: File-based, 1-hour safety net
-- `TRANSCRIPTION_STREAM`: File-based, 7-day retention
-- `CLASSIFICATION_STREAM`: Memory-based VAD results
-
-### Shared Library: `libs/messaging`
-
-Every service extends **`BaseService`** ([libs/messaging/src/messaging/service.py](libs/messaging/src/messaging/service.py)), which handles:
-- NATS connection lifecycle
-- Signal handlers (graceful shutdown)
-- Heartbeat loop (for health-watchdog)
-- `run_business_logic(js, stop_event)` — override this in each service
-
-**`NatsJSManager`** ([libs/messaging/src/messaging/nats.py](libs/messaging/src/messaging/nats.py)) provides idempotent stream creation via `ensure_stream()`.
-
-### Data Flow
-
-```
-Mic/File
-   └─→ audio-producer → [audio.live.<sid>] → stt-provider → [transcript.raw.live]
-                      ↘ [preroll.audio]                                    ↓
-                      ↘ [audio.backfill] → stt-provider → [transcript.raw.backfill]
-                                                                           ↓
-                                                              identity-manager (stub)
-                                                                           ↓
-                                                              [transcript.final.>]
-                                                                           ↓
-                                                                     api-gateway
-                                                                     WebSocket → Browser
-```
+All services extend `BaseService` ([libs/messaging/src/messaging/service.py](libs/messaging/src/messaging/service.py)) and implement `run_business_logic(js, stop_event)`. Stream configs are the source of truth in [libs/messaging/src/messaging/streams.py](libs/messaging/src/messaging/streams.py).
 
 ### Platform Tiers (ADR-0007)
 - **Tier 1** (Target): ASRock NUC N97 — Full OpenVINO, ALSA, Power Loss Protection
@@ -144,15 +43,17 @@ docs/            # Comprehensive architecture docs, ADRs, runbooks
 ## Key Conventions
 
 ### Branching & Commits
+See [CONTRIBUTING.md](CONTRIBUTING.md) sections 5–6 for the full branching and merge strategy. Key points:
+- Changes should always be made in a branch, not directly in `main`
 - Branch names: `feat/scope/description` or `fix/scope/description`
-- compeleted branches are rebased and merged to main via github pull request
+- PRs are merged via **squash & merge** — the squash commit message must be a valid Conventional Commit
 - Conventional commits drive automatic semantic versioning — **never manually edit version numbers**
-- `feat:` → minor bump, `fix:` → patch bump, `BREAKING CHANGE:` → major bump. Github is currently configured to keep the version number at 0.X.X until we complete feature development.
 
 ### Code Style
 - **Ruff**: line-length=90, double quotes, target py312
-- **MyPy**: strict mode across all services
+- **MyPy**: strict mode across all services — always run via `just type-check` (never bare `uv run mypy .` at repo root, which scans `libs/` twice and produces false errors)
 - Pre-commit hooks enforce ruff, mypy, bandit, and detect-secrets — run `just qa` before committing
+- Design standards (OOP patterns, dataclasses, dependency injection, Protocol interfaces): see [docs/implementation_guides/00_workflow.md](docs/implementation_guides/00_workflow.md)
 
 ### Docker Context
 The `.docker-context/` directory is **auto-generated** by `scripts/scaffold_context.py`. Never edit files inside it directly. Run `just scaffold` after adding/removing service files.
@@ -162,7 +63,6 @@ Copy `.env.example` to `.env` and set `DEEPGRAM_API_KEY`. The `.env` file is git
 
 ## Important Docs
 
-- [GEMINI.md](GEMINI.md) — Navigation map to all architecture docs
 - [docs/20_architecture/system_design_v8.0.md](docs/20_architecture/system_design_v8.0.md) — Full technical spec
 - [docs/20_architecture/architecture_definition.md](docs/20_architecture/architecture_definition.md) — C4 model
 - [docs/api.md](docs/api.md) — REST/WebSocket/NATS API reference
