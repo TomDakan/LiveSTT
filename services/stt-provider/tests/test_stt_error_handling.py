@@ -126,3 +126,38 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
         for call in mock_log.call_args_list
     )
     assert found, "Did not find expected publish error log"
+
+
+@pytest.mark.asyncio
+async def test_finish_exception_does_not_hang_run_lane() -> None:
+    """_run_lane must complete even if finish() raises and drain_task stalls."""
+
+    class FinishRaisingTranscriber(MockTranscriber):
+        async def finish(self) -> None:
+            # Raise without putting None into the queue — _on_close never fires.
+            raise RuntimeError("finish boom")
+
+    service = STTProviderService(transcriber_factory=FinishRaisingTranscriber)
+    service.nats_manager = MagicMock()
+    service.nats_manager.ensure_stream = AsyncMock()
+
+    mock_js = AsyncMock()
+    stop_event = asyncio.Event()
+    mock_sub = AsyncMock()
+    mock_js.pull_subscribe.return_value = mock_sub
+
+    async def fetch(n: int, timeout: float) -> list[Any]:
+        # Block until stop_event, then raise TimeoutError to exit the fetch loop.
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_sub.fetch.side_effect = fetch
+
+    # Use a very short drain timeout so the test does not take 5 seconds.
+    with patch("stt_provider.main._DRAIN_TIMEOUT_S", 0.1):
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(0.05)
+        stop_event.set()
+        # Must complete well within the patched drain timeout + margin.
+        await asyncio.wait_for(task, timeout=1.0)

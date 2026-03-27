@@ -24,6 +24,7 @@ TranscriberFactory = type[Transcriber]
 
 _RECONNECT_INITIAL_DELAY_S: float = 2.0
 _RECONNECT_MAX_DELAY_S: float = 60.0
+_DRAIN_TIMEOUT_S: float = 5.0
 _DURABLE_LIVE = "stt_live"
 _DURABLE_BACKFILL = "stt_backfill"
 
@@ -126,6 +127,8 @@ class STTProviderService(BaseService):
             if transcriber is None:
                 break
 
+            await self._check_consumer_lag(sub, js, source_tag)
+
             dg_closed = asyncio.Event()
             drain_task = asyncio.create_task(
                 self._drain_events(transcriber, source_tag, js, stop_event, dg_closed)
@@ -151,11 +154,49 @@ class STTProviderService(BaseService):
                             dg_closed.set()
                             break
             finally:
-                with contextlib.suppress(Exception):
-                    await transcriber.finish()
-                await drain_task
+                await self._close_transcriber(transcriber, drain_task, source_tag)
 
         self.logger.info(f"[{source_tag}] Lane stopped.")
+
+    async def _close_transcriber(
+        self,
+        transcriber: Transcriber,
+        drain_task: asyncio.Task[Any],
+        source_tag: str,
+    ) -> None:
+        """Finish the Deepgram connection and drain any remaining events."""
+        try:
+            await transcriber.finish()
+        except Exception as e:
+            self.logger.warning(f"[{source_tag}] finish() failed: {e}")
+        try:
+            await asyncio.wait_for(drain_task, timeout=_DRAIN_TIMEOUT_S)
+        except TimeoutError:
+            self.logger.warning(f"[{source_tag}] drain_task timed out; cancelling")
+            drain_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await drain_task
+
+    async def _check_consumer_lag(self, sub: Any, js: Any, source_tag: str) -> None:
+        """Log a warning if the consumer has fallen behind the stream head.
+
+        Non-fatal: consumer info is advisory only (ADR-0011).
+        """
+        try:
+            info = await sub.consumer_info()
+            stream_info = await js.stream_info("AUDIO_STREAM")
+            first_seq = stream_info.state.first_seq
+            consumer_seq = info.delivered.stream_seq
+            if consumer_seq < first_seq:
+                gap_msgs = first_seq - consumer_seq
+                lost_s = gap_msgs * 0.096
+                self.logger.warning(
+                    f"[{source_tag}] Audio gap detected: ~{lost_s:.0f}s of audio "
+                    f"aged out during outage (consumer was at seq {consumer_seq}, "
+                    f"stream now starts at {first_seq})"
+                )
+        except Exception as e:
+            self.logger.debug(f"[{source_tag}] Could not check consumer lag: {e}")
 
     async def _drain_events(
         self,
