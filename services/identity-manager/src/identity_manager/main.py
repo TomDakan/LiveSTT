@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from collections import deque
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -51,7 +52,8 @@ class IdentityManager(BaseService):
     def __init__(self) -> None:
         super().__init__("identity-manager")
         self._pending: list[_Pending] = []
-        self._identities: list[dict[str, Any]] = []
+        self._live_identities: deque[dict[str, Any]] = deque(maxlen=MAX_BUFFER)
+        self._backfill_identities: deque[dict[str, Any]] = deque(maxlen=MAX_BUFFER)
 
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         try:
@@ -117,9 +119,11 @@ class IdentityManager(BaseService):
                 msgs = await sub.fetch(1, timeout=1)
                 for msg in msgs:
                     data = json.loads(msg.data.decode())
-                    self._identities.append(data)
-                    if len(self._identities) > MAX_BUFFER:
-                        self._identities.pop(0)
+                    source = data.get("source", "live")
+                    if source == "backfill":
+                        self._backfill_identities.append(data)
+                    else:
+                        self._live_identities.append(data)
                     await msg.ack()
             except TimeoutError:
                 continue
@@ -128,16 +132,26 @@ class IdentityManager(BaseService):
 
     # --- Fusion ---
 
-    def _find_identity(self, transcript_ts: str | None) -> dict[str, Any] | None:
-        """Return the closest identity event within MATCH_WINDOW_S, or None."""
+    def _find_identity(
+        self, transcript_ts: str | None, source: str = "live"
+    ) -> dict[str, Any] | None:
+        """Return the closest identity event within MATCH_WINDOW_S, or None.
+
+        Searches only the pool matching `source` to prevent backfill identity
+        events from contaminating live transcript attribution and vice versa.
+        """
         ts = _parse_ts(transcript_ts)
         if ts is None:
             return None
 
+        pool = (
+            self._backfill_identities if source == "backfill" else self._live_identities
+        )
+
         best: dict[str, Any] | None = None
         best_diff = MATCH_WINDOW_S
 
-        for identity in self._identities:
+        for identity in pool:
             id_ts = _parse_ts(identity.get("timestamp"))
             if id_ts is None:
                 continue
@@ -158,7 +172,10 @@ class IdentityManager(BaseService):
 
             for pending in batch:
                 age = now - pending.received_at
-                identity = self._find_identity(pending.data.get("timestamp"))
+                source = pending.data.get("source", "live")
+                identity = self._find_identity(
+                    pending.data.get("timestamp"), source=source
+                )
 
                 if identity is not None or age >= PUBLISH_TIMEOUT_S:
                     speaker = (

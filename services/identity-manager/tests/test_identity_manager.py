@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections import deque
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -66,11 +67,13 @@ def _make_pending(
 
 def test_find_identity_returns_closest_within_window() -> None:
     service = _make_service()
-    service._identities = [
-        _identity("Alice", ts_offset=-3.0),  # outside window
-        _identity("Bob", ts_offset=-0.5),  # inside window, closer
-        _identity("Carol", ts_offset=-1.8),  # inside window, further
-    ]
+    service._live_identities = deque(
+        [
+            _identity("Alice", ts_offset=-3.0),  # outside window
+            _identity("Bob", ts_offset=-0.5),  # inside window, closer
+            _identity("Carol", ts_offset=-1.8),  # inside window, further
+        ]
+    )
     ts = _ts(0.0)
     result = service._find_identity(ts)
     assert result is not None
@@ -79,15 +82,24 @@ def test_find_identity_returns_closest_within_window() -> None:
 
 def test_find_identity_returns_none_when_all_outside_window() -> None:
     service = _make_service()
-    service._identities = [_identity("Alice", ts_offset=-5.0)]
+    service._live_identities = deque([_identity("Alice", ts_offset=-5.0)])
     assert service._find_identity(_ts(0.0)) is None
 
 
 def test_find_identity_returns_none_for_bad_timestamp() -> None:
     service = _make_service()
-    service._identities = [_identity("Alice")]
+    service._live_identities = deque([_identity("Alice")])
     assert service._find_identity(None) is None
     assert service._find_identity("not-a-timestamp") is None
+
+
+def test_find_identity_ignores_cross_source_pool() -> None:
+    """_find_identity must not return an identity from the wrong source pool."""
+    service = _make_service()
+    # Place the identity in the backfill pool only — live pool stays empty.
+    service._backfill_identities = deque([_identity("Pastor Mike", ts_offset=0.0)])
+    result = service._find_identity(_ts(0.0), source="live")
+    assert result is None
 
 
 # --- Integration-style tests for the fusion loop ---
@@ -103,7 +115,7 @@ async def test_final_transcript_published_with_matching_identity() -> None:
     t = _transcript(text="Hello world", is_final=True)
     pending = _make_pending(data=t, aged_out=True)
     service._pending = [pending]
-    service._identities = [_identity("Alice", ts_offset=0.0)]
+    service._live_identities = deque([_identity("Alice", ts_offset=0.0)])
 
     task = asyncio.create_task(service._fusion_loop(mock_js, stop_event))
     await asyncio.sleep(0.2)
@@ -233,6 +245,31 @@ async def test_concurrent_append_not_lost() -> None:
     assert mock_js.publish.call_count == 2, "Both items must be published"
     first.msg.ack.assert_called_once()
     second.msg.ack.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_backfill_identity_does_not_match_live_transcript() -> None:
+    """A backfill identity event must not be matched to a live transcript."""
+    service = _make_service()
+    mock_js = AsyncMock()
+    stop_event = asyncio.Event()
+
+    # Only a backfill identity exists — live transcript should get "Unknown".
+    t = _transcript(text="Live speech", is_final=True, source="live")
+    pending = _make_pending(data=t, aged_out=True)
+    service._pending = [pending]
+    service._backfill_identities = deque([_identity("Pastor Mike", ts_offset=0.0)])
+
+    task = asyncio.create_task(service._fusion_loop(mock_js, stop_event))
+    await asyncio.sleep(0.2)
+    stop_event.set()
+    await task
+
+    mock_js.publish.assert_called_once()
+    payload = json.loads(mock_js.publish.call_args[0][1].decode())
+    assert payload["speaker"] == "Unknown", (
+        "Backfill identity must not match a live transcript"
+    )
 
 
 @pytest.mark.asyncio
