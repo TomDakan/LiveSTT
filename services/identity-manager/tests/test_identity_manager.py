@@ -190,7 +190,7 @@ async def test_buffer_capped_at_max_buffer() -> None:
 @pytest.mark.asyncio
 async def test_stream_verification_failure_exits_gracefully() -> None:
     service = _make_service()
-    service.nats_manager.ensure_stream = AsyncMock(side_effect=Exception("NATS down"))
+    service.nats_manager.ensure_stream = AsyncMock(side_effect=Exception("NATS down"))  # type: ignore[method-assign]
     mock_js = AsyncMock()
 
     with patch.object(service.logger, "critical") as mock_log:

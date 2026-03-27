@@ -152,6 +152,7 @@ extraPaths = [
     "services/data-sweeper/src",
     "services/health-watchdog/src",
     "services/identifier/src",
+    "services/identity-manager/src",
     "services/audio-classifier/src",
     "libs/messaging/src",
     "services/stt-provider/tests",
@@ -171,6 +172,12 @@ namespace_packages = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+[[tool.mypy.overrides]]
+module = "identifier.tests.*"
+disable_error_code = ["import-untyped", "misc"]
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 

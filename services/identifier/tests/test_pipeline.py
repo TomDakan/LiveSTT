@@ -175,7 +175,7 @@ async def test_worker_buffers_chunks_until_window_full() -> None:
 
     call_count = 0
 
-    async def fake_fetch(n: int, timeout: float) -> list:
+    async def fake_fetch(n: int, timeout: float) -> list[object]:
         nonlocal call_count
         if call_count < len(msgs):
             msg = msgs[call_count]
