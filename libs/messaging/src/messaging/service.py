@@ -51,17 +51,21 @@ class BaseService(ABC):
             return
 
         try:
-            # Create KV bucket if missing
+            # Create KV bucket if missing — run once at startup.
             self.kv = await self.js.create_key_value(
                 config=KeyValueConfig(
                     bucket="service_health",
                     ttl=5 * 1000000000,  # 5s TTL
                 )
             )
+        except Exception as e:
+            self.logger.warning(f"Heartbeat KV init failed (non-fatal): {e}")
+            return
 
-            self.logger.info("Heartbeat initialized")
+        self.logger.info("Heartbeat initialized")
 
-            while not self.stop_event.is_set():
+        while not self.stop_event.is_set():
+            try:
                 payload = json.dumps(
                     {
                         "status": "running",
@@ -69,12 +73,11 @@ class BaseService(ABC):
                         "timestamp": asyncio.get_running_loop().time(),
                     }
                 ).encode()
-
                 await self.kv.put(self.service_name, payload)
                 await asyncio.sleep(2)
-
-        except Exception as e:
-            self.logger.warning(f"Heartbeat failed (non-fatal): {e}")
+            except Exception as e:
+                self.logger.warning(f"Heartbeat tick failed (will retry): {e}")
+                await asyncio.sleep(2)
 
     async def start(self) -> None:
         """Lifecycle Manager"""

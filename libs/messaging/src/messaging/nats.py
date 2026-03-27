@@ -60,4 +60,4 @@ class NatsJSManager:
                 await self.js.update_stream(config)
                 logger.info(f"Stream '{name}' updated.")
             except Exception as e2:
-                logger.warning(f"Could not configure stream '{name}': {e2}")
+                raise RuntimeError(f"Could not configure stream '{name}': {e2}") from e2

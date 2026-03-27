@@ -41,11 +41,14 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
 
     async def broadcast(self, message: dict[str, Any]) -> None:
-        # Broadcast to all connected clients
-        # Iterate over copy to avoid modification issues
+        dead: list[WebSocket] = []
         for connection in list(self.active_connections):
-            with contextlib.suppress(Exception):
+            try:
                 await connection.send_json({"type": "transcript", "payload": message})
+            except Exception:
+                dead.append(connection)
+        for connection in dead:
+            self.disconnect(connection)
 
 
 manager = ConnectionManager()
@@ -114,7 +117,7 @@ app = FastAPI(lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 # Enable CORS (adjust origins for production)
-ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOW_ORIGINS,

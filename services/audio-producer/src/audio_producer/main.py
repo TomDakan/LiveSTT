@@ -89,11 +89,19 @@ class AudioProducerService(BaseService):
                 # Logic: Atomic Routing (Live vs Preroll)
                 if self.is_active and self.session_id:
                     # "audio.live" -> "audio.live.<session_id>"
-                    await js.publish(
-                        f"{SUBJECT_PREFIX_AUDIO_LIVE}.{self.session_id}", chunk
-                    )
+                    try:
+                        await js.publish(
+                            f"{SUBJECT_PREFIX_AUDIO_LIVE}.{self.session_id}", chunk
+                        )
+                    except Exception as e:
+                        self.logger.error(f"Publish failed (chunk dropped): {e}")
+                        continue
                 else:
-                    await js.publish(SUBJECT_PREFIX_PREROLL, chunk)
+                    try:
+                        await js.publish(SUBJECT_PREFIX_PREROLL, chunk)
+                    except Exception as e:
+                        self.logger.error(f"Publish failed (chunk dropped): {e}")
+                        continue
 
 
 if __name__ == "__main__":
