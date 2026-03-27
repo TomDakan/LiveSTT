@@ -6,8 +6,8 @@ from pathlib import Path
 import numpy as np
 
 try:
-    import lancedb  # type: ignore[import-not-found]
-    import pyarrow as pa  # type: ignore[import-not-found]
+    import lancedb  # type: ignore
+    import pyarrow as pa  # type: ignore
 
     LANCEDB_AVAILABLE = True
 except ImportError:
