@@ -76,7 +76,7 @@ class IdentifierService(BaseService):
     ) -> None:
         durable = f"identifier_{source}"
         try:
-            sub = await js.subscribe(subject, durable=durable)
+            sub = await js.pull_subscribe(subject, durable=durable)
             self.logger.info(f"{source} worker subscribed to {subject}")
         except Exception as e:
             self.logger.critical(f"{source} worker failed to subscribe: {e}")

@@ -70,7 +70,7 @@ class IdentityManager(BaseService):
 
     async def _transcript_subscriber(self, js: Any, stop_event: asyncio.Event) -> None:
         try:
-            sub = await js.subscribe("transcript.raw.>", durable="id_manager_raw")
+            sub = await js.pull_subscribe("transcript.raw.>", durable="id_manager_raw")
             self.logger.info("Subscribed to transcript.raw.>")
         except Exception as e:
             self.logger.critical(f"Failed to subscribe to transcripts: {e}")
@@ -101,7 +101,7 @@ class IdentityManager(BaseService):
 
     async def _identity_subscriber(self, js: Any, stop_event: asyncio.Event) -> None:
         try:
-            sub = await js.subscribe(
+            sub = await js.pull_subscribe(
                 "transcript.identity.>", durable="id_manager_identity"
             )
             self.logger.info("Subscribed to transcript.identity.>")

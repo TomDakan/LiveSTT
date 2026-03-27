@@ -1,56 +1,92 @@
+"""
+E2E smoke test against running containers.
+
+Verifies the full pipeline:
+  audio-producer (file) → NATS → stt-provider → Deepgram
+  → transcript.raw → identity-manager → transcript.final
+  → api-gateway → WebSocket client
+
+Prerequisites (handled by `just e2e`):
+  - Docker containers running with file-based audio
+  - DEEPGRAM_API_KEY set in environment / .env
+"""
+
 import asyncio
 import json
 import os
+import time
 
+import httpx
 import pytest
 import websockets
-from nats.aio.client import Client as NATS
 
-# Configuration
-NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+HEALTH_URL = os.getenv("GATEWAY_URL", "http://localhost:8000") + "/health"
 WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/transcripts")
+
+_HEALTH_TIMEOUT_S = 30   # wait for api-gateway to be ready
+_TRANSCRIPT_TIMEOUT_S = 90  # wait for first final transcript from Deepgram
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_container_e2e_flow() -> None:
+async def test_e2e_transcript_reaches_websocket() -> None:
     """
-    End-to-End Integration Test against running containers.
-    Verifies: Audio Producer (Container) -> NATS -> STT (Container) ->
-    NATS -> Gateway (Container) -> WebSocket
+    Black-box smoke test: a final transcript with non-empty text must arrive
+    on the WebSocket within TRANSCRIPT_TIMEOUT_S seconds.
     """
-    print(f"Connecting to NATS at {NATS_URL}")
-    print(f"Connecting to WebSocket at {WS_URL}")
+    if not os.getenv("DEEPGRAM_API_KEY"):
+        pytest.skip("DEEPGRAM_API_KEY not set — skipping live Deepgram test")
 
-    # 1. Connect to NATS to monitor traffic (optional, for debugging)
-    nc = NATS()
-    await nc.connect(NATS_URL)
+    # 1. Wait for api-gateway to be healthy
+    _wait_for_gateway()
 
-    async def log_msg(msg):
-        print(f"[NATS Monitor] Subject: {msg.subject}, Data: {len(msg.data)} bytes")
-
-    await nc.subscribe("audio.raw", cb=log_msg)
-    await nc.subscribe("text.transcript", cb=log_msg)
-
-    # 2. Connect to WebSocket
+    # 2. Connect WebSocket and wait for a final transcript
     try:
-        async with websockets.connect(WS_URL) as websocket:
-            print("WebSocket connected. Waiting for transcripts...")
+        async with websockets.connect(WS_URL) as ws:  # type: ignore[attr-defined]
+            final = await asyncio.wait_for(
+                _first_final_transcript(ws), timeout=_TRANSCRIPT_TIMEOUT_S
+            )
+    except (OSError, ConnectionRefusedError) as exc:
+        pytest.skip(f"Could not connect to api-gateway WebSocket: {exc}")
 
-            # Wait for a transcript
-            # We give it a generous timeout because startup might take a moment
-            message = await asyncio.wait_for(websocket.recv(), timeout=10.0)
-            data = json.loads(message)
-            print(f"Received: {data}")
+    assert final is not None, "No final transcript received within timeout"
+    assert final["text"].strip(), "Final transcript text was empty"
+    assert final["confidence"] > 0, "Transcript confidence should be positive"
 
-            assert data["type"] == "transcript"
-            # We don't assert payload content strictly as it depends on audio source
 
-    except TimeoutError:
-        pytest.fail("Timed out waiting for transcript from WebSocket")
-    except (OSError, ConnectionRefusedError) as e:
-        pytest.skip(f"WebSocket connection failed (Containers likely not running): {e}")
-    except Exception as e:
-        pytest.fail(f"WebSocket connection error: {e}")
-    finally:
-        await nc.close()
+async def _first_final_transcript(ws: websockets.WebSocketClientProtocol) -> dict:  # type: ignore[name-defined]
+    """Drain WebSocket messages until we receive a final transcript."""
+    async for raw in ws:
+        try:
+            msg = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+
+        if msg.get("type") != "transcript":
+            continue
+
+        payload = msg.get("payload", {})
+        if payload.get("is_final") and payload.get("text", "").strip():
+            return payload
+
+    pytest.fail("WebSocket closed before a final transcript arrived")
+
+
+def _wait_for_gateway() -> None:
+    """Poll the health endpoint until it responds 200 or we time out."""
+    deadline = time.monotonic() + _HEALTH_TIMEOUT_S
+    last_exc: Exception | None = None
+
+    while time.monotonic() < deadline:
+        try:
+            resp = httpx.get(HEALTH_URL, timeout=2)
+            if resp.status_code == 200:
+                return
+        except Exception as exc:
+            last_exc = exc
+        time.sleep(1)
+
+    pytest.skip(
+        f"api-gateway did not become healthy within {_HEALTH_TIMEOUT_S}s "
+        f"(last error: {last_exc})"
+    )

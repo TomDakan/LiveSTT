@@ -38,7 +38,6 @@ async def test_transcriber_connection_failure_retries() -> None:
     service.nats_manager.ensure_stream = AsyncMock()
 
     mock_js = AsyncMock()
-    mock_js.subscribe.return_value = AsyncMock()
     stop_event = asyncio.Event()
 
     with patch("stt_provider.main._RECONNECT_INITIAL_DELAY_S", 0.01):
@@ -71,7 +70,7 @@ async def test_transcriber_connection_succeeds_after_failure(
     mock_js = AsyncMock()
     stop_event = asyncio.Event()
     mock_sub = AsyncMock()
-    mock_js.subscribe.return_value = mock_sub
+    mock_js.pull_subscribe.return_value = mock_sub
 
     async def fetch(n: int, timeout: float) -> list[Any]:
         with contextlib.suppress(TimeoutError):
@@ -100,7 +99,7 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
     mock_js.publish.side_effect = Exception("Publish Failed")
     stop_event = asyncio.Event()
     mock_sub = AsyncMock()
-    mock_js.subscribe.return_value = mock_sub
+    mock_js.pull_subscribe.return_value = mock_sub
 
     async def fetch(n: int, timeout: float) -> list[Any]:
         with contextlib.suppress(TimeoutError):

@@ -27,12 +27,14 @@ PREROLL_STREAM_CONFIG: dict[str, Any] = {
     "max_bytes": 64 * 1024 * 1024,  # 64MB Buffer (~10 mins 16kHz)
 }
 
-# Configuration for the Persistent Audio Stream (File WorkQueue)
+# Configuration for the Persistent Audio Stream (File Limits)
+# LIMITS (not WORK_QUEUE) allows multiple independent durable consumers
+# (stt-provider and identifier) to each track their own read position.
 AUDIO_STREAM_CONFIG: dict[str, Any] = {
     "name": "AUDIO_STREAM",
     "subjects": [SUBJECT_AUDIO_LIVE, SUBJECT_AUDIO_BACKFILL],
     "storage": StorageType.FILE,
-    "retention": RetentionPolicy.WORK_QUEUE,
+    "retention": RetentionPolicy.LIMITS,
     "max_age": 60 * 60,  # 1 Hour Safety Net
 }
 

@@ -76,17 +76,18 @@ services:
 #     depends_on:
 #       - nats
 
-#   identity-manager:
-#     build:
-#       context: .
-#       dockerfile: services/identity-manager/Dockerfile
-#     container_name: identity-manager
-#     environment:
-#       - NATS_URL=nats://nats:4222
-#     networks:
-#       - internal_overlay
-#     depends_on:
-#       - nats
+  identity-manager:
+    build:
+      context: .
+      dockerfile: services/identity-manager/Dockerfile
+    container_name: identity-manager
+    restart: unless-stopped
+    environment:
+      - NATS_URL=nats://nats:4222
+    networks:
+      - internal_overlay
+    depends_on:
+      - nats
 
 networks:
   internal_overlay:

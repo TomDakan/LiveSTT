@@ -38,12 +38,12 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] `stt-provider` consumes `audio.live` & `audio.backfill` from NATS
 - [x] Deepgram Nova-3 streaming via injected `Transcriber` interface (supports mock for testing)
 - [x] Backfill worker (throttled background upload)
-- [ ] "Black Box" offline buffering: detect Deepgram disconnection and resume from buffered NATS position on reconnect
+- [x] "Black Box" offline buffering: detect Deepgram disconnection and resume from buffered NATS position on reconnect
 
 ### Milestone 4: Full System Integration (Text Only)
 - [x] `api-gateway` consumes `transcript.raw.*` (temporary; switches to `transcript.final.*` once identity pipeline is active)
-- [ ] End-to-end test: Mic → NATS → Deepgram → UI (`just e2e` recipe)
-- [ ] Web UI updates (WebSocket consumer)
+- [x] End-to-end test: Mic → NATS → Deepgram → UI (`just e2e` recipe)
+- [x] Web UI updates (WebSocket consumer)
 
 ---
 

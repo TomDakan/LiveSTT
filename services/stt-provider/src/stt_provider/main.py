@@ -115,7 +115,7 @@ class STTProviderService(BaseService):
         so audio buffered during an outage is automatically replayed.
         """
         try:
-            sub = await js.subscribe(subject, durable=durable)
+            sub = await js.pull_subscribe(subject, durable=durable)
             self.logger.info(f"[{source_tag}] Subscribed (durable={durable})")
         except Exception as e:
             self.logger.critical(f"[{source_tag}] subscribe failed: {e}")

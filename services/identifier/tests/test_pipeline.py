@@ -186,7 +186,7 @@ async def test_worker_buffers_chunks_until_window_full() -> None:
 
     mock_sub = MagicMock()
     mock_sub.fetch = fake_fetch
-    mock_js.subscribe = AsyncMock(return_value=mock_sub)
+    mock_js.pull_subscribe = AsyncMock(return_value=mock_sub)
 
     await svc._worker(mock_js, stop_event, "audio.live.>", "live")
 

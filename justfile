@@ -59,6 +59,13 @@ test *args:
 test-service service *args:
     uv run python -m pytest services/{{service}} {{args}}
 
+# E2E smoke test: file audio → NATS → Deepgram → identity-manager → WebSocket.
+# Requires: DEEPGRAM_API_KEY in .env, Docker running.
+# Containers are left running after the test so you can inspect logs with: just logs
+e2e: scaffold
+    $env:AUDIO_FILE = "/data/test_speaker_30s.wav"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d --build nats api-gateway stt-provider identity-manager audio-producer
+    uv run python -m pytest tests/integration/test_e2e_container.py -v -s -m integration
+
 # Placeholder for deployment tasks.
 deploy *args:
     echo 'Deploying...' {{ args }}

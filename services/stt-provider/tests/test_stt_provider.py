@@ -37,7 +37,7 @@ async def test_stt_provider_flow(mock_transcriber_factory: Any) -> None:
     async def mock_subscribe(subject: str, durable: str) -> AsyncMock:
         return mock_live_sub if subject == SUBJECT_AUDIO_LIVE else mock_backfill_sub
 
-    mock_js.subscribe.side_effect = mock_subscribe
+    mock_js.pull_subscribe.side_effect = mock_subscribe
 
     # Live sub: deliver one message, then block until stop_event
     live_msg = MagicMock()
@@ -70,7 +70,7 @@ async def test_stt_provider_flow(mock_transcriber_factory: Any) -> None:
     # Durable consumers registered with correct names
     subscribe_calls = {
         call.kwargs.get("durable") or call.args[1]
-        for call in mock_js.subscribe.call_args_list
+        for call in mock_js.pull_subscribe.call_args_list
     }
     assert _DURABLE_LIVE in subscribe_calls
     assert _DURABLE_BACKFILL in subscribe_calls
