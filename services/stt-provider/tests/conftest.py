@@ -1,10 +1,11 @@
-import pytest
+from collections.abc import Callable
 
-from .mock_transcriber import MockTranscriber
+import pytest
+from mock_transcriber import MockTranscriber
 
 
 @pytest.fixture
-def mock_transcriber_factory():
+def mock_transcriber_factory() -> Callable[[], MockTranscriber]:
     """Returns a factory that always produces fresh MockTranscribers.
 
     Pass this to STTProviderService(transcriber_factory=...) to avoid
@@ -22,7 +23,7 @@ def mock_transcriber_factory():
 
 
 @pytest.fixture
-def auto_mock_transcriber_factory():
+def auto_mock_transcriber_factory() -> Callable[[], MockTranscriber]:
     """Like mock_transcriber_factory but each instance auto-responds to audio."""
     instances: list[MockTranscriber] = []
 
