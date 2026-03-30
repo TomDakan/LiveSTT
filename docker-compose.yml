@@ -19,6 +19,7 @@ services:
       - "8000:8000"
     environment:
       - NATS_URL=nats://nats:4222
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
     volumes:
       - ./data/db:/data/db
     networks:
