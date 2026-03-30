@@ -33,6 +33,9 @@ async def test_run_business_logic_preroll() -> None:
     # Mock the internal _get_audio_source to return our controlled MockSource
     mock_source = MockAudioSource(limit=3, chunk_size=10)
     service._get_audio_source = MagicMock(return_value=mock_source)  # type: ignore
+    # Prevent _session_control_loop from spinning (AsyncMock returns immediately,
+    # so the task completes instantly instead of blocking the event loop).
+    service._session_control_loop = AsyncMock()  # type: ignore[method-assign]
 
     # Mock JS context
     mock_js = AsyncMock()
@@ -63,6 +66,7 @@ async def test_run_business_logic_live() -> None:
 
     mock_source = MockAudioSource(limit=1)
     service._get_audio_source = MagicMock(return_value=mock_source)  # type: ignore
+    service._session_control_loop = AsyncMock()  # type: ignore[method-assign]
 
     mock_js = AsyncMock()
     stop_event = asyncio.Event()
