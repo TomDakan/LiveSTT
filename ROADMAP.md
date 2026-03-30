@@ -48,18 +48,18 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 ### Milestone 4.5: Session Control
 **Goal**: Replace the `AUTO_SESSION` env-var hack with real session lifecycle management.
 
-- [ ] Add `session.control` NATS subject + `SESSION_STREAM` JetStream config
-- [ ] `audio-producer`: subscribe to `session.control`; on `start` command, generate session ID,
+- [x] Add `session.control` NATS subject + `SESSION_STREAM` JetStream config
+- [x] `audio-producer`: subscribe to `session.control`; on `start` command, generate session ID,
   flush pre-roll buffer to `audio.backfill.<session_id>`, begin publishing to `audio.live.<session_id>`;
   on `stop`, return to IDLE
-- [ ] `api-gateway`: `POST /session/start` and `POST /session/stop` endpoints that publish to
+- [x] `api-gateway`: `POST /session/start` and `POST /session/stop` endpoints that publish to
   `session.control` (no auth required — any audience member can start transcription)
-- [ ] UI: prominent "Start / Stop Recording" button visible on the main transcript page;
+- [x] UI: prominent "Start / Stop Recording" button visible on the main transcript page;
   show session status (idle / recording / elapsed time)
-- [ ] Unit tests for session state machine in audio-producer
-- [ ] Session naming: operator can supply a human-readable label ("Sunday Morning — March 30")
+- [x] Unit tests for session state machine in audio-producer
+- [x] Session naming: operator can supply a human-readable label ("Sunday Morning — March 30")
   at session start or stop; stored alongside the session ID for archive and retrieval
-- [ ] Connection status indicator in the viewer UI: clearly distinguish live/active,
+- [x] Connection status indicator in the viewer UI: clearly distinguish live/active,
   degraded (Deepgram reconnecting), and idle/paused states — audience should never be
   left wondering if the system is working
 
