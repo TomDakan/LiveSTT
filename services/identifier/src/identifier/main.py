@@ -95,6 +95,14 @@ class IdentifierService(BaseService):
                 continue
 
             for msg in msgs:
+                if msg.headers and msg.headers.get("LiveSTT-EOS") == "true":
+                    self.logger.info(f"{source} worker: EOS received — flushing buffer")
+                    session_id = msg.subject.split(".")[-1]
+                    # Discard any partial window — not enough audio to embed
+                    buffers.pop(session_id, None)
+                    await msg.ack()
+                    continue
+
                 session_id = msg.subject.split(".")[-1]
                 buf = buffers.setdefault(session_id, _AudioBuffer())
                 buf.add(msg.data)
