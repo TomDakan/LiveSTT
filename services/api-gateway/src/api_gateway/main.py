@@ -16,6 +16,14 @@ from messaging.streams import SESSION_KV_BUCKET
 from nats.aio.client import Client as NATS
 from nats.js.api import ConsumerConfig, DeliverPolicy
 from pydantic import BaseModel
+from sqlalchemy import select, update
+
+from api_gateway.db import (
+    Schedule,
+    SessionModel,
+    TranscriptSegment,
+    create_engine_and_tables,
+)
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +37,10 @@ CONSUMER_DURABLE = "api_gateway"
 
 # --- NATS Setup ---
 nats_client = NATS()
+
+# Tracks the active session ID for transcript persistence.
+# Updated by the KV watcher and session event handler.
+_active_session_id: str | None = None
 
 
 class ConnectionManager:
@@ -68,7 +80,7 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def _pull_loop(sub: Any, stop_event: asyncio.Event) -> None:
+async def _pull_loop(sub: Any, stop_event: asyncio.Event, db_factory: Any) -> None:
     """Pull transcript messages from JetStream and broadcast to WebSocket clients."""
     while not stop_event.is_set():
         try:
@@ -77,6 +89,8 @@ async def _pull_loop(sub: Any, stop_event: asyncio.Event) -> None:
                 try:
                     data = json.loads(msg.data.decode("utf-8"))
                     await manager.broadcast(data)
+                    if data.get("is_final") and _active_session_id:
+                        await _persist_segment(db_factory, _active_session_id, data)
                 except Exception as e:
                     logger.error(f"Error broadcasting NATS message: {e}")
                 await msg.ack()
@@ -151,14 +165,134 @@ async def _on_interim_transcript(msg: Any) -> None:
         logger.warning(f"interim transcript handler error: {exc}")
 
 
+async def _persist_segment(
+    db_factory: Any, session_id: str, data: dict[str, Any]
+) -> None:
+    """Write a final transcript segment to the database."""
+    try:
+        async with db_factory() as db:
+            segment = TranscriptSegment(
+                session_id=session_id,
+                timestamp=data.get("timestamp", ""),
+                speaker=data.get("speaker", "Unknown"),
+                text=data.get("text", ""),
+                confidence=data.get("confidence", 0.0),
+                source=data.get("source", "live"),
+            )
+            db.add(segment)
+            await db.commit()
+    except Exception as exc:
+        logger.warning(f"Failed to persist segment: {exc}")
+
+
+async def _handle_session_db(db_factory: Any, data: dict[str, Any]) -> None:
+    """Create or update a session row based on lifecycle events."""
+    global _active_session_id
+    event = data.get("event")
+    session_id = data.get("session_id")
+    if not session_id:
+        return
+
+    try:
+        async with db_factory() as db:
+            if event == "started":
+                # Check if session already exists (e.g. from recovery)
+                existing = await db.execute(
+                    select(SessionModel).where(SessionModel.id == session_id)
+                )
+                if existing.scalar_one_or_none() is None:
+                    row = SessionModel(
+                        id=session_id,
+                        label=data.get("label", ""),
+                        started_at=data.get("started_at", ""),
+                        scheduled=(1 if data.get("scheduled") else 0),
+                    )
+                    db.add(row)
+                    await db.commit()
+                _active_session_id = session_id
+            elif event == "stopped":
+                await db.execute(
+                    update(SessionModel)
+                    .where(SessionModel.id == session_id)
+                    .values(stopped_at=data.get("stopped_at", ""))
+                )
+                await db.commit()
+                _active_session_id = None
+    except Exception as exc:
+        logger.warning(f"Failed to persist session event: {exc}")
+
+
+async def _kv_connect_and_watch(
+    app: FastAPI,
+    js: Any,
+    stop_event: asyncio.Event,
+) -> None:
+    """Retry KV bucket connection, recover session, then watch."""
+    global _active_session_id
+    while not stop_event.is_set():
+        try:
+            session_kv = await js.key_value(SESSION_KV_BUCKET)
+            config_kv = await js.key_value("config")
+            app.state.session_kv = session_kv
+            app.state.config_kv = config_kv
+            # Recover active session ID from KV
+            try:
+                entry = await session_kv.get("current")
+                kv_data = json.loads(entry.value.decode())
+                if kv_data.get("state") == "active":
+                    _active_session_id = kv_data.get("session_id")
+                    logger.info(f"Recovered active session: {_active_session_id}")
+            except Exception:
+                pass
+            logger.info("Session KV watch started")
+            await _kv_watch_loop(session_kv, config_kv)
+            return
+        except Exception as e:
+            logger.debug(f"Session KV not ready: {e}")
+            await asyncio.sleep(2)
+
+
+async def _on_session_event(msg: Any) -> None:
+    """Handle session lifecycle events from audio-producer."""
+    try:
+        data = json.loads(msg.data.decode())
+        await manager.broadcast_message({"type": "session_event", "payload": data})
+        db_factory = _lifespan_db_factory
+        if db_factory is not None:
+            await _handle_session_db(db_factory, data)
+    except Exception as exc:
+        logger.warning(f"session_event handler error: {exc}")
+
+
+async def _on_stt_status(msg: Any) -> None:
+    """Forward STT status changes to WebSocket clients."""
+    try:
+        data = json.loads(msg.data.decode())
+        await manager.broadcast_message({"type": "stt_status", "payload": data})
+    except Exception as exc:
+        logger.warning(f"stt_status handler error: {exc}")
+
+
+# Set during lifespan so module-level handlers can access it.
+_lifespan_db_factory: Any = None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifecycle manager: connect NATS, start background tasks, clean up."""
+    global _lifespan_db_factory
     logger.info("API Gateway starting...")
 
     stop_event = asyncio.Event()
     pull_task: asyncio.Task[None] | None = None
     kv_watch_task: asyncio.Task[None] | None = None
+
+    # Initialize database
+    db_engine, db_factory = await create_engine_and_tables()
+    app.state.db_engine = db_engine
+    app.state.db_factory = db_factory
+    _lifespan_db_factory = db_factory
+    logger.info("Database initialized")
 
     try:
         await nats_client.connect(NATS_URL, connect_timeout=5)
@@ -173,59 +307,19 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             config=ConsumerConfig(deliver_policy=DeliverPolicy.NEW),
         )
         logger.info(f"JetStream pull consumer '{CONSUMER_DURABLE}' on {TRANSCRIPT_TOPIC}")
-        pull_task = asyncio.create_task(_pull_loop(sub, stop_event))
+        pull_task = asyncio.create_task(_pull_loop(sub, stop_event, db_factory))
 
-        # Session KV + config KV (read-only; audio-producer creates them)
-        # Retry until the bucket is available — audio-producer may start later.
-        session_kv: Any | None = None
-        config_kv: Any | None = None
-
-        async def _kv_connect_loop() -> None:
-            nonlocal session_kv, config_kv, kv_watch_task
-            while not stop_event.is_set():
-                try:
-                    session_kv = await js.key_value(SESSION_KV_BUCKET)
-                    config_kv = await js.key_value("config")
-                    app.state.session_kv = session_kv
-                    app.state.config_kv = config_kv
-                    logger.info("Session KV watch started")
-                    await _kv_watch_loop(session_kv, config_kv)
-                    return
-                except Exception as e:
-                    logger.debug(f"Session KV not ready: {e}")
-                    await asyncio.sleep(2)
-
-        kv_watch_task = asyncio.create_task(_kv_connect_loop())
-
-        # Subscribe to system.session events (core NATS push)
-        async def _on_session_event(msg: Any) -> None:
-            try:
-                data = json.loads(msg.data.decode())
-                await manager.broadcast_message(
-                    {"type": "session_event", "payload": data}
-                )
-            except Exception as exc:
-                logger.warning(f"session_event handler error: {exc}")
-
-        async def _on_stt_status(msg: Any) -> None:
-            try:
-                data = json.loads(msg.data.decode())
-                await manager.broadcast_message({"type": "stt_status", "payload": data})
-            except Exception as exc:
-                logger.warning(f"stt_status handler error: {exc}")
+        kv_watch_task = asyncio.create_task(_kv_connect_and_watch(app, js, stop_event))
 
         await nats_client.subscribe("system.session", cb=_on_session_event)
         await nats_client.subscribe("system.stt_status", cb=_on_stt_status)
-        await nats_client.subscribe(
-            "transcript.interim.>", cb=_on_interim_transcript
-        )
+        await nats_client.subscribe("transcript.interim.>", cb=_on_interim_transcript)
 
-        # Store shared objects in app state for endpoint access
-        # session_kv / config_kv start as None; _kv_connect_loop updates them
+        # session_kv / config_kv start as None; _kv_connect_and_watch updates them
         app.state.nats = nats_client
         app.state.js = js
-        app.state.session_kv = session_kv
-        app.state.config_kv = config_kv
+        app.state.session_kv = None
+        app.state.config_kv = None
 
         yield
 
@@ -238,6 +332,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 with contextlib.suppress(asyncio.CancelledError):
                     await task
         await nats_client.close()
+        await db_engine.dispose()
+        _lifespan_db_factory = None
 
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -273,6 +369,11 @@ async def root() -> FileResponse:
 @app.get("/display")
 async def display() -> FileResponse:
     return FileResponse(_STATIC_DIR / "display.html")
+
+
+@app.get("/admin")
+async def admin() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "admin.html")
 
 
 @app.get("/health")
@@ -367,6 +468,292 @@ async def session_status(request: Request) -> dict[str, Any]:
         return {"state": "idle"}
 
     return await _build_status_payload(session_kv, config_kv)
+
+
+# --- Admin endpoints ---
+
+
+@app.get("/admin/sessions")
+async def list_sessions(request: Request) -> list[dict[str, Any]]:
+    """List all recorded sessions with segment counts."""
+    from sqlalchemy import func
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        stmt = (
+            select(
+                SessionModel,
+                func.count(TranscriptSegment.id).label("segment_count"),
+            )
+            .outerjoin(
+                TranscriptSegment,
+                TranscriptSegment.session_id == SessionModel.id,
+            )
+            .group_by(SessionModel.id)
+            .order_by(SessionModel.started_at.desc())
+        )
+        rows = (await db.execute(stmt)).all()
+
+    return [
+        {
+            "id": s.id,
+            "label": s.label,
+            "started_at": s.started_at,
+            "stopped_at": s.stopped_at,
+            "segment_count": count,
+        }
+        for s, count in rows
+    ]
+
+
+@app.get("/admin/sessions/{session_id}")
+async def get_session(request: Request, session_id: str) -> JSONResponse:
+    """Get session details with all transcript segments."""
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(
+            select(SessionModel).where(SessionModel.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "session_not_found"},
+            )
+
+        seg_result = await db.execute(
+            select(TranscriptSegment)
+            .where(TranscriptSegment.session_id == session_id)
+            .order_by(TranscriptSegment.id)
+        )
+        segments = list(seg_result.scalars().all())
+
+    return JSONResponse(
+        content={
+            "session": {
+                "id": session.id,
+                "label": session.label,
+                "started_at": session.started_at,
+                "stopped_at": session.stopped_at,
+            },
+            "segments": [
+                {
+                    "id": seg.id,
+                    "timestamp": seg.timestamp,
+                    "speaker": seg.speaker,
+                    "text": seg.text,
+                    "confidence": seg.confidence,
+                    "source": seg.source,
+                }
+                for seg in segments
+            ],
+        }
+    )
+
+
+@app.get("/admin/sessions/{session_id}/export")
+async def export_session(
+    request: Request,
+    session_id: str,
+    fmt: str = "txt",
+) -> Response:
+    """Export a session transcript as plain text or PDF."""
+    from api_gateway.export import generate_pdf, generate_txt
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(
+            select(SessionModel).where(SessionModel.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "session_not_found"},
+            )
+
+        seg_result = await db.execute(
+            select(TranscriptSegment)
+            .where(TranscriptSegment.session_id == session_id)
+            .order_by(TranscriptSegment.id)
+        )
+        segments = list(seg_result.scalars().all())
+
+    filename = f"transcript-{session_id}"
+
+    if fmt == "pdf":
+        content = generate_pdf(session, segments)
+        return Response(
+            content=content,
+            media_type="application/pdf",
+            headers={"Content-Disposition": (f'attachment; filename="{filename}.pdf"')},
+        )
+
+    content_txt = generate_txt(session, segments)
+    return Response(
+        content=content_txt,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": (f'attachment; filename="{filename}.txt"')},
+    )
+
+
+class ScheduleBody(BaseModel):
+    day_of_week: list[int]
+    start_time: str
+    stop_time: str
+    label_template: str = ""
+    stop_policy: str = "soft"
+    enabled: bool = True
+
+
+def _validate_schedule(body: ScheduleBody) -> str | None:
+    """Return an error message if the schedule body is invalid."""
+    if not body.day_of_week or not all(0 <= d <= 6 for d in body.day_of_week):
+        return "day_of_week must contain values 0-6"
+    import re
+
+    if not re.match(r"^\d{2}:\d{2}$", body.start_time):
+        return "start_time must be HH:MM"
+    if not re.match(r"^\d{2}:\d{2}$", body.stop_time):
+        return "stop_time must be HH:MM"
+    valid_policies = {"hard", "soft"}
+    if body.stop_policy not in valid_policies and not body.stop_policy.startswith(
+        "grace_"
+    ):
+        return f"stop_policy must be one of {valid_policies} or grace_N"
+    return None
+
+
+@app.post("/admin/schedules")
+async def create_schedule(request: Request, body: ScheduleBody) -> JSONResponse:
+    """Create a new recurring schedule."""
+    import uuid
+
+    err = _validate_schedule(body)
+    if err:
+        return JSONResponse(status_code=400, content={"error": err})
+
+    schedule_id = uuid.uuid4().hex[:8]
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        row = Schedule(
+            id=schedule_id,
+            day_of_week=json.dumps(body.day_of_week),
+            start_time=body.start_time,
+            stop_time=body.stop_time,
+            label_template=body.label_template,
+            stop_policy=body.stop_policy,
+            enabled=1 if body.enabled else 0,
+        )
+        db.add(row)
+        await db.commit()
+
+    return JSONResponse(status_code=201, content={"id": schedule_id})
+
+
+@app.get("/admin/schedules")
+async def list_schedules(
+    request: Request,
+) -> list[dict[str, Any]]:
+    """List all recurring schedules."""
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(select(Schedule))
+        rows = result.scalars().all()
+
+    return [
+        {
+            "id": s.id,
+            "day_of_week": json.loads(s.day_of_week),
+            "start_time": s.start_time,
+            "stop_time": s.stop_time,
+            "label_template": s.label_template,
+            "stop_policy": s.stop_policy,
+            "enabled": bool(s.enabled),
+        }
+        for s in rows
+    ]
+
+
+@app.put("/admin/schedules/{schedule_id}")
+async def update_schedule(
+    request: Request, schedule_id: str, body: ScheduleBody
+) -> JSONResponse:
+    """Update an existing schedule."""
+    err = _validate_schedule(body)
+    if err:
+        return JSONResponse(status_code=400, content={"error": err})
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(select(Schedule).where(Schedule.id == schedule_id))
+        row = result.scalar_one_or_none()
+        if row is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "schedule_not_found"},
+            )
+
+        await db.execute(
+            update(Schedule)
+            .where(Schedule.id == schedule_id)
+            .values(
+                day_of_week=json.dumps(body.day_of_week),
+                start_time=body.start_time,
+                stop_time=body.stop_time,
+                label_template=body.label_template,
+                stop_policy=body.stop_policy,
+                enabled=1 if body.enabled else 0,
+            )
+        )
+        await db.commit()
+
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.delete("/admin/schedules/{schedule_id}")
+async def delete_schedule(request: Request, schedule_id: str) -> JSONResponse:
+    """Delete a schedule."""
+    from sqlalchemy import delete as sql_delete
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(sql_delete(Schedule).where(Schedule.id == schedule_id))
+        await db.commit()
+
+    if result.rowcount == 0:  # pyright: ignore[reportAttributeAccessIssue]
+        return JSONResponse(
+            status_code=404,
+            content={"error": "schedule_not_found"},
+        )
+    return JSONResponse(content={"status": "ok"})
+
+
+@app.post("/admin/backup")
+async def create_backup() -> Response:
+    """Create a tar.gz backup of /data/db/ (livestt.db + any future DBs)."""
+    import io
+    import tarfile
+
+    db_dir = Path(os.getenv("DB_PATH", "/data/db/livestt.db")).parent
+    if not db_dir.is_dir():
+        return JSONResponse(
+            status_code=404,
+            content={"error": "No data directory found"},
+        )
+
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        for fpath in db_dir.iterdir():
+            if fpath.is_file():
+                tar.add(str(fpath), arcname=fpath.name)
+    buf.seek(0)
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="application/gzip",
+        headers={"Content-Disposition": 'attachment; filename="livestt-backup.tar.gz"'},
+    )
 
 
 @app.websocket("/ws/transcripts")

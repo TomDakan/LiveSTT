@@ -135,11 +135,6 @@
       </div>
 
       <!-- Controls -->
-      <button id="btn-clear"
-              class="text-xs px-3 py-1.5 rounded-md border border-white/10 text-white/40
-                     hover:text-white/70 hover:border-white/20 transition-colors">
-        Clear
-      </button>
     </div>
   </header>
 
@@ -175,7 +170,6 @@
     const container        = document.getElementById('transcript-container');
     const statusDot        = document.getElementById('status-dot');
     const statusText       = document.getElementById('status-text');
-    const btnClear         = document.getElementById('btn-clear');
 
     // Session bar elements
     const sessionDot       = document.getElementById('session-dot');
@@ -300,7 +294,6 @@
     }
 
     // ── Init shared module ───────────────────────────────────────────────
-    btnClear.addEventListener('click', () => LiveSTT.clearTranscript());
 
     LiveSTT.init({
       containerEl: container,

@@ -78,6 +78,22 @@ services:
 #     depends_on:
 #       - nats
 
+  system-manager:
+    build:
+      context: .
+      dockerfile: services/system-manager/Dockerfile
+    container_name: system-manager
+    restart: unless-stopped
+    environment:
+      - NATS_URL=nats://nats:4222
+      - API_GATEWAY_URL=http://api-gateway:8000
+      - SITE_TIMEZONE=${SITE_TIMEZONE:-UTC}
+    networks:
+      - internal_overlay
+    depends_on:
+      - nats
+      - api-gateway
+
   identity-manager:
     build:
       context: .

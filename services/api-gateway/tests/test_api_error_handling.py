@@ -61,7 +61,7 @@ async def test_malformed_message_logs_error() -> None:
     stop_event = asyncio.Event()
 
     with patch("api_gateway.main.logger") as mock_logger:
-        task = asyncio.create_task(_pull_loop(mock_sub, stop_event))
+        task = asyncio.create_task(_pull_loop(mock_sub, stop_event, None))
         await asyncio.sleep(0.15)
         stop_event.set()
         task.cancel()

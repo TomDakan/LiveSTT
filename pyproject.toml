@@ -24,7 +24,7 @@ version_toml = [
     "services/api-gateway/pyproject.toml:project.version",
     "services/audio-classifier/pyproject.toml:project.version",
     "services/audio-producer/pyproject.toml:project.version",
-    "services/data-sweeper/pyproject.toml:project.version",
+    "services/system-manager/pyproject.toml:project.version",
     "services/health-watchdog/pyproject.toml:project.version",
     "services/identifier/pyproject.toml:project.version",
     "services/identity-manager/pyproject.toml:project.version",
@@ -55,7 +55,7 @@ audio-producer = { workspace = true }
 stt-provider = { workspace = true }
 identity-manager = { workspace = true }
 health-watchdog = { workspace = true }
-data-sweeper = { workspace = true }
+system-manager = { workspace = true }
 audio-classifier = { workspace = true }
 identifier = { workspace = true }
 
@@ -134,7 +134,7 @@ dev = [
     "identifier",
     "identity-manager",
     "health-watchdog",
-    "data-sweeper",
+    "system-manager",
     "basedpyright>=1.35.0",
     "python-dotenv>=1.2.1",
 ]
@@ -149,7 +149,7 @@ extraPaths = [
     "services/api-gateway/src",
     "services/audio-producer/src",
     "services/stt-provider/src",
-    "services/data-sweeper/src",
+    "services/system-manager/src",
     "services/health-watchdog/src",
     "services/identifier/src",
     "services/identity-manager/src",

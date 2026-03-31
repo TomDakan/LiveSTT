@@ -17,6 +17,7 @@ WORKDIR /app
 
 COPY services/api-gateway/src/api_gateway/static/index.html \
      services/api-gateway/src/api_gateway/static/display.html \
+     services/api-gateway/src/api_gateway/static/admin.html \
      /app/services/api-gateway/src/api_gateway/static/
 
 # Tailwind v4 input CSS: @import triggers utility class scanning

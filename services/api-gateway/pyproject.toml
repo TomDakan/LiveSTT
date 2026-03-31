@@ -31,6 +31,7 @@ dependencies = [
     "messaging",
     "aiofiles>=23.0.0",       # Required by FastAPI StaticFiles
     "qrcode[pil]>=7.4",      # QR code generation for audience access
+    "fpdf2>=2.7.0",           # Lightweight PDF export
 ]
 
 [project.scripts]

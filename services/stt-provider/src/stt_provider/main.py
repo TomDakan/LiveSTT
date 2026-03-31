@@ -256,18 +256,14 @@ class STTProviderService(BaseService):
                 timestamp=datetime.now(UTC).isoformat(),
                 source=source_tag,
             )
-            encoded = json.dumps(dataclasses.asdict(payload_obj)).encode(
-                "utf-8"
-            )
+            encoded = json.dumps(dataclasses.asdict(payload_obj)).encode("utf-8")
             try:
                 if event.is_final:
                     await js.publish(topic, encoded)
                 else:
                     await self.nc.publish(interim_topic, encoded)
             except Exception as e:
-                self.logger.error(
-                    f"[{source_tag}] Failed to publish transcript: {e}"
-                )
+                self.logger.error(f"[{source_tag}] Failed to publish transcript: {e}")
         dg_closed.set()
 
 

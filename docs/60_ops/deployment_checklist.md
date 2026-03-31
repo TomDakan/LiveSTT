@@ -50,6 +50,13 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 - [ ] **BalenaOS volume**: Verify `/data/nats` is mounted on the persistent volume
       (not a tmpfs or overlay-only mount); `docker inspect nats | grep Mounts`
 
+### 2.5 Persistent Data
+- [ ] **Data volume**: `/data/db/` contains `livestt.db` (sessions, transcripts, schedules).
+      This volume MUST NOT be wiped during updates — it holds all persistent application data.
+      Verify the Docker volume is named (not anonymous) and is not re-created on `docker-compose up`.
+- [ ] **Backup**: `POST /admin/backup` returns a tar.gz containing `livestt.db`.
+      Verify the archive can be extracted and the database is readable.
+
 ---
 
 ## 3. Failure Recovery

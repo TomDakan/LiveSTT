@@ -77,40 +77,36 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
   auto-scrolls and shows connection status but has no interactive controls
 
 **Scheduled sessions**
-- [ ] Rename `data-sweeper` → `system-manager`; expand its mandate to own all background
+- [x] Rename `data-sweeper` → `system-manager`; expand its mandate to own all background
   operational concerns: NATS stream stats (current), transcript retention/purge, and
   session scheduling — keeping these out of api-gateway which should stay UI/HTTP-focused
-- [ ] Admin UI and API (`POST /admin/schedules`) to define recurring session schedules:
+- [x] Admin UI and API (`POST /admin/schedules`) to define recurring session schedules:
   day-of-week + start time + stop time + optional label template
-  (e.g. "Sunday Morning — {date}"); stored in `transcripts.db`; requires `SITE_TIMEZONE`
+  (e.g. "Sunday Morning — {date}"); stored in `livestt.db`; requires `SITE_TIMEZONE`
   to be set (captured in first-run onboarding)
-- [ ] `system-manager` reads schedule config and fires `session.control` start/stop
+- [x] `system-manager` reads schedule config and fires `session.control` start/stop
   commands via NATS at the configured times — no operator action required
-- [ ] Admin UI: schedule list with enable/disable toggle and next-run preview
-- [ ] **Design decision (resolve before implementation)**: schedule end-time precedence
-  when VAD detects ongoing activity. Per-schedule setting, options:
-  - *Hard stop* — session ends at scheduled time regardless of VAD state
-  - *Soft stop* (recommended default) — scheduled end is a hint; session continues until
-    VAD silence timeout or next scheduled start, whichever comes first
-  - *Grace period* — hard stop delayed by a configurable window (e.g. +15 min) if VAD
-    is active, then cuts off unconditionally
+- [x] Admin UI: schedule list with enable/disable toggle and next-run preview
+- [x] **Design decision (resolved)**: schedule end-time precedence — per-schedule
+  `stop_policy` field: *soft* (default, rely on silence timeout), *hard* (exact time),
+  or *grace_N* (delay N minutes then hard stop)
 
 ### Milestone 4.75: Transcript Persistence & Archive
 **Goal**: Persist completed session transcripts so operators can retrieve, export, and correct them after the fact.
 
-**Storage** (design decision): transcripts are stored in SQLite at `/data/db/transcripts.db`
-(separate from `vocab.db` to keep concerns clean). Schema: a `sessions` table (id, name,
-started_at, stopped_at) and a `transcript_segments` table (session_id, timestamp, speaker,
-text, confidence). The api-gateway writes segments as they arrive from `transcript.final.*`.
+**Storage** (design decision): all persistent data (sessions, transcripts, schedules) is
+stored in a single SQLite file at `/data/db/livestt.db`, owned by api-gateway. Schema:
+`sessions`, `transcript_segments`, and `schedules` tables. system-manager reads schedules
+via api-gateway's HTTP API. One persistence backend, one backup path, one volume.
 
-- [ ] `api-gateway` persists transcript segments to `transcripts.db` during active sessions
-- [ ] `GET /admin/sessions` — list past sessions with name, date, duration
-- [ ] `GET /admin/sessions/<id>/export` — download transcript as plain text or PDF;
+- [x] `api-gateway` persists transcript segments to `livestt.db` during active sessions
+- [x] `GET /admin/sessions` — list past sessions with name, date, duration
+- [x] `GET /admin/sessions/<id>/export` — download transcript as plain text or PDF;
   available in the admin UI as a "Download transcript" button
 - [ ] Transcript correction UI: post-session view where the operator can edit segment text
   before exporting (STT errors on proper nouns — names, scripture references — are common);
-  low priority, can be deferred if needed
-- [ ] `transcripts.db` included in the `POST /admin/backup` archive
+  low priority, deferred to future milestone
+- [x] `livestt.db` included in the `POST /admin/backup` archive
 
 ---
 
@@ -171,8 +167,8 @@ text, confidence). The api-gateway writes segments as they arrive from `transcri
 ### Milestone 7.5: Ops & Hardware Tooling
 **Goal**: Make deploying and debugging on the NUC N97 fast and low-friction.
 
-**`data-sweeper` → `system-manager` rename**
-- [ ] Rename service directory, Python package, Docker image tag, and compose service name
+**`data-sweeper` → `system-manager` rename** *(completed in M4.5)*
+- [x] Rename service directory, Python package, Docker image tag, and compose service name
 - [ ] Update `MONITORED_SERVICES` list in `health-watchdog` to reference `system-manager`
 - [ ] Update `docs/` and `CLAUDE.md` references
 
