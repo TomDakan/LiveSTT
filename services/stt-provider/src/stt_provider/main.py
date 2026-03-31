@@ -13,6 +13,7 @@ from messaging.service import BaseService
 from messaging.streams import (
     SUBJECT_AUDIO_BACKFILL,
     SUBJECT_AUDIO_LIVE,
+    SUBJECT_PREFIX_TRANSCRIPT_INTERIM,
     SUBJECT_PREFIX_TRANSCRIPT_RAW,
     TRANSCRIPTION_STREAM_CONFIG,
 )
@@ -242,7 +243,9 @@ class STTProviderService(BaseService):
         stop_event: asyncio.Event,
         dg_closed: asyncio.Event,
     ) -> None:
+        assert self.nc is not None  # guaranteed after BaseService.start()
         topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
+        interim_topic = f"{SUBJECT_PREFIX_TRANSCRIPT_INTERIM}.{source_tag}"
         async for event in transcriber.get_events():
             if stop_event.is_set():
                 break
@@ -253,11 +256,18 @@ class STTProviderService(BaseService):
                 timestamp=datetime.now(UTC).isoformat(),
                 source=source_tag,
             )
-            payload = dataclasses.asdict(payload_obj)
+            encoded = json.dumps(dataclasses.asdict(payload_obj)).encode(
+                "utf-8"
+            )
             try:
-                await js.publish(topic, json.dumps(payload).encode("utf-8"))
+                if event.is_final:
+                    await js.publish(topic, encoded)
+                else:
+                    await self.nc.publish(interim_topic, encoded)
             except Exception as e:
-                self.logger.error(f"[{source_tag}] Failed to publish transcript: {e}")
+                self.logger.error(
+                    f"[{source_tag}] Failed to publish transcript: {e}"
+                )
         dg_closed.set()
 
 

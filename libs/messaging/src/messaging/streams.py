@@ -9,6 +9,7 @@ SUBJECT_PREFIX_AUDIO_BACKFILL = "audio.backfill"
 
 SUBJECT_PREFIX_TRANSCRIPT_RAW = "transcript.raw"
 SUBJECT_TRANSCRIPT_RAW = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.>"
+SUBJECT_PREFIX_TRANSCRIPT_INTERIM = "transcript.interim"
 SUBJECT_TRANSCRIPT_FINAL = "transcript.final.>"
 
 # Concrete Subjects (for publishing/subscribing)

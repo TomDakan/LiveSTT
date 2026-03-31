@@ -30,6 +30,7 @@ dependencies = [
     "wtforms",                # underlying dep for sqladmin
     "messaging",
     "aiofiles>=23.0.0",       # Required by FastAPI StaticFiles
+    "qrcode[pil]>=7.4",      # QR code generation for audience access
 ]
 
 [project.scripts]

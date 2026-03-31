@@ -64,15 +64,15 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
   left wondering if the system is working
 
 **Viewer UX**
-- [ ] Font size controls (A- / A+) on the transcript page — church audiences skew older;
+- [x] Font size controls (A- / A+) on the transcript page — church audiences skew older;
   persist the preference in localStorage
-- [ ] QR code displayed on the main page / `/display` route so audience members can load
+- [x] QR code displayed on the main page / `/display` route so audience members can load
   the transcript on their phones without typing a URL; the device must know its own
   externally-reachable URL to generate the code — this differs by deployment type:
   Balena public device URL (managed fleet, already stable HTTPS) vs. local IP or mDNS
   hostname (self-hosted); the first-run onboarding wizard is the natural place to capture
   a configurable `SITE_URL` that the QR code renders from
-- [ ] Kiosk / presentation mode (`/display` route): full-screen, large text, high contrast,
+- [x] Kiosk / presentation mode (`/display` route): full-screen, large text, high contrast,
   no admin chrome — suitable for a dedicated screen at the front of the venue;
   auto-scrolls and shows connection status but has no interactive controls
 

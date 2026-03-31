@@ -20,6 +20,7 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - SITE_URL=${SITE_URL:-}
     volumes:
       - ./data/db:/data/db
     networks:

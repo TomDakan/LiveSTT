@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Live STT — Display</title>
+  <link rel="stylesheet" href="/static/tailwind.css">
+  <style>
+    :root {
+      --transcript-font-size: 20px;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e2e2e8;
+      overflow: hidden;
+    }
+
+    #transcript-container::-webkit-scrollbar { width: 4px; }
+    #transcript-container::-webkit-scrollbar-track { background: transparent; }
+    #transcript-container::-webkit-scrollbar-thumb { background: #3f3f50; border-radius: 4px; }
+
+    .line-enter {
+      animation: fadeSlideIn 0.25s ease forwards;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .speaker-badge {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-right: 6px;
+      vertical-align: middle;
+      opacity: 0.9;
+    }
+
+    .transcript-text {
+      font-size: var(--transcript-font-size);
+    }
+
+    .dot-pulse {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* Status dot — top-right, minimal */
+    #ws-dot {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* Recording indicator — top-left */
+    #rec-indicator {
+      position: fixed;
+      top: 12px;
+      left: 16px;
+      display: none;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.5);
+    }
+
+    #rec-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+  <!-- Connection status dot (top-right) -->
+  <span id="ws-dot" class="dot-pulse bg-yellow-400"></span>
+
+  <!-- Recording indicator (top-left) -->
+  <div id="rec-indicator">
+    <span id="rec-dot"></span>
+    <span id="rec-elapsed"></span>
+  </div>
+
+  <!-- Transcript area -->
+  <main class="flex-1 overflow-hidden flex flex-col px-8 py-6">
+    <div id="transcript-container"
+         class="flex-1 overflow-y-auto space-y-1 pr-1 pb-4">
+    </div>
+  </main>
+
+  <!-- QR code (bottom-right, shown if SITE_URL configured) -->
+  <img id="qr-display" src="/qr.png" width="64" height="64"
+       class="fixed bottom-4 right-4 rounded opacity-70 hidden" />
+
+  <script src="/static/shared.js"></script>
+  <script>
+    // ── Recording indicator ──────────────────────────────────────────────
+    const recIndicator = document.getElementById('rec-indicator');
+    const recElapsed   = document.getElementById('rec-elapsed');
+    let sessionStartedAt = null;
+    let elapsedTimer = null;
+
+    function formatElapsed(startedAt) {
+      const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+      const h = Math.floor(secs / 3600);
+      const m = Math.floor((secs % 3600) / 60);
+      const s = secs % 60;
+      return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+    }
+
+    function applySessionStatus(payload) {
+      const state = payload.state || 'idle';
+      if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+
+      if (state === 'active') {
+        sessionStartedAt = payload.started_at || null;
+        recIndicator.style.display = 'flex';
+        if (sessionStartedAt) {
+          recElapsed.textContent = formatElapsed(sessionStartedAt);
+          elapsedTimer = setInterval(() => {
+            recElapsed.textContent = formatElapsed(sessionStartedAt);
+          }, 1000);
+        }
+      } else {
+        sessionStartedAt = null;
+        recIndicator.style.display = 'none';
+        recElapsed.textContent = '';
+      }
+    }
+
+    // ── Fetch initial session status ─────────────────────────────────────
+    async function fetchSessionStatus() {
+      try {
+        const resp = await fetch('/session/status');
+        if (resp.ok) applySessionStatus(await resp.json());
+      } catch { /* ignore */ }
+    }
+
+    // ── Init ─────────────────────────────────────────────────────────────
+    LiveSTT.init({
+      containerEl: document.getElementById('transcript-container'),
+      statusDotEl: document.getElementById('ws-dot'),
+      onSessionStatus: applySessionStatus,
+      onConnected: fetchSessionStatus,
+    });
+
+    // ── QR code ──────────────────────────────────────────────────────────
+    fetch('/qr.png', { method: 'HEAD' }).then(r => {
+      if (r.ok) document.getElementById('qr-display').classList.remove('hidden');
+    }).catch(() => {});
+  </script>
+</body>
+</html>

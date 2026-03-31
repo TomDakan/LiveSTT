@@ -4,7 +4,6 @@ import contextlib
 import json
 import math
 import os
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 
@@ -91,27 +90,20 @@ class AudioProducerService(BaseService):
             self.logger.critical(f"Failed to verify streams: {e}")
             return
 
-        # 2. Auto-start bypass: skips KV entirely for e2e/file-based testing
-        auto_session = os.getenv("AUTO_SESSION") or os.getenv("AUDIO_FILE")
-        if auto_session:
-            self.session_id = os.getenv("SESSION_ID", uuid.uuid4().hex[:8])
-            self.is_active = True
-            self.logger.info(f"Auto-starting session: {self.session_id}")
-        else:
-            # 2a. Setup KV buckets (non-fatal if unavailable)
-            try:
-                self._session_kv = await js.create_key_value(
-                    config=KeyValueConfig(bucket=SESSION_KV_BUCKET, history=1)
-                )
-                self._config_kv = await js.create_key_value(
-                    config=KeyValueConfig(bucket="config", history=1)
-                )
-                self.logger.info("Session KV buckets ready")
-            except Exception as e:
-                self.logger.warning(f"KV setup failed (non-fatal): {e}")
+        # 2. Setup KV buckets (non-fatal if unavailable)
+        try:
+            self._session_kv = await js.create_key_value(
+                config=KeyValueConfig(bucket=SESSION_KV_BUCKET, history=1)
+            )
+            self._config_kv = await js.create_key_value(
+                config=KeyValueConfig(bucket="config", history=1)
+            )
+            self.logger.info("Session KV buckets ready")
+        except Exception as e:
+            self.logger.warning(f"KV setup failed (non-fatal): {e}")
 
-            # 2b. Recover session state from KV on restart
-            await self._recover_session()
+        # 2b. Recover session state from KV on restart
+        await self._recover_session()
 
         # 3. Initialize the appropriate audio source
         try:
@@ -122,10 +114,9 @@ class AudioProducerService(BaseService):
 
         self.logger.info("Audio Stream Started")
 
-        # 4. Run session control listener as a background task (non-auto mode only)
+        # 4. Run session control listener as a background task
         ctrl_task: asyncio.Task[None] | None = None
-        if not auto_session:
-            ctrl_task = asyncio.create_task(self._session_control_loop(js, stop_event))
+        ctrl_task = asyncio.create_task(self._session_control_loop(js, stop_event))
 
         try:
             await self._audio_loop(js, stop_event, source)

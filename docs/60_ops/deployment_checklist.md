@@ -38,6 +38,18 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 - [ ] **Enrollment**: Successfully enroll a test user.
 - [ ] **Identification**: Speak as test user -> Transcript shows correct name.
 
+### 2.4 Service Resilience
+- [ ] **Restart policy**: All services in `docker-compose.yml` have `restart: unless-stopped`
+- [ ] **NATS isolation**: `docker-compose.yml` does NOT expose NATS ports to the host
+      (verify no `ports:` block on the `nats` service)
+- [ ] **Audio-producer crash recovery**: Kill the `audio-producer` container mid-session
+      (`docker kill audio-producer`); verify it restarts and resumes the active session
+      from NATS KV within 30 seconds
+- [ ] **API-gateway restart**: Kill `api-gateway` while WebSocket clients are connected;
+      verify clients reconnect and resume receiving transcripts
+- [ ] **BalenaOS volume**: Verify `/data/nats` is mounted on the persistent volume
+      (not a tmpfs or overlay-only mount); `docker inspect nats | grep Mounts`
+
 ---
 
 ## 3. Failure Recovery
@@ -53,4 +65,4 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 **Deployed By**: _______________
 **Date**: _______________
 **Device UUID**: _______________
-**WER Score**: ______%
+**WER Score**: ______% *(Requires Milestone 0.5 gold-standard dataset — skip if not yet available)*

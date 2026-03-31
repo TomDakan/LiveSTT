@@ -9,6 +9,7 @@
     :root {
       --accent: #6366f1;
       --accent-dim: #4f46e5;
+      --transcript-font-size: 14px;
     }
 
     body {
@@ -56,8 +57,15 @@
       50%       { opacity: 0.4; transform: scale(0.7); }
     }
 
+    .transcript-text {
+      font-size: var(--transcript-font-size);
+    }
+
     /* Session status bar */
     #session-bar {
+      position: sticky;
+      top: 49px; /* below header */
+      z-index: 10;
       display: flex;
       align-items: center;
       gap: 12px;
@@ -87,58 +95,12 @@
     #btn-start-recording:hover { background: #4f46e5; }
     #btn-start-recording:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Start recording inline form */
-    #start-form {
-      display: none;
-      align-items: center;
-      gap: 8px;
-    }
-    #start-form.visible { display: flex; }
-
-    #input-label {
-      background: #1a1a24;
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 6px;
-      color: #e2e2e8;
-      font-size: 0.75rem;
-      padding: 4px 10px;
-      width: 240px;
-      outline: none;
-    }
-    #input-label:focus { border-color: #6366f1; }
-
-    #btn-submit-start {
-      padding: 4px 10px;
-      border-radius: 6px;
-      background: #6366f1;
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-    }
-    #btn-submit-start:hover { background: #4f46e5; }
-
-    #btn-cancel-start {
-      padding: 4px 8px;
-      border-radius: 6px;
-      background: transparent;
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.4);
-      font-size: 0.75rem;
-      cursor: pointer;
-    }
-
-    #start-form-msg {
-      font-size: 0.7rem;
-      color: #f87171;
-    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
   <!-- Header -->
-  <header class="flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a]">
+  <header class="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a]">
     <div class="flex items-center gap-3">
       <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -148,10 +110,28 @@
     </div>
 
     <div class="flex items-center gap-4">
+      <!-- QR code thumbnail (hidden if SITE_URL not set) -->
+      <img id="qr-thumb" src="/qr.png" width="32" height="32"
+           class="rounded cursor-pointer hidden" title="Scan to view on your phone" />
+
       <!-- Connection / Deepgram status indicator -->
       <div id="status-badge" class="flex items-center gap-2 text-xs font-medium">
         <span id="status-dot" class="dot-pulse bg-yellow-400"></span>
         <span id="status-text" class="text-white/50">Connecting…</span>
+      </div>
+
+      <!-- Font size controls -->
+      <div class="flex items-center gap-1">
+        <button id="btn-font-down"
+                class="text-xs px-2 py-1.5 rounded-md border border-white/10 text-white/40
+                       hover:text-white/70 hover:border-white/20 transition-colors font-bold">
+          A-
+        </button>
+        <button id="btn-font-up"
+                class="text-xs px-2 py-1.5 rounded-md border border-white/10 text-white/40
+                       hover:text-white/70 hover:border-white/20 transition-colors font-bold">
+          A+
+        </button>
       </div>
 
       <!-- Controls -->
@@ -170,15 +150,8 @@
     <span id="session-details" class="text-white/30" style="display:none;"></span>
 
     <!-- Start button (shown in IDLE) -->
-    <button id="btn-start-recording">Start Recording</button>
-
-    <!-- Inline label form (shown when button clicked) -->
-    <div id="start-form">
-      <input id="input-label" type="text" placeholder="e.g. Sunday Morning Service" maxlength="80" />
-      <button id="btn-submit-start">Start</button>
-      <button id="btn-cancel-start">Cancel</button>
-      <span id="start-form-msg"></span>
-    </div>
+    <button id="btn-start-recording">Start Transcription</button>
+    <span id="start-form-msg" class="text-[0.7rem] text-red-400"></span>
   </div>
 
   <!-- Transcript area -->
@@ -187,29 +160,19 @@
          class="flex-1 overflow-y-auto space-y-1 pr-1 pb-4">
       <!-- Lines inserted here by JS -->
     </div>
-
-    <!-- Interim line -->
-    <div id="interim-row" class="min-h-[2rem] flex items-start gap-2 pt-2 border-t border-white/[0.05]">
-      <span id="interim-text" class="text-sm italic text-white/35 leading-relaxed"></span>
-    </div>
   </main>
 
+  <!-- QR overlay -->
+  <div id="qr-overlay" class="fixed inset-0 bg-black/70 flex items-center justify-center hidden z-50">
+    <div class="bg-white p-4 rounded-lg" onclick="event.stopPropagation()">
+      <img src="/qr.png" width="200" height="200" />
+    </div>
+  </div>
+
+  <script src="/static/shared.js"></script>
   <script>
-    // ── Config ────────────────────────────────────────────────────────────────
-    const WS_URL = `ws://${window.location.host}/ws/transcripts`;
-    const RECONNECT_MS = 3000;
-
-    // ── State ─────────────────────────────────────────────────────────────────
-    let ws = null;
-    let reconnectTimer = null;
-    let backfillRendered = false;
-    let separatorInserted = false;
-    let sessionStartedAt = null;
-    let elapsedTimer = null;
-    let dgState = 'ok';  // 'ok' | 'reconnecting'
-
+    // ── Elements ──────────────────────────────────────────────────────────
     const container        = document.getElementById('transcript-container');
-    const interimText      = document.getElementById('interim-text');
     const statusDot        = document.getElementById('status-dot');
     const statusText       = document.getElementById('status-text');
     const btnClear         = document.getElementById('btn-clear');
@@ -219,60 +182,38 @@
     const sessionStateText = document.getElementById('session-state-text');
     const sessionDetails   = document.getElementById('session-details');
     const btnStartRec      = document.getElementById('btn-start-recording');
-    const startForm        = document.getElementById('start-form');
-    const inputLabel       = document.getElementById('input-label');
-    const btnSubmitStart   = document.getElementById('btn-submit-start');
-    const btnCancelStart   = document.getElementById('btn-cancel-start');
     const startFormMsg     = document.getElementById('start-form-msg');
 
-    // ── Speaker colours ───────────────────────────────────────────────────────
-    const SPEAKER_PALETTE = [
-      ['#6366f1', '#1e1b4b'],
-      ['#10b981', '#064e3b'],
-      ['#f59e0b', '#451a03'],
-      ['#ec4899', '#500724'],
-      ['#06b6d4', '#082f49'],
-      ['#a855f7', '#2e1065'],
-      ['#f97316', '#431407'],
-    ];
+    // ── Font size controls ───────────────────────────────────────────────
+    const FONT_MIN = 12, FONT_MAX = 24, FONT_STEP = 2, FONT_KEY = 'livestt-font-size';
 
-    function speakerColour(name) {
-      if (!name || name === 'Unknown') return null;
-      let hash = 0;
-      for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-      return SPEAKER_PALETTE[Math.abs(hash) % SPEAKER_PALETTE.length];
+    function applyFontSize(px) {
+      document.documentElement.style.setProperty('--transcript-font-size', px + 'px');
+      localStorage.setItem(FONT_KEY, px);
     }
 
-    // ── Connection status ─────────────────────────────────────────────────────
-    function setWsStatus(state) {
-      // state: 'connecting' | 'live' | 'offline'
-      if (state === 'connecting') {
-        statusDot.className  = 'dot-pulse bg-yellow-400';
-        statusDot.style.animation = '';
-        statusText.textContent = 'Connecting…';
-      } else if (state === 'offline') {
-        statusDot.className  = 'dot-pulse bg-red-500';
-        statusDot.style.animation = 'none';
-        statusText.textContent = 'Disconnected';
-      } else {
-        // WebSocket connected; final label driven by dgState
-        applyDgStatus();
-      }
+    // Apply saved size immediately
+    applyFontSize(parseInt(localStorage.getItem(FONT_KEY)) || 14);
+
+    function currentFontSize() {
+      return parseInt(getComputedStyle(document.documentElement)
+        .getPropertyValue('--transcript-font-size')) || 14;
     }
 
-    function applyDgStatus() {
-      if (dgState === 'reconnecting') {
-        statusDot.className  = 'dot-pulse bg-amber-400';
-        statusDot.style.animation = '';
-        statusText.textContent = 'Reconnecting…';
-      } else {
-        statusDot.className  = 'dot-pulse bg-green-400';
-        statusDot.style.animation = 'none';
-        statusText.textContent = 'Live';
-      }
-    }
+    document.getElementById('btn-font-down').addEventListener('click', () => {
+      const cur = currentFontSize();
+      if (cur > FONT_MIN) applyFontSize(cur - FONT_STEP);
+    });
 
-    // ── Session status bar ────────────────────────────────────────────────────
+    document.getElementById('btn-font-up').addEventListener('click', () => {
+      const cur = currentFontSize();
+      if (cur < FONT_MAX) applyFontSize(cur + FONT_STEP);
+    });
+
+    // ── Session state ────────────────────────────────────────────────────
+    let sessionStartedAt = null;
+    let elapsedTimer = null;
+
     function formatTimeHHMM(isoStr) {
       try {
         return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -313,7 +254,6 @@
         sessionDetails.style.display = '';
 
         btnStartRec.style.display = 'none';
-        startForm.classList.remove('visible');
 
         elapsedTimer = setInterval(updateElapsed, 1000);
       } else {
@@ -329,105 +269,29 @@
       }
     }
 
-    // ── DOM helpers ───────────────────────────────────────────────────────────
-    function formatTime(isoStr) {
-      try {
-        const d = isoStr ? new Date(isoStr) : new Date();
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      } catch { return ''; }
-    }
-
-    function appendFinalLine(text, speaker, timestamp, isBackfill) {
-      if (!text.trim()) return;
-
-      const row = document.createElement('div');
-      row.className = 'line-enter flex items-start gap-2 py-0.5';
-
-      const ts = document.createElement('span');
-      ts.className = 'text-xs text-white/20 tabular-nums mt-0.5 shrink-0 w-16';
-      ts.textContent = isBackfill ? '[PRE-ROLL]' : formatTime(timestamp);
-      row.appendChild(ts);
-
-      const body = document.createElement('span');
-      body.className = isBackfill
-        ? 'text-sm text-white/40 leading-relaxed'
-        : 'text-sm text-white/85 leading-relaxed';
-
-      const colours = speakerColour(speaker);
-      if (colours) {
-        const badge = document.createElement('span');
-        badge.className = 'speaker-badge';
-        badge.style.color = colours[0];
-        badge.style.background = colours[1];
-        badge.style.border = `1px solid ${colours[0]}44`;
-        badge.textContent = speaker;
-        body.appendChild(badge);
-      }
-
-      body.appendChild(document.createTextNode(text));
-      row.appendChild(body);
-      container.appendChild(row);
-
-      container.scrollTop = container.scrollHeight;
-    }
-
-    function setInterim(text) {
-      interimText.textContent = text || '';
-    }
-
-    function clearTranscript() {
-      container.innerHTML = '';
-      setInterim('');
-      backfillRendered = false;
-      separatorInserted = false;
-    }
-
-    // ── Start recording form ──────────────────────────────────────────────────
-    btnStartRec.addEventListener('click', () => {
-      startForm.classList.add('visible');
-      btnStartRec.style.display = 'none';
+    // ── Start transcription ─────────────────────────────────────────────
+    btnStartRec.addEventListener('click', async () => {
+      btnStartRec.disabled = true;
       startFormMsg.textContent = '';
-      inputLabel.value = '';
-      inputLabel.focus();
-    });
-
-    btnCancelStart.addEventListener('click', () => {
-      startForm.classList.remove('visible');
-      btnStartRec.style.display = '';
-    });
-
-    async function submitStartSession() {
-      btnSubmitStart.disabled = true;
-      startFormMsg.textContent = '';
-      const label = inputLabel.value.trim();
       try {
         const resp = await fetch('/session/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ label }),
+          body: JSON.stringify({ label: '' }),
         });
         if (resp.status === 409) {
           startFormMsg.textContent = 'Session already active.';
-          startForm.classList.remove('visible');
-          btnStartRec.style.display = '';
         } else if (!resp.ok) {
           startFormMsg.textContent = `Error ${resp.status}`;
+          btnStartRec.disabled = false;
         }
-        // On 200, session_status WebSocket message will update the UI
       } catch (err) {
         startFormMsg.textContent = 'Request failed.';
-      } finally {
-        btnSubmitStart.disabled = false;
+        btnStartRec.disabled = false;
       }
-    }
-
-    btnSubmitStart.addEventListener('click', submitStartSession);
-    inputLabel.addEventListener('keydown', e => {
-      if (e.key === 'Enter') submitStartSession();
-      if (e.key === 'Escape') btnCancelStart.click();
     });
 
-    // ── Fetch initial session status ──────────────────────────────────────────
+    // ── Fetch initial session status ──────────────────────────────────────
     async function fetchSessionStatus() {
       try {
         const resp = await fetch('/session/status');
@@ -435,74 +299,27 @@
       } catch { /* ignore */ }
     }
 
-    // ── WebSocket ─────────────────────────────────────────────────────────────
-    function connect() {
-      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
-      setWsStatus('connecting');
+    // ── Init shared module ───────────────────────────────────────────────
+    btnClear.addEventListener('click', () => LiveSTT.clearTranscript());
 
-      ws = new WebSocket(WS_URL);
+    LiveSTT.init({
+      containerEl: container,
+      statusDotEl: statusDot,
+      statusTextEl: statusText,
+      onSessionStatus: applySessionStatus,
+      onConnected: fetchSessionStatus,
+    });
 
-      ws.onopen = () => {
-        setWsStatus('live');
-        fetchSessionStatus();
-      };
-
-      ws.onmessage = (event) => {
-        let msg;
-        try { msg = JSON.parse(event.data); } catch { return; }
-
-        if (msg.type === 'transcript') {
-          const p = msg.payload || {};
-          const isBackfill = p.source === 'backfill';
-          const isLive     = !p.source || p.source === 'live';
-          if (!isBackfill && !isLive) return;
-
-          const text    = (p.text || '').trim();
-          const speaker = p.speaker || null;
-          const ts      = p.timestamp || null;
-
-          if (p.is_final) {
-            if (isLive && backfillRendered && !separatorInserted) {
-              separatorInserted = true;
-              const sep = document.createElement('div');
-              sep.className = 'my-2 border-t border-white/10';
-              container.appendChild(sep);
-            }
-            setInterim('');
-            appendFinalLine(text, speaker, ts, isBackfill);
-            if (isBackfill) backfillRendered = true;
-          } else if (isLive) {
-            setInterim(text);
-          }
-          return;
-        }
-
-        if (msg.type === 'session_status') {
-          applySessionStatus(msg.payload || {});
-          return;
-        }
-
-        if (msg.type === 'stt_status') {
-          const state = (msg.payload || {}).state;
-          dgState = (state === 'reconnecting') ? 'reconnecting' : 'ok';
-          applyDgStatus();
-          return;
-        }
-      };
-
-      ws.onclose = () => {
-        setWsStatus('offline');
-        reconnectTimer = setTimeout(connect, RECONNECT_MS);
-      };
-
-      ws.onerror = () => {
-        ws.close();
-      };
-    }
-
-    // ── Init ──────────────────────────────────────────────────────────────────
-    btnClear.addEventListener('click', clearTranscript);
-    connect();
+    // ── QR code ──────────────────────────────────────────────────────────
+    (function () {
+      const qrThumb = document.getElementById('qr-thumb');
+      const qrOverlay = document.getElementById('qr-overlay');
+      fetch('/qr.png', { method: 'HEAD' }).then(r => {
+        if (r.ok) qrThumb.classList.remove('hidden');
+      }).catch(() => {});
+      qrThumb.addEventListener('click', () => qrOverlay.classList.remove('hidden'));
+      qrOverlay.addEventListener('click', () => qrOverlay.classList.add('hidden'));
+    })();
   </script>
 </body>
 </html>

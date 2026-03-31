@@ -10,7 +10,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from messaging.streams import SESSION_KV_BUCKET
 from nats.aio.client import Client as NATS
@@ -22,6 +22,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api-gateway")
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+MAX_WS_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "50"))
+SITE_URL = os.getenv("SITE_URL", "")
 TRANSCRIPT_TOPIC = "transcript.final.>"
 CONSUMER_DURABLE = "api_gateway"
 
@@ -139,6 +141,16 @@ async def _build_status_payload(
     return result
 
 
+async def _on_interim_transcript(msg: Any) -> None:
+    """Forward interim transcripts from core NATS to WebSocket clients."""
+    try:
+        data = json.loads(msg.data.decode())
+        if not data.get("is_final", True):
+            await manager.broadcast(data)
+    except Exception as exc:
+        logger.warning(f"interim transcript handler error: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifecycle manager: connect NATS, start background tasks, clean up."""
@@ -164,15 +176,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         pull_task = asyncio.create_task(_pull_loop(sub, stop_event))
 
         # Session KV + config KV (read-only; audio-producer creates them)
+        # Retry until the bucket is available — audio-producer may start later.
         session_kv: Any | None = None
         config_kv: Any | None = None
-        try:
-            session_kv = await js.key_value(SESSION_KV_BUCKET)
-            config_kv = await js.key_value("config")
-            kv_watch_task = asyncio.create_task(_kv_watch_loop(session_kv, config_kv))
-            logger.info("Session KV watch started")
-        except Exception as e:
-            logger.warning(f"Session KV unavailable at startup (non-fatal): {e}")
+
+        async def _kv_connect_loop() -> None:
+            nonlocal session_kv, config_kv, kv_watch_task
+            while not stop_event.is_set():
+                try:
+                    session_kv = await js.key_value(SESSION_KV_BUCKET)
+                    config_kv = await js.key_value("config")
+                    app.state.session_kv = session_kv
+                    app.state.config_kv = config_kv
+                    logger.info("Session KV watch started")
+                    await _kv_watch_loop(session_kv, config_kv)
+                    return
+                except Exception as e:
+                    logger.debug(f"Session KV not ready: {e}")
+                    await asyncio.sleep(2)
+
+        kv_watch_task = asyncio.create_task(_kv_connect_loop())
 
         # Subscribe to system.session events (core NATS push)
         async def _on_session_event(msg: Any) -> None:
@@ -193,8 +216,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         await nats_client.subscribe("system.session", cb=_on_session_event)
         await nats_client.subscribe("system.stt_status", cb=_on_stt_status)
+        await nats_client.subscribe(
+            "transcript.interim.>", cb=_on_interim_transcript
+        )
 
         # Store shared objects in app state for endpoint access
+        # session_kv / config_kv start as None; _kv_connect_loop updates them
         app.state.nats = nats_client
         app.state.js = js
         app.state.session_kv = session_kv
@@ -243,9 +270,37 @@ async def root() -> FileResponse:
     return FileResponse(_STATIC_DIR / "index.html")
 
 
+@app.get("/display")
+async def display() -> FileResponse:
+    return FileResponse(_STATIC_DIR / "display.html")
+
+
 @app.get("/health")
 async def health_check() -> dict[str, str]:
     return {"status": "ok", "service": "api-gateway"}
+
+
+_qr_cache: bytes | None = None
+
+
+@app.get("/qr.png")
+async def qr_code() -> Response:
+    global _qr_cache
+    if not SITE_URL:
+        return JSONResponse(
+            status_code=404,
+            content={"error": "SITE_URL not configured"},
+        )
+    if _qr_cache is None:
+        import io
+
+        import qrcode  # type: ignore[import-untyped]
+
+        img = qrcode.make(SITE_URL)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")  # pyright: ignore[reportCallIssue]
+        _qr_cache = buf.getvalue()
+    return Response(content=_qr_cache, media_type="image/png")
 
 
 @app.post("/session/start")
@@ -316,6 +371,13 @@ async def session_status(request: Request) -> dict[str, Any]:
 
 @app.websocket("/ws/transcripts")
 async def websocket_endpoint(websocket: WebSocket) -> None:
+    if len(manager.active_connections) >= MAX_WS_CONNECTIONS:
+        logger.warning(
+            "WebSocket connection rejected: limit reached (%d)",
+            MAX_WS_CONNECTIONS,
+        )
+        await websocket.close(code=1013)
+        return
     await manager.connect(websocket)
     logger.info("Client connected to WebSocket.")
 
