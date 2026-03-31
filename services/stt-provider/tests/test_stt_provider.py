@@ -24,6 +24,7 @@ async def test_stt_provider_flow(mock_transcriber_factory: Any) -> None:
     service = STTProviderService(transcriber_factory=mock_transcriber_factory)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
+    service.nc = AsyncMock()
 
     mock_js = AsyncMock()
     stop_event = asyncio.Event()
