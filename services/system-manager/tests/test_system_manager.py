@@ -74,6 +74,9 @@ async def test_run_business_logic_stops_on_event() -> None:
     mock_js.stream_info = AsyncMock(return_value=_make_stream_info())
     stop_event = asyncio.Event()
 
+    # Ensure the report interval condition triggers on first iteration
+    # (loop.time() may be < REPORT_INTERVAL_S on fresh CI runners)
+    service._last_report = -1800.0
     with patch.object(service, "_check_schedules", new_callable=AsyncMock):
         task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
         await asyncio.sleep(0.05)
