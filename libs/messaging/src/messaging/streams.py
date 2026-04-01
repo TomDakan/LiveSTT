@@ -9,6 +9,7 @@ SUBJECT_PREFIX_AUDIO_BACKFILL = "audio.backfill"
 
 SUBJECT_PREFIX_TRANSCRIPT_RAW = "transcript.raw"
 SUBJECT_TRANSCRIPT_RAW = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.>"
+SUBJECT_PREFIX_TRANSCRIPT_INTERIM = "transcript.interim"
 SUBJECT_TRANSCRIPT_FINAL = "transcript.final.>"
 
 # Concrete Subjects (for publishing/subscribing)
@@ -48,6 +49,19 @@ TRANSCRIPTION_STREAM_CONFIG: dict[str, Any] = {
     "retention": RetentionPolicy.LIMITS,
     "max_age": 7 * 24 * 60 * 60,  # 7 Days
 }
+
+# Configuration for the Session Control Stream
+SESSION_STREAM_CONFIG: dict[str, Any] = {
+    "name": "SESSION_STREAM",
+    "subjects": ["session.control"],
+    "storage": StorageType.FILE,
+    "retention": RetentionPolicy.LIMITS,
+    "max_msgs_per_subject": 1,  # only the latest command matters
+    "max_age": 60,  # stale commands (>60s old) are discarded on restart
+}
+
+# KV bucket name for session state — created by audio-producer, read by others
+SESSION_KV_BUCKET = "session_state"
 
 # Configuration for the Classification Results (Memory/Volatile)
 SUBJECT_PREFIX_CLASSIFICATION = "classification"

@@ -2,11 +2,11 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from data_sweeper.main import MONITORED_STREAMS, DataSweeper
+from system_manager.main import MONITORED_STREAMS, SystemManager
 
 
-def _make_service() -> DataSweeper:
-    service = DataSweeper()
+def _make_service() -> SystemManager:
+    service = SystemManager()
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
     return service
@@ -74,9 +74,69 @@ async def test_run_business_logic_stops_on_event() -> None:
     mock_js.stream_info = AsyncMock(return_value=_make_stream_info())
     stop_event = asyncio.Event()
 
-    task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
-    await asyncio.sleep(0.05)
-    stop_event.set()
-    await task
+    # Ensure the report interval condition triggers on first iteration
+    # (loop.time() may be < REPORT_INTERVAL_S on fresh CI runners)
+    service._last_report = -1800.0
+    with patch.object(service, "_check_schedules", new_callable=AsyncMock):
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(0.05)
+        stop_event.set()
+        await task
 
     mock_js.stream_info.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_fire_start_publishes_command() -> None:
+    service = _make_service()
+    mock_js = AsyncMock()
+    mock_js.publish = AsyncMock()
+
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    now = datetime(2026, 3, 30, 10, 30, tzinfo=ZoneInfo("UTC"))
+    sched = {
+        "id": "abc123",
+        "label_template": "Sunday Morning — {date}",
+        "stop_policy": "soft",
+    }
+
+    await service._fire_start(mock_js, sched, now)
+    mock_js.publish.assert_called_once()
+    call_args = mock_js.publish.call_args
+    assert call_args[0][0] == "session.control"
+    import json
+
+    payload = json.loads(call_args[0][1])
+    assert payload["command"] == "start"
+    assert payload["scheduled"] is True
+    assert "March 30" in payload["label"]
+
+
+@pytest.mark.asyncio
+async def test_fire_stop_soft_skips() -> None:
+    service = _make_service()
+    mock_js = AsyncMock()
+    mock_js.publish = AsyncMock()
+
+    sched = {"id": "abc123", "stop_policy": "soft"}
+    await service._fire_stop(mock_js, sched)
+
+    mock_js.publish.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_fire_stop_hard_publishes() -> None:
+    service = _make_service()
+    mock_js = AsyncMock()
+    mock_js.publish = AsyncMock()
+
+    sched = {"id": "abc123", "stop_policy": "hard"}
+    await service._fire_stop(mock_js, sched)
+
+    mock_js.publish.assert_called_once()
+    import json
+
+    payload = json.loads(mock_js.publish.call_args[0][1])
+    assert payload["command"] == "stop"

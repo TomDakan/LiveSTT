@@ -61,7 +61,7 @@ async def test_malformed_message_logs_error() -> None:
     stop_event = asyncio.Event()
 
     with patch("api_gateway.main.logger") as mock_logger:
-        task = asyncio.create_task(_pull_loop(mock_sub, stop_event))
+        task = asyncio.create_task(_pull_loop(mock_sub, stop_event, None))
         await asyncio.sleep(0.15)
         stop_event.set()
         task.cancel()
@@ -78,7 +78,14 @@ async def test_lifespan_startup_failure() -> None:
 
     # Mock the whole NATS client object on the module
     # We must set side_effect on the mock instance's connect method
-    with patch("api_gateway.main.nats_client") as mock_nats:
+    with (
+        patch(
+            "api_gateway.main.create_engine_and_tables",
+            new_callable=AsyncMock,
+            return_value=(AsyncMock(), AsyncMock()),
+        ),
+        patch("api_gateway.main.nats_client") as mock_nats,
+    ):
         mock_nats.connect.side_effect = Exception("Connection Refused")
         # Ensure close is a mock so finally block succeeds
         mock_nats.close = AsyncMock()

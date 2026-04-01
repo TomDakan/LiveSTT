@@ -1,4 +1,4 @@
-# services/data-sweeper/Dockerfile
+# services/system-manager/Dockerfile
 
 FROM python:3.12-slim AS builder
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
@@ -10,7 +10,7 @@ WORKDIR /app
 
 COPY .docker-context/ ./
 
-RUN uv sync --frozen --no-install-project --package data-sweeper
+RUN uv sync --frozen --no-install-project --package system-manager
 
 FROM python:3.12-slim
 WORKDIR /app
@@ -20,7 +20,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
 COPY libs/messaging ./libs/messaging
-COPY services/data-sweeper ./services/data-sweeper
+COPY services/system-manager ./services/system-manager
 
-ENV PYTHONPATH="/app/services/data-sweeper/src:/app/libs/messaging/src:$PYTHONPATH"
-CMD ["python", "-m", "data_sweeper.main"]
+ENV PYTHONPATH="/app/services/system-manager/src:/app/libs/messaging/src:$PYTHONPATH"
+CMD ["python", "-m", "system_manager.main"]

@@ -13,6 +13,7 @@ from messaging.service import BaseService
 from messaging.streams import (
     SUBJECT_AUDIO_BACKFILL,
     SUBJECT_AUDIO_LIVE,
+    SUBJECT_PREFIX_TRANSCRIPT_INTERIM,
     SUBJECT_PREFIX_TRANSCRIPT_RAW,
     TRANSCRIPTION_STREAM_CONFIG,
 )
@@ -102,6 +103,42 @@ class STTProviderService(BaseService):
 
         return None
 
+    async def _publish_stt_status(self, state: str, source_tag: str) -> None:
+        """Publish Deepgram connection status on core NATS (non-JetStream)."""
+        if self.nc is None:
+            return
+        try:
+            payload = json.dumps({"state": state, "lane": source_tag}).encode()
+            await self.nc.publish("system.stt_status", payload)
+        except Exception as e:
+            self.logger.warning(f"[{source_tag}] stt_status publish failed: {e}")
+
+    async def _send_msgs(
+        self,
+        msgs: list[Any],
+        transcriber: "Transcriber",
+        source_tag: str,
+        dg_closed: asyncio.Event,
+    ) -> bool:
+        """Send fetched messages to Deepgram; return True if EOS was received."""
+        for msg in msgs:
+            if msg.headers and msg.headers.get("LiveSTT-EOS") == "true":
+                self.logger.info(
+                    f"[{source_tag}] EOS received — closing Deepgram connection"
+                )
+                await msg.ack()
+                dg_closed.set()
+                return True
+            try:
+                await transcriber.send_audio(msg.data)
+                await msg.ack()
+            except Exception as e:
+                self.logger.warning(f"[{source_tag}] send_audio failed: {e}")
+                await self._publish_stt_status("reconnecting", source_tag)
+                dg_closed.set()
+                return False
+        return False
+
     async def _run_lane(
         self,
         js: Any,
@@ -127,9 +164,11 @@ class STTProviderService(BaseService):
             if transcriber is None:
                 break
 
+            await self._publish_stt_status("connected", source_tag)
             await self._check_consumer_lag(sub, js, source_tag)
 
             dg_closed = asyncio.Event()
+            eos_received = False
             drain_task = asyncio.create_task(
                 self._drain_events(transcriber, source_tag, js, stop_event, dg_closed)
             )
@@ -145,16 +184,14 @@ class STTProviderService(BaseService):
                         await asyncio.sleep(1)
                         continue
 
-                    for msg in msgs:
-                        try:
-                            await transcriber.send_audio(msg.data)
-                            await msg.ack()
-                        except Exception as e:
-                            self.logger.warning(f"[{source_tag}] send_audio failed: {e}")
-                            dg_closed.set()
-                            break
+                    eos_received = await self._send_msgs(
+                        msgs, transcriber, source_tag, dg_closed
+                    )
             finally:
                 await self._close_transcriber(transcriber, drain_task, source_tag)
+
+            if not eos_received and not stop_event.is_set():
+                await self._publish_stt_status("reconnecting", source_tag)
 
         self.logger.info(f"[{source_tag}] Lane stopped.")
 
@@ -206,7 +243,9 @@ class STTProviderService(BaseService):
         stop_event: asyncio.Event,
         dg_closed: asyncio.Event,
     ) -> None:
+        assert self.nc is not None  # guaranteed after BaseService.start()
         topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
+        interim_topic = f"{SUBJECT_PREFIX_TRANSCRIPT_INTERIM}.{source_tag}"
         async for event in transcriber.get_events():
             if stop_event.is_set():
                 break
@@ -217,9 +256,12 @@ class STTProviderService(BaseService):
                 timestamp=datetime.now(UTC).isoformat(),
                 source=source_tag,
             )
-            payload = dataclasses.asdict(payload_obj)
+            encoded = json.dumps(dataclasses.asdict(payload_obj)).encode("utf-8")
             try:
-                await js.publish(topic, json.dumps(payload).encode("utf-8"))
+                if event.is_final:
+                    await js.publish(topic, encoded)
+                else:
+                    await self.nc.publish(interim_topic, encoded)
             except Exception as e:
                 self.logger.error(f"[{source_tag}] Failed to publish transcript: {e}")
         dg_closed.set()

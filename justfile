@@ -95,6 +95,12 @@ up: scaffold
 up-build: scaffold
     docker compose up -d --build
 
+# Start the full stack in dev mode: no ALSA/USB required, audio-producer uses a
+# looping WAV file so all services run without physical audio hardware.
+# Usage: just up-dev [wav_file]
+up-dev wav_file="tests/data/test_speaker_30s.wav": scaffold
+    $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d --build
+
 # Start audio-producer + NATS using a WAV file instead of live mic.
 # Strips the /dev/snd device mount so it works without ALSA/USB hardware.
 # Usage: just file-test tests/data/test_speaker.wav

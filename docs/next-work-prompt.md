@@ -1,311 +1,280 @@
-# Implementation Prompt: Resilience Hardening (Batch 2)
+# Implementation Prompt: Milestone 4.5 — Viewer UX + Design Review Cleanup
 
-This prompt is for the next batch of work on LiveSTT. Paste it into a fresh conversation.
+This prompt implements the Viewer UX features (remaining Milestone 4.5 items) and
+resolves a handful of open design review findings. Paste it into a fresh conversation.
 
 ---
 
 ## Your Role
 
-You are implementing the remaining open findings from the March 2026 design review.
-After this batch, the review will be clear and the codebase will be ready for
-Milestone 4.5 (Session Control). Do not implement any Milestone 4.5 features.
+You are implementing the Viewer UX features from the LiveSTT ROADMAP (the unchecked
+items under Milestone 4.5) plus three small design review fixes. The goal is to make the
+transcript viewer polished and usable for a church audience: readable fonts with size
+controls, a QR code so attendees can load the page on their phones, and a dedicated
+kiosk/display route for a venue screen.
 
-## Read First (mandatory — do not skip any)
+## Read First (mandatory — read all of these before touching any code)
 
 1. `CLAUDE.md` — project conventions, commands, architecture summary
-2. `docs/20_architecture/design_review_2026_03.md` — your work order; focus on items
-   still marked 🔴
-3. `services/stt-provider/src/stt_provider/main.py`
-4. `services/stt-provider/src/stt_provider/deepgram_adapter.py`
-5. `services/identity-manager/src/identity_manager/main.py`
-6. `libs/messaging/src/messaging/service.py`
-7. `libs/messaging/src/messaging/nats.py`
-8. `libs/messaging/src/messaging/streams.py`
-9. `services/api-gateway/src/api_gateway/main.py`
-10. `services/audio-producer/src/audio_producer/main.py`
-11. `services/api-gateway/src/api_gateway/static/index.html`
+2. `ROADMAP.md` — Milestone 4.5 "Viewer UX" checklist (unchecked items)
+3. `services/api-gateway/src/api_gateway/main.py` — current gateway (you will extend it)
+4. `services/api-gateway/src/api_gateway/static/index.html` — current UI (you will extend it)
+5. `services/api-gateway/pyproject.toml` — current dependencies
+6. `services/api-gateway/Dockerfile` — build stages (Tailwind bundling)
+7. `services/stt-provider/src/stt_provider/main.py` — transcript publish logic (item 7)
+8. `libs/messaging/src/messaging/streams.py` — stream configs (item 8)
+9. `docs/20_architecture/design_review_2026_03.md` — findings tracker (items 7–9)
 
-**HIGH-2 is explicitly deferred** — timestamp semantics require a Deepgram API audit
-and a new ADR before implementation. Do not attempt it here.
-
-## Scope of This Work
-
-Implement the items below in order. Mark each as 🟢 in `design_review_2026_03.md`
-when done. Stop after item 6.
+**Do not implement**: scheduled sessions, transcript persistence (M4.75), JWT auth (M6.5),
+or any identity pipeline changes.
 
 ---
 
-### 1. Fix stt-provider shutdown hang (HIGH-3)
+## What to Build
 
-File: `services/stt-provider/src/stt_provider/main.py`
+### 1. Font size controls (A- / A+)
 
-The `finally` block in `_run_lane` suppresses all exceptions from
-`transcriber.finish()`. If `finish()` raises, `_on_close` never fires, no `None`
-enters `_event_queue`, and `await drain_task` blocks forever.
+Add font size control buttons to the header bar (next to the existing Clear button).
 
-Two fixes:
+**UI requirements:**
+- Two buttons: `A-` and `A+`, styled consistently with the existing Clear button
+- Default font size for transcript text: `0.875rem` (14px, the current `text-sm`)
+- Step size: 2px per click
+- Range: 12px minimum, 24px maximum
+- Persist the preference in `localStorage` under key `livestt-font-size`
+- On page load, read the stored value and apply it immediately (before any transcript
+  renders) to avoid a flash of wrong-sized text
+- Apply the font size to `#transcript-container` lines and the `#interim-text` element
+- Do NOT change header, session bar, or status indicator font sizes
 
-**a)** Replace `contextlib.suppress(Exception)` on `finish()` with explicit logging:
-```python
-try:
-    await transcriber.finish()
-except Exception as e:
-    self.logger.warning(f"[{source_tag}] finish() failed: {e}")
-```
-
-**b)** Add a timeout to `await drain_task` so a stuck drain never hangs shutdown:
-```python
-try:
-    await asyncio.wait_for(drain_task, timeout=5.0)
-except TimeoutError:
-    self.logger.warning(f"[{source_tag}] drain_task timed out; cancelling")
-    drain_task.cancel()
-    with contextlib.suppress(asyncio.CancelledError):
-        await drain_task
-```
-
-Add or update tests in `services/stt-provider/tests/` to verify that a `finish()`
-exception does not cause `_run_lane` to hang.
+**Implementation:**
+- Add a CSS custom property `--transcript-font-size` on `:root` (default `14px`)
+- The transcript line `.text-sm` class should be replaced with an inline style or a
+  class that uses `font-size: var(--transcript-font-size)` — choose whichever approach
+  keeps the code cleanest
+- `A-` / `A+` buttons update the CSS variable and write to localStorage
+- Add a `resetFontSize()` call to the Clear button handler (optional — discuss in code
+  comment if you skip this)
 
 ---
 
-### 2. Fix Deepgram error events don't trigger reconnect (LOW-2)
+### 2. QR code for audience access
 
-File: `services/stt-provider/src/stt_provider/deepgram_adapter.py`
+Add a QR code widget so the operator can display the transcript URL on a projector or
+screen, and audience members can scan it on their phones.
 
-`_on_error` logs the error but does not signal the fetch loop. A degraded Deepgram
-connection that sends error events without closing continues to receive audio that
-Deepgram silently drops.
+**Backend:**
+- Add the `qrcode` Python package to `services/api-gateway/pyproject.toml`:
+  ```
+  "qrcode[pil]>=7.4",
+  ```
+  (PIL is needed for PNG output; the package is pure Python + Pillow)
+- Add `SITE_URL` environment variable to api-gateway (read from `os.getenv("SITE_URL", "")`)
+- Add `SITE_URL` to the api-gateway environment block in `docker-compose.yml`:
+  ```yaml
+  - SITE_URL=${SITE_URL:-}
+  ```
+- Add a new endpoint `GET /qr.png`:
+  - If `SITE_URL` is not set or empty: return HTTP 404 with
+    `{"error": "SITE_URL not configured"}`
+  - If set: generate a QR code PNG encoding `{SITE_URL}` and return it with
+    `Content-Type: image/png`
+  - Use `qrcode.make(url)` → save to `io.BytesIO` → return as `Response(content=...,
+    media_type="image/png")`
+  - Cache the generated bytes in a module-level variable (regenerate only if SITE_URL
+    changes, which it won't at runtime) to avoid regenerating on every request
 
-Put `None` into `_event_queue` in `_on_error` so it triggers the same
-shutdown-and-reconnect path as `_on_close`:
+**UI (main page):**
+- Add a small QR code display in the header area (right side, before the status badge)
+  ONLY if `SITE_URL` is configured
+- On page load, fetch `GET /qr.png`. If it returns 200, display the QR code as a small
+  thumbnail (32x32px). On click/tap, show a larger overlay (200x200px) that can be
+  dismissed by clicking outside it. If 404, hide the QR element entirely.
+- The QR code overlay should have a dark semi-transparent backdrop and the QR image
+  centered on a white padded card (for scanning contrast)
 
-```python
-async def _on_error(self, error: Any, **kwargs: Any) -> None:
-    logger.error(f"Deepgram Error: {error}")
-    await self._event_queue.put(None)
-```
+**UI (display route — see item 3):**
+- The `/display` route should show the QR code prominently in the bottom-right corner
+  (64x64px) at all times if configured
 
 ---
 
-### 3. Fix identity-manager: source segregation for identity events (HIGH-5)
+### 3. Kiosk / presentation mode (`/display` route)
 
-File: `services/identity-manager/src/identity_manager/main.py`
+Create a dedicated display route optimized for a venue screen (projector, wall-mounted
+monitor). This is a separate HTML page, not a mode toggle on the main page.
 
-All identity events (live and backfill) are stored in a single `_identities` list.
-A backfill identity event can match a live transcript and vice versa, producing wrong
-speaker attribution at session start (the highest-traffic moment).
+**Backend:**
+- Add `GET /display` endpoint that serves `static/display.html`
+- Create `services/api-gateway/src/api_gateway/static/display.html`
 
-Changes:
+**display.html requirements:**
+- Full-screen layout: no header chrome, no session bar, no buttons, no controls
+- Dark background (`#0f0f13`), large text (default `1.25rem` / 20px)
+- Same WebSocket connection as the main page (`/ws/transcripts`)
+- Same transcript rendering logic (speaker badges, colors, backfill treatment)
+- Auto-scroll: always scroll to bottom as new lines arrive; no manual scroll
+- Show a minimal connection status indicator in the top-right corner:
+  - Green dot = Live, Amber pulsing dot = Reconnecting, Red dot = Disconnected
+  - No text labels — just the dot (to minimize distraction)
+- Show the QR code in the bottom-right corner (64x64px) if `SITE_URL` is configured
+  (same `GET /qr.png` fetch as the main page)
+- Session status: show a subtle recording indicator in the top-left corner when active
+  (small green dot + elapsed time), nothing when idle
+- Include the bundled Tailwind CSS (`/static/tailwind.css`) — same as the main page
+- **Do not duplicate the JavaScript wholesale.** Extract the shared logic (WebSocket
+  connection, speaker colors, transcript rendering, status handling) into a separate
+  `static/shared.js` file that both `index.html` and `display.html` import via
+  `<script src="/static/shared.js"></script>`. Keep page-specific logic (session bar,
+  font size controls, start form) in inline `<script>` blocks in `index.html`.
 
-**a)** Replace `self._identities: list[dict[str, Any]]` with two source-specific
-deques:
+**Dockerfile update:**
+- Update the Tailwind builder stage's `--content` flag to include both HTML files:
+  ```
+  --content '/app/services/api-gateway/src/api_gateway/static/*.html'
+  ```
+- Also copy `shared.js` in the COPY step (the existing `StaticFiles` mount handles
+  serving it, but make sure it's included in the Docker context)
+
+---
+
+### 4. WebSocket connection limit (LOW-3)
+
+Add a connection limit to the WebSocket endpoint to prevent resource exhaustion.
+
+**Implementation:**
+- Add `MAX_WS_CONNECTIONS` env var (default `50`)
+- In the `websocket_endpoint` function, before calling `manager.connect(websocket)`,
+  check `len(manager.active_connections) >= MAX_WS_CONNECTIONS`
+- If at limit: `await websocket.close(code=1013)` (Try Again Later) and return
+- Log a WARNING when a connection is rejected
+
+---
+
+### 5. Filter interim transcripts from JetStream (MEDIUM-6)
+
+The stt-provider currently publishes ALL transcripts (interim and final) to the
+TRANSCRIPTION_STREAM. Interim results arrive at ~100-200ms intervals and have no
+archival value, but they consume disk for 7 days.
+
+**Fix in `services/stt-provider/src/stt_provider/main.py`:**
+
+In `_drain_events`, only publish to JetStream when the transcript is final:
+
 ```python
-from collections import deque
-self._live_identities: deque[dict[str, Any]] = deque(maxlen=MAX_BUFFER)
-self._backfill_identities: deque[dict[str, Any]] = deque(maxlen=MAX_BUFFER)
-```
-
-**b)** In `_identity_subscriber`, route incoming events by source:
-```python
-source = data.get("source", "live")
-if source == "backfill":
-    self._backfill_identities.append(data)
+if event.is_final:
+    await js.publish(topic, json.dumps(payload).encode("utf-8"))
 else:
-    self._live_identities.append(data)
-```
-Remove the old `MAX_BUFFER` cap check (deque `maxlen` handles it).
-
-**c)** Update `_find_identity` to accept a `source` parameter and search only the
-matching deque:
-```python
-def _find_identity(
-    self, transcript_ts: str | None, source: str = "live"
-) -> dict[str, Any] | None:
-    pool = (
-        self._backfill_identities
-        if source == "backfill"
-        else self._live_identities
-    )
-    ...
+    # Interim results → core NATS only (no persistence)
+    await self.nc.publish(topic, json.dumps(payload).encode("utf-8"))
 ```
 
-**d)** In `_fusion_loop`, pass the transcript's source when calling `_find_identity`:
-```python
-source = pending.data.get("source", "live")
-identity = self._find_identity(pending.data.get("timestamp"), source=source)
-```
+This means interim transcripts are still delivered to any live subscriber (like
+api-gateway's pull consumer won't see them — that's fine because the UI already handles
+interims via the WebSocket broadcast from the pull loop, and the pull consumer only
+pulls from JetStream).
 
-Update the existing tests and add a test verifying that a backfill identity event
-does not match a live transcript.
+**Wait** — actually the api-gateway pull consumer subscribes to `transcript.final.>`
+which comes from identity-manager, not `transcript.raw.*`. The interim transcripts on
+`transcript.raw.*` are consumed by identity-manager. Identity-manager only cares about
+finals for the time-zipper fusion. So:
 
----
+- Publish interims to core NATS (non-persistent) on `transcript.raw.{source_tag}`
+- Publish finals to JetStream (persistent) on `transcript.raw.{source_tag}`
 
-### 4. Detect and log audio gap after >1 hour Deepgram outage (HIGH-1)
+Identity-manager's JetStream consumer will only see finals (which is all it needs).
+The UI currently doesn't display interim `transcript.raw.*` results anyway — it
+subscribes to `transcript.final.*` from identity-manager.
 
-File: `services/stt-provider/src/stt_provider/main.py`
-
-When a durable consumer reconnects after messages have aged out of `AUDIO_STREAM`,
-NATS silently advances the consumer's position. There is no existing code to detect
-or log this.
-
-After each successful `_connect_with_retry`, query the JetStream consumer info to
-compare the consumer's pending deliver sequence against the stream's first available
-sequence. If the consumer is behind the stream head, log a structured WARNING:
-
-```python
-# After transcriber = await self._connect_with_retry(...)
-try:
-    info = await sub.consumer_info()
-    stream_info = await js.stream_info("AUDIO_STREAM")
-    first_seq = stream_info.state.first_seq
-    consumer_seq = info.delivered.stream_seq
-    if consumer_seq < first_seq:
-        gap_msgs = first_seq - consumer_seq
-        # At 96ms/chunk, estimate lost duration
-        lost_s = gap_msgs * 0.096
-        self.logger.warning(
-            f"[{source_tag}] Audio gap detected: ~{lost_s:.0f}s of audio "
-            f"aged out during outage (consumer was at seq {consumer_seq}, "
-            f"stream now starts at {first_seq})"
-        )
-except Exception as e:
-    self.logger.debug(f"[{source_tag}] Could not check consumer lag: {e}")
-```
-
-This is a detection-and-log change only — no data recovery is attempted (the gap is
-irrecoverable by design per ADR-0011). The `except` block is intentionally broad and
-non-fatal: consumer info is advisory.
-
----
-
-### 5. Quick fixes (commit as one or individually — all small)
-
-These are all one-to-five line changes. Address them together:
-
-**a) Heartbeat loop retry (HIGH-6)**
-File: `libs/messaging/src/messaging/service.py`
-
-The `except Exception` in `_heartbeat_task` is outside the while loop — any exception
-permanently stops the heartbeat. Move it inside so transient errors are retried:
+**Important**: If the UI should show live "streaming" interim text before identity
+fusion completes, add a separate core NATS subscription in the api-gateway lifespan
+for `transcript.raw.>` that broadcasts interim-only messages to WebSocket clients.
+The current UI already has `setInterim(text)` for interim display. Add this subscription:
 
 ```python
-while not self.stop_event.is_set():
+async def _on_interim_transcript(msg: Any) -> None:
     try:
-        payload = ...
-        await self.kv.put(self.service_name, payload)
-        await asyncio.sleep(2)
-    except Exception as e:
-        self.logger.warning(f"Heartbeat tick failed (will retry): {e}")
-        await asyncio.sleep(2)
+        data = json.loads(msg.data.decode())
+        if not data.get("is_final", True):
+            await manager.broadcast_message(
+                {"type": "transcript", "payload": data}
+            )
+    except Exception as exc:
+        logger.warning(f"interim transcript handler error: {exc}")
+
+await nats_client.subscribe("transcript.raw.>", cb=_on_interim_transcript)
 ```
 
-Keep the outer `create_key_value` call outside the loop (run once at startup); only
-the put/sleep cycle moves inside.
+This gives the UI live streaming feel while keeping JetStream storage lean.
 
-**b) `ensure_stream` raises on double failure (MEDIUM-1)**
-File: `libs/messaging/src/messaging/nats.py`
+---
 
-Change the final `logger.warning` to `raise RuntimeError(...)` so calling services
-fail fast rather than publishing to a non-existent stream.
+### 6. Update deployment checklist (MEDIUM-5)
 
-**c) audio-producer publish error handling (MEDIUM-3)**
-File: `services/audio-producer/src/audio_producer/main.py`
+Add missing verification steps to `docs/60_ops/deployment_checklist.md`:
 
-Wrap both `js.publish()` calls in the audio loop with try/except. Log the error and
-`continue` — losing a single chunk is better than crashing the loop:
-
-```python
-try:
-    await js.publish(subject, chunk)
-except Exception as e:
-    self.logger.error(f"Publish failed (chunk dropped): {e}")
+Under **2. Software Validation**, add a new section **2.4 Service Resilience**:
+```markdown
+### 2.4 Service Resilience
+- [ ] **Restart policy**: All services in `docker-compose.yml` have `restart: unless-stopped`
+- [ ] **NATS isolation**: `docker-compose.yml` does NOT expose NATS ports to the host
+      (verify no `ports:` block on the `nats` service)
+- [ ] **Audio-producer crash recovery**: Kill the `audio-producer` container mid-session
+      (`docker kill audio-producer`); verify it restarts and resumes the active session
+      from NATS KV within 30 seconds
+- [ ] **API-gateway restart**: Kill `api-gateway` while WebSocket clients are connected;
+      verify clients reconnect and resume receiving transcripts
+- [ ] **BalenaOS volume**: Verify `/data/nats` is mounted on the persistent volume
+      (not a tmpfs or overlay-only mount); `docker inspect nats | grep Mounts`
 ```
 
-**d) CORS default (MEDIUM-7)**
-File: `services/api-gateway/src/api_gateway/main.py`
-
-Change the default `ALLOWED_ORIGINS` from `"http://localhost:3000"` to `"*"`.
-This is a LAN appliance; all HTTP access is local:
-```python
-ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
-```
-
-**e) Remove duplicate constant (LOW-1)**
-File: `libs/messaging/src/messaging/streams.py`
-
-`SUBJECT_PREFIX_AUDIO_BACKFILL` is defined on two consecutive lines. Remove the
-duplicate (line 10).
-
-**f) Disconnect stuck WebSocket clients (MEDIUM-2)**
-File: `services/api-gateway/src/api_gateway/main.py`
-
-`broadcast()` silently suppresses all send errors; failed clients accumulate
-indefinitely. Track failures and disconnect after a threshold:
-
-```python
-async def broadcast(self, message: dict[str, Any]) -> None:
-    dead: list[WebSocket] = []
-    for connection in list(self.active_connections):
-        try:
-            await connection.send_json({"type": "transcript", "payload": message})
-        except Exception:
-            dead.append(connection)
-    for connection in dead:
-        self.disconnect(connection)
+Under **Sign-Off**, add:
+```markdown
+**WER Score**: ______% *(Requires Milestone 0.5 gold-standard dataset — skip if not yet available)*
 ```
 
 ---
 
-### 6. Bundle Tailwind CSS as a static asset (MEDIUM-8)
+### 7. Update design review tracker
 
-File: `services/api-gateway/src/api_gateway/static/index.html` and
-`services/api-gateway/Dockerfile`
+In `docs/20_architecture/design_review_2026_03.md`, make these status updates:
 
-The UI currently loads Tailwind from `https://cdn.tailwindcss.com`. On a church
-appliance, the UI must work even when the internet is down (Deepgram outage mode).
-A CDN fetch failure leaves the UI unstyled.
+1. **MEDIUM-10** (Session control command is ephemeral): Change from 🟡 to 🟢 and add:
+   > 🟢 **Resolved**: Implemented in Milestone 4.5 — `SESSION_STREAM` with
+   > `max_msgs_per_subject: 1` and 60-second TTL, plus NATS KV for persistent session state.
 
-**a)** In the api-gateway Dockerfile, add a build step that downloads the Tailwind
-standalone CLI and generates `static/tailwind.css` from the classes used in
-`index.html`:
+2. **MEDIUM-6** (Interim transcripts stored for 7 days): Mark 🟢 after implementing
+   item 5 above and add resolution note.
 
-```dockerfile
-# Download Tailwind standalone CLI and generate CSS
-RUN curl -sLo /tmp/tailwindcss \
-      https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 \
-    && chmod +x /tmp/tailwindcss \
-    && /tmp/tailwindcss \
-         --input /dev/null \
-         --content /app/services/api-gateway/src/api_gateway/static/index.html \
-         --output /app/services/api-gateway/src/api_gateway/static/tailwind.css \
-         --minify
-```
+3. **LOW-3** (WebSocket endpoint has no connection limit): Mark 🟢 after implementing
+   item 4 above and add resolution note.
 
-**b)** In `index.html`, replace:
-```html
-<script src="https://cdn.tailwindcss.com"></script>
-```
-with:
-```html
-<link rel="stylesheet" href="/static/tailwind.css">
-```
+4. **MEDIUM-5** (Deployment checklist missing checks): Mark 🟢 after implementing
+   item 6 above and add resolution note.
 
-Verify the UI renders correctly after `just up-build`.
+5. In the **Open Architectural Questions** table, update the session lifecycle row
+   from "🟡 Decided, awaiting implementation" to "🟢 Implemented in Milestone 4.5".
 
 ---
 
-## After All Items Are Done
+### 8. Update ROADMAP.md
 
-1. Update `docs/20_architecture/design_review_2026_03.md`: mark each completed item
-   🟢 with a one-line resolution note.
-2. Run `just qa` — all checks must pass.
-3. Run `just e2e` — must pass end-to-end.
-4. One commit per numbered item is appropriate. Never include `Co-Authored-By` trailers.
+Check off the three Viewer UX items as they are implemented:
+- Font size controls
+- QR code
+- Kiosk / presentation mode
 
-## What Comes Next (do NOT implement now)
+---
 
-After this batch the next work is **Milestone 4.5: Session Control**. See
-`docs/20_architecture/adrs/0015-session-lifecycle.md` for the full design and
-`ROADMAP.md` for the feature checklist. A new implementation prompt will be written
-before that work begins.
+## Constraints
+
+- `just e2e` must continue to pass.
+- Run `just qa` before considering any item done.
+- The `shared.js` extraction (item 3) must not break any existing UI behavior — test
+  by loading both `/` and `/display` and verifying transcript rendering, session status,
+  and connection indicators all work.
+- The QR code feature must degrade gracefully: if `SITE_URL` is not set, no QR elements
+  appear in the UI and `GET /qr.png` returns 404.
+- Do not add Pillow as a direct dependency — it comes transitively via `qrcode[pil]`.
+- Never include `Co-Authored-By` trailers in commits.
+- One logical commit per numbered item above (1–8) is appropriate granularity.

@@ -65,6 +65,7 @@ async def test_transcriber_connection_succeeds_after_failure(
     service = STTProviderService(transcriber_factory=FailFirstTranscriber)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
+    service.nc = AsyncMock()
 
     mock_js = AsyncMock()
     stop_event = asyncio.Event()
@@ -93,6 +94,7 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
     service = STTProviderService(transcriber_factory=mock_transcriber_factory)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
+    service.nc = AsyncMock()
 
     mock_js = AsyncMock()
     mock_js.publish.side_effect = Exception("Publish Failed")
@@ -140,6 +142,7 @@ async def test_finish_exception_does_not_hang_run_lane() -> None:
     service = STTProviderService(transcriber_factory=FinishRaisingTranscriber)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
+    service.nc = AsyncMock()
 
     mock_js = AsyncMock()
     stop_event = asyncio.Event()

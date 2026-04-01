@@ -307,6 +307,10 @@ volume is mounted (not just writable).
 *Recommendation*: Add the missing steps. The WER score line should note that Milestone 0.5
 (gold-standard data) is a prerequisite and link to it.
 
+🟢 **Resolved**: Section 2.4 "Service Resilience" added to deployment checklist with
+restart policy, NATS isolation, crash recovery, API-gateway restart, and persistent
+volume checks. WER score line notes Milestone 0.5 prerequisite.
+
 ---
 
 **[MEDIUM-6] Interim transcripts stored in `TRANSCRIPTION_STREAM` for 7 days**
@@ -318,6 +322,11 @@ this approaches 1GB/year in data with zero long-term value.
 
 *Recommendation*: Either publish only `is_final: true` transcripts to the persistent stream,
 or use a separate short-lived stream (1-hour retention) for interim results.
+
+🟢 **Resolved**: stt-provider now publishes only `is_final: true` transcripts to JetStream
+(`transcript.raw.>`). Interim results are published to core NATS on `transcript.interim.>`
+(no stream binding, no persistence). api-gateway subscribes to the interim subject for
+live streaming display.
 
 ---
 
@@ -361,7 +370,11 @@ Implement `find_and_replace` as the primary correction path; use `keyterm` as su
 **[MEDIUM-10] Session control command is ephemeral — start command lost on audio-producer restart**
 
 Now resolved by ADR-0015, which specifies `SESSION_STREAM` with `max_msgs_per_subject: 1`
-and a 60-second TTL, plus NATS KV for persistent session state. 🟡 Awaiting implementation.
+and a 60-second TTL, plus NATS KV for persistent session state.
+
+🟢 **Resolved**: Implemented in Milestone 4.5 — `SESSION_STREAM` with
+`max_msgs_per_subject: 1` and 60-second TTL in `libs/messaging/streams.py`, plus NATS KV
+`session_state` bucket for persistent session state across restarts.
 
 ---
 
@@ -401,6 +414,9 @@ accumulate stuck clients indefinitely (see MEDIUM-2).
 
 *Recommendation*: Add a `MAX_WS_CONNECTIONS` limit (e.g. 50). Reject new connections
 above the limit with HTTP 503.
+
+🟢 **Resolved**: `MAX_WS_CONNECTIONS` env var (default 50) added to api-gateway. New
+connections above the limit are rejected with WebSocket close code 1013 (Try Again Later).
 
 ---
 
@@ -453,6 +469,6 @@ All resolved as of 2026-03-27.
 
 | Topic | Status | Reference |
 |-------|--------|-----------|
-| Session lifecycle (ID format, start/stop auth, auto-stop, EOS, KV state) | 🟡 Decided, awaiting implementation | [ADR-0015](adrs/0015-session-lifecycle.md) |
+| Session lifecycle (ID format, start/stop auth, auto-stop, EOS, KV state) | 🟢 Implemented in Milestone 4.5 | [ADR-0015](adrs/0015-session-lifecycle.md) |
 | Time Zipper timestamp matching (audio-relative via Deepgram word offsets) | 🔴 Needs Deepgram API audit + new ADR | — |
 | Custom vocabulary — `keyterm` vs `find_and_replace` for Nova-3 | 🔴 Needs investigation before Milestone 7 | — |

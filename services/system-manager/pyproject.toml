@@ -1,23 +1,25 @@
 [project]
-name = "data-sweeper"
+name = "system-manager"
 version = "0.9.1"
-description = "Data Sweeper Service"
+description = "System Manager Service — stream stats, scheduling, retention"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
 ]
 requires-python = ">=3.12"
 dependencies = [
     "messaging",
+    "httpx>=0.27.0",
+    "tzdata>=2024.1",
 ]
 
 [tool.uv.sources]
 messaging = { workspace = true }
 
 [project.scripts]
-data-sweeper = "data_sweeper.main:main"
+system-manager = "system_manager.main:main"
 
 [tool.ruff]
-extend = "../../pyproject.toml"
+extend = "../../ruff.toml"
 
 [tool.basedpyright]
 extend = "../../pyproject.toml"

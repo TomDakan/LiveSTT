@@ -48,69 +48,65 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 ### Milestone 4.5: Session Control
 **Goal**: Replace the `AUTO_SESSION` env-var hack with real session lifecycle management.
 
-- [ ] Add `session.control` NATS subject + `SESSION_STREAM` JetStream config
-- [ ] `audio-producer`: subscribe to `session.control`; on `start` command, generate session ID,
+- [x] Add `session.control` NATS subject + `SESSION_STREAM` JetStream config
+- [x] `audio-producer`: subscribe to `session.control`; on `start` command, generate session ID,
   flush pre-roll buffer to `audio.backfill.<session_id>`, begin publishing to `audio.live.<session_id>`;
   on `stop`, return to IDLE
-- [ ] `api-gateway`: `POST /session/start` and `POST /session/stop` endpoints that publish to
+- [x] `api-gateway`: `POST /session/start` and `POST /session/stop` endpoints that publish to
   `session.control` (no auth required — any audience member can start transcription)
-- [ ] UI: prominent "Start / Stop Recording" button visible on the main transcript page;
+- [x] UI: prominent "Start / Stop Recording" button visible on the main transcript page;
   show session status (idle / recording / elapsed time)
-- [ ] Unit tests for session state machine in audio-producer
-- [ ] Session naming: operator can supply a human-readable label ("Sunday Morning — March 30")
+- [x] Unit tests for session state machine in audio-producer
+- [x] Session naming: operator can supply a human-readable label ("Sunday Morning — March 30")
   at session start or stop; stored alongside the session ID for archive and retrieval
-- [ ] Connection status indicator in the viewer UI: clearly distinguish live/active,
+- [x] Connection status indicator in the viewer UI: clearly distinguish live/active,
   degraded (Deepgram reconnecting), and idle/paused states — audience should never be
   left wondering if the system is working
 
 **Viewer UX**
-- [ ] Font size controls (A- / A+) on the transcript page — church audiences skew older;
+- [x] Font size controls (A- / A+) on the transcript page — church audiences skew older;
   persist the preference in localStorage
-- [ ] QR code displayed on the main page / `/display` route so audience members can load
+- [x] QR code displayed on the main page / `/display` route so audience members can load
   the transcript on their phones without typing a URL; the device must know its own
   externally-reachable URL to generate the code — this differs by deployment type:
   Balena public device URL (managed fleet, already stable HTTPS) vs. local IP or mDNS
   hostname (self-hosted); the first-run onboarding wizard is the natural place to capture
   a configurable `SITE_URL` that the QR code renders from
-- [ ] Kiosk / presentation mode (`/display` route): full-screen, large text, high contrast,
+- [x] Kiosk / presentation mode (`/display` route): full-screen, large text, high contrast,
   no admin chrome — suitable for a dedicated screen at the front of the venue;
   auto-scrolls and shows connection status but has no interactive controls
 
 **Scheduled sessions**
-- [ ] Rename `data-sweeper` → `system-manager`; expand its mandate to own all background
+- [x] Rename `data-sweeper` → `system-manager`; expand its mandate to own all background
   operational concerns: NATS stream stats (current), transcript retention/purge, and
   session scheduling — keeping these out of api-gateway which should stay UI/HTTP-focused
-- [ ] Admin UI and API (`POST /admin/schedules`) to define recurring session schedules:
+- [x] Admin UI and API (`POST /admin/schedules`) to define recurring session schedules:
   day-of-week + start time + stop time + optional label template
-  (e.g. "Sunday Morning — {date}"); stored in `transcripts.db`; requires `SITE_TIMEZONE`
+  (e.g. "Sunday Morning — {date}"); stored in `livestt.db`; requires `SITE_TIMEZONE`
   to be set (captured in first-run onboarding)
-- [ ] `system-manager` reads schedule config and fires `session.control` start/stop
+- [x] `system-manager` reads schedule config and fires `session.control` start/stop
   commands via NATS at the configured times — no operator action required
-- [ ] Admin UI: schedule list with enable/disable toggle and next-run preview
-- [ ] **Design decision (resolve before implementation)**: schedule end-time precedence
-  when VAD detects ongoing activity. Per-schedule setting, options:
-  - *Hard stop* — session ends at scheduled time regardless of VAD state
-  - *Soft stop* (recommended default) — scheduled end is a hint; session continues until
-    VAD silence timeout or next scheduled start, whichever comes first
-  - *Grace period* — hard stop delayed by a configurable window (e.g. +15 min) if VAD
-    is active, then cuts off unconditionally
+- [x] Admin UI: schedule list with enable/disable toggle and next-run preview
+- [x] **Design decision (resolved)**: schedule end-time precedence — per-schedule
+  `stop_policy` field: *soft* (default, rely on silence timeout), *hard* (exact time),
+  or *grace_N* (delay N minutes then hard stop)
 
 ### Milestone 4.75: Transcript Persistence & Archive
 **Goal**: Persist completed session transcripts so operators can retrieve, export, and correct them after the fact.
 
-**Storage** (design decision): transcripts are stored in SQLite at `/data/db/transcripts.db`
-(separate from `vocab.db` to keep concerns clean). Schema: a `sessions` table (id, name,
-started_at, stopped_at) and a `transcript_segments` table (session_id, timestamp, speaker,
-text, confidence). The api-gateway writes segments as they arrive from `transcript.final.*`.
+**Storage** (design decision): all persistent data (sessions, transcripts, schedules) is
+stored in a single SQLite file at `/data/db/livestt.db`, owned by api-gateway. Schema:
+`sessions`, `transcript_segments`, and `schedules` tables. system-manager reads schedules
+via api-gateway's HTTP API. One persistence backend, one backup path, one volume.
 
-- [ ] `api-gateway` persists transcript segments to `transcripts.db` during active sessions
-- [ ] `GET /admin/sessions` — list past sessions with name, date, duration
-- [ ] `GET /admin/sessions/<id>/export` — download transcript as plain text or PDF;
+- [x] `api-gateway` persists transcript segments to `livestt.db` during active sessions
+- [x] `GET /admin/sessions` — list past sessions with name, date, duration
+- [x] `GET /admin/sessions/<id>/export` — download transcript as plain text or PDF;
   available in the admin UI as a "Download transcript" button
 - [ ] Transcript correction UI: post-session view where the operator can edit segment text
   before exporting (STT errors on proper nouns — names, scripture references — are common);
-  low priority, can be deferred if needed
-- [ ] `transcripts.db` included in the `POST /admin/backup` archive
+  low priority, deferred to future milestone
+- [x] `livestt.db` included in the `POST /admin/backup` archive
 
 ---
 
@@ -171,8 +167,8 @@ text, confidence). The api-gateway writes segments as they arrive from `transcri
 ### Milestone 7.5: Ops & Hardware Tooling
 **Goal**: Make deploying and debugging on the NUC N97 fast and low-friction.
 
-**`data-sweeper` → `system-manager` rename**
-- [ ] Rename service directory, Python package, Docker image tag, and compose service name
+**`data-sweeper` → `system-manager` rename** *(completed in M4.5)*
+- [x] Rename service directory, Python package, Docker image tag, and compose service name
 - [ ] Update `MONITORED_SERVICES` list in `health-watchdog` to reference `system-manager`
 - [ ] Update `docs/` and `CLAUDE.md` references
 
