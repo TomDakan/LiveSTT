@@ -74,7 +74,7 @@ async def test_run_business_logic_stops_on_event() -> None:
     mock_js.stream_info = AsyncMock(return_value=_make_stream_info())
     stop_event = asyncio.Event()
 
-    with patch.object(service, "_check_schedules"):
+    with patch.object(service, "_check_schedules", new_callable=AsyncMock):
         task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
         await asyncio.sleep(0.05)
         stop_event.set()

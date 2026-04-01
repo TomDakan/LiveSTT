@@ -78,7 +78,14 @@ async def test_lifespan_startup_failure() -> None:
 
     # Mock the whole NATS client object on the module
     # We must set side_effect on the mock instance's connect method
-    with patch("api_gateway.main.nats_client") as mock_nats:
+    with (
+        patch(
+            "api_gateway.main.create_engine_and_tables",
+            new_callable=AsyncMock,
+            return_value=(AsyncMock(), AsyncMock()),
+        ),
+        patch("api_gateway.main.nats_client") as mock_nats,
+    ):
         mock_nats.connect.side_effect = Exception("Connection Refused")
         # Ensure close is a mock so finally block succeeds
         mock_nats.close = AsyncMock()
