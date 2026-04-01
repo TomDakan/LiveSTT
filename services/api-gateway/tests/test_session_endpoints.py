@@ -4,9 +4,10 @@ import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from api_gateway.auth import create_token
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -45,12 +46,13 @@ def _make_config_kv() -> AsyncMock:
     return kv
 
 
+JWT_SECRET = "test-secret-for-unit-tests-at-least-32-bytes-long"
+
+
 @asynccontextmanager
 async def _nats_patched_app(
     session_kv: Any,
     config_kv: Any,
-    *,
-    admin_token: str = "",
 ) -> AsyncGenerator[tuple[Any, AsyncMock], None]:
     """
     httpx 0.28 ASGITransport does not trigger the ASGI lifespan, so we skip
@@ -65,14 +67,20 @@ async def _nats_patched_app(
     app.state.js = mock_js
     app.state.session_kv = session_kv
     app.state.config_kv = config_kv
+    app.state.jwt_secret = JWT_SECRET
 
     try:
-        with patch.dict("os.environ", {"ADMIN_TOKEN": admin_token}):
-            yield app, mock_js
+        yield app, mock_js
     finally:
         # Restore previous state (or clear it).
         app.state._state.clear()
         app.state._state.update(old_state)
+
+
+def _auth_header() -> dict[str, str]:
+    """Return an Authorization header with a valid JWT."""
+    token = create_token(JWT_SECRET)
+    return {"Authorization": f"Bearer {token}"}
 
 
 # ---------------------------------------------------------------------------
@@ -159,39 +167,54 @@ async def test_session_start_does_not_publish_when_409() -> None:
 
 
 @pytest.mark.asyncio
-async def test_session_stop_returns_401_with_wrong_token() -> None:
+async def test_session_stop_returns_401_without_token() -> None:
     from httpx import ASGITransport, AsyncClient
 
     session_kv = _make_session_kv()
     config_kv = _make_config_kv()
 
     async with (
-        _nats_patched_app(session_kv, config_kv, admin_token="secret") as (app, _),
+        _nats_patched_app(session_kv, config_kv) as (app, _),
         AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
-        resp = await client.post(
-            "/session/stop",
-            headers={"Authorization": "Bearer wrong-token"},
-        )
+        resp = await client.post("/session/stop")
 
     assert resp.status_code == 401
-    assert resp.json()["error"] == "unauthorized"
 
 
 @pytest.mark.asyncio
-async def test_session_stop_returns_200_with_correct_token() -> None:
+async def test_session_stop_returns_401_with_invalid_token() -> None:
     from httpx import ASGITransport, AsyncClient
 
     session_kv = _make_session_kv()
     config_kv = _make_config_kv()
 
     async with (
-        _nats_patched_app(session_kv, config_kv, admin_token="secret") as (app, mock_js),
+        _nats_patched_app(session_kv, config_kv) as (app, _),
         AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
             "/session/stop",
-            headers={"Authorization": "Bearer secret"},
+            headers={"Authorization": "Bearer bad-token"},
+        )
+
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_session_stop_returns_200_with_valid_jwt() -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    session_kv = _make_session_kv()
+    config_kv = _make_config_kv()
+
+    async with (
+        _nats_patched_app(session_kv, config_kv) as (app, mock_js),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.post(
+            "/session/stop",
+            headers=_auth_header(),
         )
 
     assert resp.status_code == 200
@@ -203,21 +226,55 @@ async def test_session_stop_returns_200_with_correct_token() -> None:
     assert data["command"] == "stop"
 
 
+# ---------------------------------------------------------------------------
+# POST /admin/auth
+# ---------------------------------------------------------------------------
+
+
 @pytest.mark.asyncio
-async def test_session_stop_dev_mode_accepts_any_token() -> None:
-    """When ADMIN_TOKEN is empty, any token is accepted (dev mode)."""
+async def test_admin_auth_returns_token_on_valid_password() -> None:
+    """Dev mode (no ADMIN_PASSWORD_HASH): any password accepted."""
     from httpx import ASGITransport, AsyncClient
 
     session_kv = _make_session_kv()
     config_kv = _make_config_kv()
 
     async with (
-        _nats_patched_app(session_kv, config_kv, admin_token="") as (app, _),
+        _nats_patched_app(session_kv, config_kv) as (app, _),
         AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
+            "/admin/auth",
+            json={"password": "anything"},
+        )
+
+    assert resp.status_code == 200
+    assert "token" in resp.json()
+
+
+@pytest.mark.asyncio
+async def test_admin_auth_token_works_for_protected_routes() -> None:
+    """JWT from /admin/auth can access protected endpoints."""
+    from httpx import ASGITransport, AsyncClient
+
+    session_kv = _make_session_kv()
+    config_kv = _make_config_kv()
+
+    async with (
+        _nats_patched_app(session_kv, config_kv) as (app, _),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        # Get token
+        auth_resp = await client.post(
+            "/admin/auth",
+            json={"password": "test"},
+        )
+        token = auth_resp.json()["token"]
+
+        # Use it on a protected route
+        resp = await client.post(
             "/session/stop",
-            headers={"Authorization": "Bearer anything"},
+            headers={"Authorization": f"Bearer {token}"},
         )
 
     assert resp.status_code == 200

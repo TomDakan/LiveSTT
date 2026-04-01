@@ -32,6 +32,8 @@ dependencies = [
     "aiofiles>=23.0.0",       # Required by FastAPI StaticFiles
     "qrcode[pil]>=7.4",      # QR code generation for audience access
     "fpdf2>=2.7.0",           # Lightweight PDF export
+    "pyjwt>=2.8.0",           # JWT token issuance/validation
+    "bcrypt>=4.1.0",          # Password hash verification
 ]
 
 [project.scripts]

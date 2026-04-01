@@ -1,7 +1,9 @@
 import asyncio
 import json
 import logging
+import os
 import signal
+import time
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -15,6 +17,39 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
     datefmt="%H:%M:%S",
 )
+
+
+class NatsLogHandler(logging.Handler):
+    """Publish structured log records to ``logs.<service>`` via core NATS.
+
+    Uses fire-and-forget core NATS publish (not JetStream) so logs are
+    volatile — only connected subscribers see them.
+    """
+
+    def __init__(self, nc: NATS, service_name: str) -> None:
+        super().__init__()
+        self._nc = nc
+        self._service = service_name
+        self._subject = f"logs.{service_name}"
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if self._nc.is_closed:
+            return
+        msg = json.dumps(
+            {
+                "service": self._service,
+                "level": record.levelname,
+                "message": self.format(record),
+                "timestamp": time.time(),
+            }
+        ).encode()
+        try:
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(self._nc.publish(self._subject, msg))
+            # Discard reference; fire-and-forget is intentional for log forwarding
+            task.add_done_callback(lambda _: None)
+        except RuntimeError:
+            pass  # no event loop — skip
 
 
 class BaseService(ABC):
@@ -99,6 +134,12 @@ class BaseService(ABC):
         except Exception as e:
             self.logger.critical(f"NATS Connection failed: {e}")
             return
+
+        # 2a. Optionally forward logs to NATS (opt-in via env var)
+        if os.getenv("NATS_LOG_FORWARDING", "").lower() == "true":
+            nats_handler = NatsLogHandler(self.nc, self.service_name)
+            self.logger.addHandler(nats_handler)
+            self.logger.debug("NATS log forwarding enabled")
 
         # 3. Run TaskGroup
         try:

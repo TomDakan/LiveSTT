@@ -75,24 +75,114 @@
       transition: transform 0.2s;
     }
     .toggle:checked::before { transform: translateX(16px); }
+
+    /* Login overlay */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0f0f13;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .login-box {
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 40px;
+      width: 340px;
+      text-align: center;
+    }
+    .login-box h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .login-box p {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 24px;
+    }
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      font-size: 0.85rem;
+    }
+    #login-error {
+      color: #f87171;
+      font-size: 0.8rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
   </style>
 </head>
 <body class="min-h-screen">
 
+  <!-- Login overlay -->
+  <div id="login-overlay">
+    <div class="login-box">
+      <h1>Admin Login</h1>
+      <p>Enter the admin password to continue.</p>
+      <input type="password" id="login-password" placeholder="Password"
+             onkeydown="if(event.key==='Enter')login()">
+      <button class="btn btn-primary" onclick="login()">Login</button>
+      <div id="login-error"></div>
+    </div>
+  </div>
+
   <!-- Header -->
-  <header class="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a]">
+  <header id="app-header" class="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a] hidden">
     <div class="flex items-center gap-3">
       <a href="/" class="text-white/50 hover:text-white/80 text-sm">&larr; Back</a>
       <span class="font-semibold text-sm tracking-wide text-white/80">Admin</span>
     </div>
+    <button class="btn btn-secondary text-xs" onclick="logout()">Logout</button>
   </header>
 
-  <main class="max-w-4xl mx-auto px-6 py-8">
+  <main id="app-content" class="max-w-4xl mx-auto px-6 py-8 hidden">
+
+    <!-- System Status -->
+    <div class="card">
+      <div class="section-title">System Status</div>
+      <div class="grid grid-cols-1 gap-4" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <div class="text-xs text-white/40 mb-2 font-semibold">Services</div>
+          <div id="status-services" class="text-white/30 text-sm">Loading...</div>
+        </div>
+        <div>
+          <div class="text-xs text-white/40 mb-2 font-semibold">Disk</div>
+          <div id="status-disk" class="text-white/30 text-sm">Loading...</div>
+        </div>
+      </div>
+      <div class="mt-4">
+        <div class="text-xs text-white/40 mb-2 font-semibold">NATS Streams</div>
+        <table id="status-streams-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Stream</th>
+              <th>Messages</th>
+              <th>Size</th>
+              <th>Consumers</th>
+            </tr>
+          </thead>
+          <tbody id="status-streams-body"></tbody>
+        </table>
+        <div id="status-streams-loading" class="text-white/30 text-sm">Loading...</div>
+      </div>
+    </div>
 
     <!-- Session History -->
     <div class="card">
       <div class="section-title">Session History</div>
-      <div id="sessions-loading" class="text-white/30 text-sm">Loading…</div>
+      <div id="sessions-loading" class="text-white/30 text-sm">Loading...</div>
       <table id="sessions-table" class="hidden">
         <thead>
           <tr>
@@ -159,10 +249,66 @@
   <script>
     const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+    // ── Auth ──────────────────────────────────────────────────────────────
+
+    function getToken() { return localStorage.getItem('admin_token'); }
+    function setToken(t) { localStorage.setItem('admin_token', t); }
+    function clearToken() { localStorage.removeItem('admin_token'); }
+
+    async function authFetch(url, opts = {}) {
+      const token = getToken();
+      if (!token) { logout(); throw new Error('no_token'); }
+      opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token };
+      const resp = await fetch(url, opts);
+      if (resp.status === 401) { logout(); throw new Error('unauthorized'); }
+      return resp;
+    }
+
+    async function login() {
+      const pw = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      errEl.textContent = '';
+      try {
+        const resp = await fetch('/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        });
+        if (!resp.ok) {
+          errEl.textContent = 'Invalid password.';
+          return;
+        }
+        const data = await resp.json();
+        setToken(data.token);
+        showApp();
+      } catch {
+        errEl.textContent = 'Connection error.';
+      }
+    }
+
+    function logout() {
+      clearToken();
+      stopStatusRefresh();
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('app-header').classList.add('hidden');
+      document.getElementById('app-content').classList.add('hidden');
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').textContent = '';
+    }
+
+    function showApp() {
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('app-header').classList.remove('hidden');
+      document.getElementById('app-content').classList.remove('hidden');
+      loadSessions();
+      loadSchedules();
+      startStatusRefresh();
+    }
+
     // ── Sessions ──────────────────────────────────────────────────────────
     async function loadSessions() {
       try {
-        const resp = await fetch('/admin/sessions');
+        const resp = await authFetch('/admin/sessions');
         const sessions = await resp.json();
         const loading = document.getElementById('sessions-loading');
         const table = document.getElementById('sessions-table');
@@ -193,21 +339,39 @@
             duration = '<span class="text-green-400">Active</span>';
           }
 
+          const token = getToken();
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
             <td class="text-sm text-white/60">${s.label || '—'}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
             <td class="flex gap-2">
-              <a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs">TXT</a>
-              <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs">PDF</a>
+              <a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
+              <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>
             </td>
           `;
           body.appendChild(tr);
         }
       } catch (e) {
+        if (e.message === 'unauthorized' || e.message === 'no_token') return;
         document.getElementById('sessions-loading').textContent = 'Failed to load sessions.';
       }
+    }
+
+    async function downloadExport(event, url) {
+      event.preventDefault();
+      try {
+        const resp = await authFetch(url);
+        const blob = await resp.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const disp = resp.headers.get('content-disposition') || '';
+        const match = disp.match(/filename="(.+)"/);
+        a.download = match ? match[1] : 'transcript';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch { /* logout handled by authFetch */ }
+      return false;
     }
 
     // ── Schedules ─────────────────────────────────────────────────────────
@@ -260,7 +424,7 @@
       };
 
       try {
-        const resp = await fetch('/admin/schedules', {
+        const resp = await authFetch('/admin/schedules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -272,30 +436,98 @@
         }
         document.getElementById('schedule-form-wrap').removeAttribute('open');
         loadSchedules();
-      } catch {
-        msg.textContent = 'Request failed.';
+      } catch (e) {
+        if (e.message !== 'unauthorized') msg.textContent = 'Request failed.';
       }
     }
 
     async function toggleSchedule(id, enabled, schedJson) {
       const sched = JSON.parse(schedJson);
       sched.enabled = enabled;
-      await fetch(`/admin/schedules/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sched),
-      });
+      try {
+        await authFetch(`/admin/schedules/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sched),
+        });
+      } catch { /* logout handled by authFetch */ }
     }
 
     async function deleteSchedule(id) {
       if (!confirm('Delete this schedule?')) return;
-      await fetch(`/admin/schedules/${id}`, { method: 'DELETE' });
-      loadSchedules();
+      try {
+        await authFetch(`/admin/schedules/${id}`, { method: 'DELETE' });
+        loadSchedules();
+      } catch { /* logout handled by authFetch */ }
+    }
+
+    // ── System Status ────────────────────────────────────────────────────
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+    }
+
+    async function loadStatus() {
+      try {
+        const resp = await fetch('/admin/status');
+        const data = await resp.json();
+
+        // Services
+        const svcEl = document.getElementById('status-services');
+        if (data.services.length === 0) {
+          svcEl.innerHTML = '<span class="text-white/30">No services reporting.</span>';
+        } else {
+          svcEl.innerHTML = data.services.map(s => {
+            const dot = s.status === 'running'
+              ? '<span style="color:#22c55e;">&#9679;</span>'
+              : '<span style="color:#ef4444;">&#9679;</span>';
+            return `<div class="flex items-center gap-2 py-1 text-sm">${dot} ${s.name}</div>`;
+          }).join('');
+        }
+
+        // Disk
+        const diskEl = document.getElementById('status-disk');
+        const d = data.disk;
+        const pct = d.total_bytes > 0 ? ((d.used_bytes / d.total_bytes) * 100).toFixed(1) : 0;
+        diskEl.innerHTML = `
+          <div class="text-sm mb-1">${formatBytes(d.used_bytes)} / ${formatBytes(d.total_bytes)} (${pct}%)</div>
+          <div style="background:#374151; border-radius:4px; height:8px; overflow:hidden;">
+            <div style="background:#6366f1; height:100%; width:${pct}%; border-radius:4px;"></div>
+          </div>
+          <div class="text-xs text-white/30 mt-1">DB: ${formatBytes(d.db_size_bytes)}</div>
+        `;
+
+        // Streams
+        const tbody = document.getElementById('status-streams-body');
+        const table = document.getElementById('status-streams-table');
+        document.getElementById('status-streams-loading').classList.add('hidden');
+        table.classList.remove('hidden');
+        tbody.innerHTML = data.streams.map(s => `
+          <tr>
+            <td class="text-sm">${s.name}</td>
+            <td class="text-sm">${s.messages.toLocaleString()}</td>
+            <td class="text-sm">${formatBytes(s.bytes)}</td>
+            <td class="text-sm">${s.consumers}</td>
+          </tr>
+        `).join('');
+      } catch { /* ignore on first load */ }
+    }
+
+    let _statusInterval = null;
+    function startStatusRefresh() {
+      loadStatus();
+      _statusInterval = setInterval(loadStatus, 5000);
+    }
+    function stopStatusRefresh() {
+      if (_statusInterval) clearInterval(_statusInterval);
     }
 
     // ── Init ──────────────────────────────────────────────────────────────
-    loadSessions();
-    loadSchedules();
+    if (getToken()) {
+      showApp();
+    }
   </script>
 </body>
 </html>
