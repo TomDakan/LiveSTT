@@ -1,6 +1,6 @@
 [project]
 name = "system-manager"
-version = "0.9.1"
+version = "0.10.0"
 description = "System Manager Service — stream stats, scheduling, retention"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
