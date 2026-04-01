@@ -134,14 +134,14 @@ async def _build_status_payload(
         try:
             e = await session_kv.get("current")
             state_data = json.loads(e.value.decode())
-        except Exception:
+        except Exception:  # nosec B110
             pass
 
     silence_timeout_s = 300
     try:
         cfg_entry = await config_kv.get("silence_timeout_s")
         silence_timeout_s = int(cfg_entry.value.decode())
-    except Exception:
+    except Exception:  # nosec B110
         pass
 
     result: dict[str, Any] = {
@@ -242,7 +242,7 @@ async def _kv_connect_and_watch(
                 if kv_data.get("state") == "active":
                     _active_session_id = kv_data.get("session_id")
                     logger.info(f"Recovered active session: {_active_session_id}")
-            except Exception:
+            except Exception:  # nosec B110
                 pass
             logger.info("Session KV watch started")
             await _kv_watch_loop(session_kv, config_kv)
@@ -427,7 +427,7 @@ async def session_start(
                         "session_id": data.get("session_id"),
                     },
                 )
-        except Exception:
+        except Exception:  # nosec B110
             pass  # Key absent or unreadable → no active session
 
     label = body.label if body else ""

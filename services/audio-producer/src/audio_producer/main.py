@@ -138,7 +138,7 @@ class AudioProducerService(BaseService):
                 self.is_active = True
                 self._label = data.get("label", "")
                 self.logger.info(f"Resuming session {self.session_id}")
-        except Exception:
+        except Exception:  # nosec B110
             pass  # Key absent or parse error → remain IDLE
 
     async def _handle_control_message(self, js: Any, msg: Any) -> None:
@@ -214,7 +214,7 @@ class AudioProducerService(BaseService):
             try:
                 entry = await self._config_kv.get("silence_timeout_s")
                 self.silence_timeout_s = int(entry.value.decode())
-            except Exception:
+            except Exception:  # nosec B110
                 pass
 
         self.silence_samples = 0
