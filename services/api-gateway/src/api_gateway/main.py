@@ -506,11 +506,28 @@ async def admin_status(request: Request) -> dict[str, Any]:
 async def list_sessions(
     request: Request, _: None = Depends(require_admin)
 ) -> list[dict[str, Any]]:
-    """List all recorded sessions with segment counts."""
+    """List all recorded sessions with segment counts.
+
+    Sessions with no stopped_at that aren't the current active session
+    are orphaned (e.g. lost during a nuke/crash) and get closed
+    automatically.
+    """
     from sqlalchemy import func
 
     db_factory = request.app.state.db_factory
     async with db_factory() as db:
+        # Close orphaned sessions (active in DB but not in NATS KV)
+        orphan_stmt = (
+            update(SessionModel)
+            .where(
+                SessionModel.stopped_at.is_(None),
+                SessionModel.id != (_active_session_id or ""),
+            )
+            .values(stopped_at="interrupted")
+        )
+        await db.execute(orphan_stmt)
+        await db.commit()
+
         stmt = (
             select(
                 SessionModel,

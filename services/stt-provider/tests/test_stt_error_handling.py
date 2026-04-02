@@ -72,7 +72,19 @@ async def test_transcriber_connection_succeeds_after_failure(
     mock_sub = AsyncMock()
     mock_js.pull_subscribe.return_value = mock_sub
 
+    # Return one audio message first (to trigger Deepgram connect),
+    # then timeout for all subsequent fetches.
+    audio_msg = MagicMock()
+    audio_msg.data = b"\x00" * 160
+    audio_msg.headers = None
+    audio_msg.ack = AsyncMock()
+    first_call = True
+
     async def fetch(n: int, timeout: float) -> list[Any]:
+        nonlocal first_call
+        if first_call:
+            first_call = False
+            return [audio_msg]
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop_event.wait(), timeout=timeout)
         raise TimeoutError
@@ -102,7 +114,17 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
     mock_sub = AsyncMock()
     mock_js.pull_subscribe.return_value = mock_sub
 
+    # Return one audio message first (to trigger Deepgram connect),
+    # then timeout for all subsequent fetches.
+    audio_msg = MagicMock()
+    audio_msg.data = b"\x00" * 160
+    audio_msg.headers = None
+    audio_msg.ack = AsyncMock()
+    first_call = [True, True]  # one per lane
+
     async def fetch(n: int, timeout: float) -> list[Any]:
+        if first_call and first_call.pop():
+            return [audio_msg]
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop_event.wait(), timeout=timeout)
         raise TimeoutError
@@ -149,8 +171,17 @@ async def test_finish_exception_does_not_hang_run_lane() -> None:
     mock_sub = AsyncMock()
     mock_js.pull_subscribe.return_value = mock_sub
 
+    # Return one audio message first (to trigger Deepgram connect),
+    # then timeout for all subsequent fetches.
+    audio_msg = MagicMock()
+    audio_msg.data = b"\x00" * 160
+    audio_msg.headers = None
+    audio_msg.ack = AsyncMock()
+    first_call = [True, True]  # one per lane
+
     async def fetch(n: int, timeout: float) -> list[Any]:
-        # Block until stop_event, then raise TimeoutError to exit the fetch loop.
+        if first_call and first_call.pop():
+            return [audio_msg]
         with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(stop_event.wait(), timeout=timeout)
         raise TimeoutError
