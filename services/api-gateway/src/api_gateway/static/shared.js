@@ -45,8 +45,84 @@ window.LiveSTT = (() => {
   let reconnectTimer = null;
   let backfillRendered = false;
   let separatorInserted = false;
-  let dgState = "ok";
+  let dgLaneStates = {};  // per-lane Deepgram status
   let userScrolledUp = false;
+
+  // ── Scroll position persistence ──────────────────────────────────────
+  const _SCROLL_KEY = "livestt_scroll";
+  let _currentSessionId = null;
+  let _replayDone = true;
+  let _jumpBtn = null;
+
+  function _storageKey() {
+    return _currentSessionId ? `${_SCROLL_KEY}_${_currentSessionId}` : null;
+  }
+
+  function _saveScrollPos() {
+    const key = _storageKey();
+    if (!key || !cfg.containerEl) return;
+    const el = cfg.containerEl;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
+    localStorage.setItem(key, JSON.stringify({
+      top: el.scrollTop,
+      atBottom,
+    }));
+  }
+
+  function _restoreScrollPos() {
+    const key = _storageKey();
+    if (!key || !cfg.containerEl) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "null");
+      if (!saved) {
+        // No saved position — scroll to bottom, enable auto-scroll
+        userScrolledUp = false;
+        cfg.containerEl.scrollTop = cfg.containerEl.scrollHeight;
+        return;
+      }
+      if (saved.atBottom) {
+        userScrolledUp = false;
+        cfg.containerEl.scrollTop = cfg.containerEl.scrollHeight;
+      } else {
+        cfg.containerEl.scrollTop = saved.top;
+        userScrolledUp = true;
+      }
+    } catch {
+      cfg.containerEl.scrollTop = cfg.containerEl.scrollHeight;
+    }
+    _updateJumpBtn();
+  }
+
+  function _createJumpBtn() {
+    if (!cfg.containerEl) return;
+    _jumpBtn = document.createElement("button");
+    _jumpBtn.textContent = "\u2193 Jump to latest";
+    _jumpBtn.className = "jump-to-bottom";
+    Object.assign(_jumpBtn.style, {
+      position: "fixed", bottom: "24px", right: "24px",
+      padding: "6px 16px", borderRadius: "20px", fontSize: "0.8rem",
+      fontWeight: "600", border: "none", cursor: "pointer", zIndex: "40",
+      background: "#6366f1", color: "#fff", opacity: "0",
+      pointerEvents: "none", transition: "opacity 0.2s",
+    });
+    _jumpBtn.addEventListener("click", () => {
+      userScrolledUp = false;
+      cfg.containerEl.scrollTop = cfg.containerEl.scrollHeight;
+      _updateJumpBtn();
+    });
+    document.body.appendChild(_jumpBtn);
+  }
+
+  function _updateJumpBtn() {
+    if (!_jumpBtn) return;
+    if (userScrolledUp) {
+      _jumpBtn.style.opacity = "1";
+      _jumpBtn.style.pointerEvents = "auto";
+    } else {
+      _jumpBtn.style.opacity = "0";
+      _jumpBtn.style.pointerEvents = "none";
+    }
+  }
 
   // ── Auto-scroll ──────────────────────────────────────────────────────
   // Auto-scroll to bottom unless the user has scrolled up to re-read.
@@ -57,11 +133,15 @@ window.LiveSTT = (() => {
       const el = cfg.containerEl;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 60;
       userScrolledUp = !nearBottom;
+      _updateJumpBtn();
+      _saveScrollPos();
     });
+    _createJumpBtn();
+    window.addEventListener("beforeunload", _saveScrollPos);
   }
 
   function scrollToBottom() {
-    if (!cfg.containerEl || userScrolledUp) return;
+    if (!cfg.containerEl || userScrolledUp || !_replayDone) return;
     cfg.containerEl.scrollTop = cfg.containerEl.scrollHeight;
   }
 
@@ -83,7 +163,10 @@ window.LiveSTT = (() => {
 
   function applyDgStatus() {
     if (!cfg.statusDotEl) return;
-    if (dgState === "reconnecting") {
+    const states = Object.values(dgLaneStates);
+    // Show "Reconnecting" only if ALL lanes are reconnecting (or no lanes known)
+    const allDown = states.length > 0 && states.every(s => s === "reconnecting");
+    if (allDown) {
       cfg.statusDotEl.className = "dot-pulse bg-amber-400";
       cfg.statusDotEl.style.animation = "";
       if (cfg.statusTextEl)
@@ -178,14 +261,36 @@ window.LiveSTT = (() => {
         return;
       }
 
+      if (msg.type === "replay_start") {
+        _currentSessionId = (msg.payload || {}).session_id || null;
+        _replayDone = false;
+        // Purge scroll positions from previous sessions
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith(_SCROLL_KEY) && k !== _storageKey()) {
+            localStorage.removeItem(k);
+          }
+        }
+        return;
+      }
+
+      if (msg.type === "replay_complete") {
+        _replayDone = true;
+        _restoreScrollPos();
+        return;
+      }
+
       if (msg.type === "session_status") {
-        if (cfg.onSessionStatus) cfg.onSessionStatus(msg.payload || {});
+        const p = msg.payload || {};
+        if (p.session_id) _currentSessionId = p.session_id;
+        if (cfg.onSessionStatus) cfg.onSessionStatus(p);
         return;
       }
 
       if (msg.type === "stt_status") {
-        const state = (msg.payload || {}).state;
-        dgState = state === "reconnecting" ? "reconnecting" : "ok";
+        const p = msg.payload || {};
+        const lane = p.lane || "default";
+        dgLaneStates[lane] = p.state === "reconnecting" ? "reconnecting" : "ok";
         applyDgStatus();
         if (cfg.onSttStatus) cfg.onSttStatus(msg.payload || {});
         return;

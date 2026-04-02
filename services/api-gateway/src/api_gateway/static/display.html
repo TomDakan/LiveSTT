@@ -10,11 +10,24 @@
       --transcript-font-size: 20px;
     }
 
+    html, body {
+      height: 100%;
+      margin: 0;
+    }
+
     body {
       font-family: 'Inter', system-ui, sans-serif;
       background: #0f0f13;
       color: #e2e2e8;
       overflow: hidden;
+    }
+
+    main {
+      min-height: 0;
+    }
+
+    #transcript-container {
+      min-height: 0;
     }
 
     #transcript-container::-webkit-scrollbar { width: 4px; }

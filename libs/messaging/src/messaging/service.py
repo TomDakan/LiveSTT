@@ -105,7 +105,7 @@ class BaseService(ABC):
                     {
                         "status": "running",
                         "service": self.service_name,
-                        "timestamp": asyncio.get_running_loop().time(),
+                        "timestamp": time.time(),
                     }
                 ).encode()
                 await self.kv.put(self.service_name, payload)

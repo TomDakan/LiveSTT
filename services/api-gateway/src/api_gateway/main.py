@@ -27,6 +27,10 @@ from api_gateway.db import (
     create_engine_and_tables,
 )
 
+# Maximum number of log messages buffered per /admin/logs WebSocket client.
+# When the buffer is full, the oldest message is dropped.
+_LOG_WS_QUEUE_SIZE = 200
+
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api-gateway")
@@ -793,6 +797,113 @@ async def create_backup(_: None = Depends(require_admin)) -> Response:
     )
 
 
+class SpeakerEnrollBody(BaseModel):
+    name: str
+
+
+@app.get("/admin/speakers")
+async def list_speakers(_: None = Depends(require_admin)) -> dict[str, Any]:
+    """List enrolled speakers. Returns an empty list until identifier is wired."""
+    return {"speakers": []}
+
+
+@app.post("/admin/speakers")
+async def enroll_speaker(
+    request: Request,
+    body: SpeakerEnrollBody,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Queue a speaker enrollment command to the identifier service via NATS."""
+    nc: NATS = request.app.state.nats
+    payload = json.dumps({"command": "enroll", "name": body.name}).encode()
+    await nc.publish("identifier.command", payload)
+    return JSONResponse(content={"status": "queued"})
+
+
+@app.delete("/admin/speakers/{name}")
+async def delete_speaker(
+    request: Request,
+    name: str,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Queue a speaker delete command to the identifier service via NATS."""
+    nc: NATS = request.app.state.nats
+    payload = json.dumps({"command": "delete", "name": name}).encode()
+    await nc.publish("identifier.command", payload)
+    return JSONResponse(content={"status": "queued"})
+
+
+@app.websocket("/admin/logs")
+async def admin_logs_websocket(websocket: WebSocket) -> None:
+    """Stream structured log messages from all services to an admin client.
+
+    Subscribes to the core NATS subject ``logs.>`` (published by
+    NatsLogHandler in each service) and forwards each message as
+    ``{"type": "log", "payload": {...}}``.
+
+    Uses a bounded asyncio.Queue to decouple the NATS callback from the
+    WebSocket send loop.  When the queue is full, the oldest entry is
+    discarded rather than blocking the NATS callback.
+    """
+    await websocket.accept()
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_LOG_WS_QUEUE_SIZE)
+    nc: NATS = websocket.app.state.nats
+
+    async def _on_log(msg: Any) -> None:
+        try:
+            data: dict[str, Any] = json.loads(msg.data.decode("utf-8"))
+        except Exception:
+            return
+        if queue.full():
+            # Drop the oldest entry to make room.
+            with contextlib.suppress(asyncio.QueueEmpty):
+                queue.get_nowait()
+        await queue.put(data)
+
+    sub = await nc.subscribe("logs.>", cb=_on_log)
+    try:
+        while True:
+            log_payload = await queue.get()
+            await websocket.send_json({"type": "log", "payload": log_payload})
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        await sub.unsubscribe()
+
+
+async def _replay_session_transcript(websocket: WebSocket, session_id: str) -> None:
+    """Send persisted transcript segments for the active session."""
+    if _lifespan_db_factory is None:
+        return
+    try:
+        async with _lifespan_db_factory() as db:
+            result = await db.execute(
+                select(TranscriptSegment)
+                .where(TranscriptSegment.session_id == session_id)
+                .order_by(TranscriptSegment.id)
+            )
+            segments = result.scalars().all()
+            for seg in segments:
+                await websocket.send_json(
+                    {
+                        "type": "transcript",
+                        "payload": {
+                            "text": seg.text,
+                            "speaker": seg.speaker,
+                            "is_final": True,
+                            "confidence": seg.confidence,
+                            "source": seg.source,
+                            "timestamp": seg.timestamp,
+                        },
+                    }
+                )
+        await websocket.send_json(
+            {"type": "replay_complete", "payload": {"session_id": session_id}}
+        )
+    except Exception as exc:
+        logger.warning(f"Transcript replay failed: {exc}")
+
+
 @app.websocket("/ws/transcripts")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     if len(manager.active_connections) >= MAX_WS_CONNECTIONS:
@@ -804,6 +915,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         return
     await manager.connect(websocket)
     logger.info("Client connected to WebSocket.")
+
+    # Replay current session's transcript so the client catches up.
+    if _active_session_id:
+        await websocket.send_json(
+            {"type": "replay_start", "payload": {"session_id": _active_session_id}}
+        )
+        await _replay_session_transcript(websocket, _active_session_id)
 
     try:
         while True:

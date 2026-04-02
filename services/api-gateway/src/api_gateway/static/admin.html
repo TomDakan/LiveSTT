@@ -76,6 +76,34 @@
     }
     .toggle:checked::before { transform: translateX(16px); }
 
+    /* Log viewer */
+    #log-viewer {
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      height: 280px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+      font-size: 0.72rem;
+      padding: 8px;
+    }
+    .log-entry {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0;
+      line-height: 1.5;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .log-ts  { color: rgba(255,255,255,0.28); white-space: nowrap; flex-shrink: 0; }
+    .log-svc { font-weight: 700; flex-shrink: 0; min-width: 110px; }
+    .log-lvl { flex-shrink: 0; min-width: 60px; font-weight: 600; }
+    .log-msg { color: rgba(255,255,255,0.75); word-break: break-word; }
+    .lvl-DEBUG    { color: #6b7280; }
+    .lvl-INFO     { color: #6366f1; }
+    .lvl-WARNING  { color: #f59e0b; }
+    .lvl-ERROR    { color: #ef4444; }
+    .lvl-CRITICAL { color: #dc2626; font-weight: 800; }
+
     /* Login overlay */
     #login-overlay {
       position: fixed;
@@ -227,8 +255,10 @@
             <label class="block text-xs text-white/40 mb-1">Stop</label>
             <input type="time" id="sched-stop" value="12:00">
           </div>
-          <div>
-            <label class="block text-xs text-white/40 mb-1">Label template</label>
+          <div style="position:relative;">
+            <label class="block text-xs text-white/40 mb-1">Label template
+              <span class="tpl-help" title="Supported variables:&#10;{date} — month and day (e.g. March 30)" style="cursor:help; color:#6366f1; font-weight:700; margin-left:2px;">?</span>
+            </label>
             <input type="text" id="sched-label" placeholder='Sunday Morning — {date}' style="width:220px">
           </div>
           <div>
@@ -242,6 +272,70 @@
           <span id="sched-msg" class="text-xs text-red-400"></span>
         </div>
       </details>
+    </div>
+
+    <!-- Speaker Enrollment -->
+    <div class="card">
+      <div class="section-title">Speaker Enrollment</div>
+      <div class="text-xs text-white/40 mb-4 p-3 rounded" style="background:#1f2937; border:1px solid rgba(255,255,255,0.06);">
+        Speaker identification requires the identifier service with a compatible model.
+        Enrollment commands are queued via NATS.
+      </div>
+
+      <div class="flex gap-2 mb-4 items-end">
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Speaker name</label>
+          <input type="text" id="enroll-name" placeholder="e.g. Pastor John" style="width: 220px;"
+                 onkeydown="if(event.key==='Enter')enrollSpeaker()">
+        </div>
+        <button class="btn btn-primary" onclick="enrollSpeaker()">Enroll</button>
+        <span id="enroll-msg" class="text-xs text-red-400"></span>
+      </div>
+
+      <table id="speakers-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="speakers-body">
+          <tr><td colspan="2" class="text-white/30 text-sm">No enrolled speakers.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- System Logs -->
+    <div class="card">
+      <div class="section-title">System Logs</div>
+      <div class="flex gap-3 mb-3 items-center flex-wrap">
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Service</label>
+          <select id="log-filter-svc">
+            <option value="">All services</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Level</label>
+          <select id="log-filter-lvl">
+            <option value="">All levels</option>
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2" style="margin-top: 18px;">
+          <label class="flex items-center gap-1 text-xs text-white/50 cursor-pointer">
+            <input type="checkbox" id="log-autoscroll" checked style="accent-color:#6366f1;">
+            Auto-scroll
+          </label>
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 18px;" onclick="clearLogs()">Clear</button>
+        <span id="log-status" class="text-xs text-white/30" style="margin-top: 18px;">Connecting...</span>
+      </div>
+      <div id="log-viewer"></div>
     </div>
 
   </main>
@@ -303,9 +397,32 @@
       loadSessions();
       loadSchedules();
       startStatusRefresh();
+      startSessionRefresh();
+      loadSpeakers();
+      connectAdminLogs();
     }
 
     // ── Sessions ──────────────────────────────────────────────────────────
+    let _sessionInterval = null;
+    function startSessionRefresh() {
+      _sessionInterval = setInterval(loadSessions, 5000);
+    }
+    async function stopSession(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Stopping...';
+      try {
+        const resp = await authFetch('/session/stop', { method: 'POST' });
+        if (!resp.ok) {
+          btn.textContent = 'Failed';
+          setTimeout(() => { btn.textContent = 'Stop'; btn.disabled = false; }, 2000);
+          return;
+        }
+        setTimeout(loadSessions, 1000);
+      } catch {
+        btn.textContent = 'Error';
+        setTimeout(() => { btn.textContent = 'Stop'; btn.disabled = false; }, 2000);
+      }
+    }
     async function loadSessions() {
       try {
         const resp = await authFetch('/admin/sessions');
@@ -339,16 +456,17 @@
             duration = '<span class="text-green-400">Active</span>';
           }
 
-          const token = getToken();
+          const isActive = !s.stopped_at;
+          const actions = isActive
+            ? `<button class="btn btn-danger text-xs" onclick="stopSession(this)">Stop</button>`
+            : `<a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
+               <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>`;
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
             <td class="text-sm text-white/60">${s.label || '—'}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
-            <td class="flex gap-2">
-              <a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
-              <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>
-            </td>
+            <td class="flex gap-2">${actions}</td>
           `;
           body.appendChild(tr);
         }
@@ -479,10 +597,11 @@
         if (data.services.length === 0) {
           svcEl.innerHTML = '<span class="text-white/30">No services reporting.</span>';
         } else {
-          svcEl.innerHTML = data.services.map(s => {
-            const dot = s.status === 'running'
-              ? '<span style="color:#22c55e;">&#9679;</span>'
-              : '<span style="color:#ef4444;">&#9679;</span>';
+          svcEl.innerHTML = data.services.sort((a, b) => a.name.localeCompare(b.name)).map(s => {
+            let dot;
+            if (s.status === 'running') dot = '<span style="color:#22c55e;">&#9679;</span>';
+            else if (s.status === 'stale') dot = '<span style="color:#eab308;">&#9679;</span>';
+            else dot = '<span style="color:#ef4444;">&#9679;</span>';
             return `<div class="flex items-center gap-2 py-1 text-sm">${dot} ${s.name}</div>`;
           }).join('');
         }
@@ -523,6 +642,199 @@
     function stopStatusRefresh() {
       if (_statusInterval) clearInterval(_statusInterval);
     }
+
+    // ── Speaker Enrollment ────────────────────────────────────────────────
+    async function loadSpeakers() {
+      try {
+        const resp = await authFetch('/admin/speakers');
+        const data = await resp.json();
+        renderSpeakers(data.speakers || []);
+      } catch (e) {
+        if (e.message !== 'unauthorized' && e.message !== 'no_token') {
+          document.getElementById('speakers-body').innerHTML =
+            '<tr><td colspan="2" class="text-red-400 text-sm">Failed to load speakers.</td></tr>';
+        }
+      }
+    }
+
+    function renderSpeakers(speakers) {
+      const body = document.getElementById('speakers-body');
+      if (speakers.length === 0) {
+        body.innerHTML = '<tr><td colspan="2" class="text-white/30 text-sm">No enrolled speakers.</td></tr>';
+        return;
+      }
+      body.innerHTML = '';
+      for (const name of speakers) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-sm">${name}</td>
+          <td><button class="btn btn-danger" onclick="deleteSpeaker(${JSON.stringify(name)})">Delete</button></td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
+    async function enrollSpeaker() {
+      const msg = document.getElementById('enroll-msg');
+      msg.textContent = '';
+      const name = document.getElementById('enroll-name').value.trim();
+      if (!name) { msg.textContent = 'Name is required.'; return; }
+      try {
+        const resp = await authFetch('/admin/speakers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          msg.textContent = err.error || 'Error';
+          return;
+        }
+        document.getElementById('enroll-name').value = '';
+        msg.style.color = '#4ade80';
+        msg.textContent = 'Enrollment queued.';
+        setTimeout(() => { msg.textContent = ''; msg.style.color = ''; }, 3000);
+        loadSpeakers();
+      } catch (e) {
+        if (e.message !== 'unauthorized') msg.textContent = 'Request failed.';
+      }
+    }
+
+    async function deleteSpeaker(name) {
+      if (!confirm(`Delete speaker "${name}"?`)) return;
+      try {
+        await authFetch(`/admin/speakers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        loadSpeakers();
+      } catch { /* logout handled by authFetch */ }
+    }
+
+    // ── System Logs ───────────────────────────────────────────────────────
+    const LOG_MAX_ENTRIES = 500;
+    const SERVICE_COLORS = [
+      '#6366f1', '#22c55e', '#f59e0b', '#38bdf8', '#e879f9',
+      '#fb923c', '#34d399', '#f472b6', '#a3e635', '#60a5fa',
+    ];
+    const _svcColorMap = {};
+    let _svcColorIdx = 0;
+    let _logEntries = [];      // raw log objects (up to LOG_MAX_ENTRIES)
+    let _seenServices = new Set();
+    let _logsWs = null;
+
+    function _svcColor(name) {
+      if (!_svcColorMap[name]) {
+        _svcColorMap[name] = SERVICE_COLORS[_svcColorIdx % SERVICE_COLORS.length];
+        _svcColorIdx++;
+      }
+      return _svcColorMap[name];
+    }
+
+    function _fmtTs(ts) {
+      if (!ts) return '';
+      const d = new Date(ts * 1000);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function _addService(svc) {
+      if (_seenServices.has(svc)) return;
+      _seenServices.add(svc);
+      const sel = document.getElementById('log-filter-svc');
+      const opt = document.createElement('option');
+      opt.value = svc;
+      opt.textContent = svc;
+      sel.appendChild(opt);
+    }
+
+    function _renderLogViewer() {
+      const filterSvc = document.getElementById('log-filter-svc').value;
+      const filterLvl = document.getElementById('log-filter-lvl').value;
+      const viewer = document.getElementById('log-viewer');
+      const frag = document.createDocumentFragment();
+
+      for (const entry of _logEntries) {
+        if (filterSvc && entry.service !== filterSvc) continue;
+        if (filterLvl && entry.level !== filterLvl) continue;
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        const lvlCls = 'lvl-' + (entry.level || 'INFO');
+        div.innerHTML =
+          `<span class="log-ts">${_fmtTs(entry.timestamp)}</span>` +
+          `<span class="log-svc" style="color:${_svcColor(entry.service)}">${entry.service || '?'}</span>` +
+          `<span class="log-lvl ${lvlCls}">${entry.level || ''}</span>` +
+          `<span class="log-msg">${_escHtml(entry.message || '')}</span>`;
+        frag.appendChild(div);
+      }
+
+      viewer.innerHTML = '';
+      viewer.appendChild(frag);
+
+      if (document.getElementById('log-autoscroll').checked) {
+        viewer.scrollTop = viewer.scrollHeight;
+      }
+    }
+
+    function _escHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function _appendLog(payload) {
+      _logEntries.push(payload);
+      if (_logEntries.length > LOG_MAX_ENTRIES) {
+        _logEntries.splice(0, _logEntries.length - LOG_MAX_ENTRIES);
+      }
+      _addService(payload.service);
+
+      // Only do a full re-render if not filtered; otherwise re-render anyway
+      // (inexpensive because the DOM is wiped & rebuilt, capped at 500 rows).
+      _renderLogViewer();
+    }
+
+    function clearLogs() {
+      _logEntries = [];
+      document.getElementById('log-viewer').innerHTML = '';
+    }
+
+    function connectAdminLogs() {
+      if (_logsWs) return;
+      const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/admin/logs';
+      _logsWs = new WebSocket(wsUrl);
+      document.getElementById('log-status').textContent = 'Connecting...';
+
+      _logsWs.onopen = () => {
+        document.getElementById('log-status').textContent = 'Live';
+        document.getElementById('log-status').style.color = '#22c55e';
+      };
+      _logsWs.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === 'log') _appendLog(msg.payload);
+        } catch { /* ignore malformed */ }
+      };
+      _logsWs.onerror = () => {
+        document.getElementById('log-status').textContent = 'Error';
+        document.getElementById('log-status').style.color = '#ef4444';
+      };
+      _logsWs.onclose = () => {
+        _logsWs = null;
+        document.getElementById('log-status').textContent = 'Disconnected';
+        document.getElementById('log-status').style.color = '';
+        // Reconnect after 3 s when the page is still visible.
+        setTimeout(() => { if (getToken()) connectAdminLogs(); }, 3000);
+      };
+    }
+
+    // Re-render log viewer when filter dropdowns change.
+    document.getElementById('log-filter-svc').addEventListener('change', _renderLogViewer);
+    document.getElementById('log-filter-lvl').addEventListener('change', _renderLogViewer);
+
+    // Pause auto-scroll when user scrolls up manually.
+    document.getElementById('log-viewer').addEventListener('scroll', function() {
+      const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 32;
+      document.getElementById('log-autoscroll').checked = atBottom;
+    });
 
     // ── Init ──────────────────────────────────────────────────────────────
     if (getToken()) {

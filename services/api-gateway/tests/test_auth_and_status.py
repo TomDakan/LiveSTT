@@ -187,9 +187,11 @@ async def test_admin_status_returns_expected_structure() -> None:
     kv = _make_idle_kv()
 
     # Mock service_health KV: one running service
+    import time
+
     kv_entry = MagicMock()
     kv_entry.value = json.dumps(
-        {"service": "audio-producer", "status": "running", "timestamp": 1234567890.0}
+        {"service": "audio-producer", "status": "running", "timestamp": time.time()}
     ).encode()
     service_health_kv = AsyncMock()
     service_health_kv.keys.return_value = ["audio-producer"]
@@ -207,7 +209,7 @@ async def test_admin_status_returns_expected_structure() -> None:
 
     async with _patched_app(kv, _make_idle_kv()) as (app, mock_js):
         mock_js.key_value.return_value = service_health_kv
-        mock_js.find_stream_info_by_name.return_value = fake_info
+        mock_js.stream_info.return_value = fake_info
 
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
