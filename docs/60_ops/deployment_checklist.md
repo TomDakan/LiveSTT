@@ -30,15 +30,22 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 - [ ] **Persistence**: "Black Box" mount (`/data/nats`) is writable.
 - [ ] **Spy Test**: `just nats-spy` shows `audio.live` traffic when speaking.
 
-### 2.2 Deepgram Connectivity
+### 2.2 Admin Authentication
+- [ ] **ADMIN_PASSWORD_HASH**: Set in environment / `.env` file (generate with
+      `python -c "import bcrypt; print(bcrypt.hashpw(b'<password>', bcrypt.gensalt()).decode())"`).
+      If unset, the admin UI accepts any password — **must not be left unset in production**.
+- [ ] **Verify login**: Open `/admin`, enter the configured password, confirm the session
+      management panel loads without a 401 error.
+
+### 2.3 Deepgram Connectivity
 - [ ] **API Key**: Valid (Check `stt-provider` logs).
 - [ ] **Latency**: Transcript appears < 1s after speech.
 
-### 2.3 Biometrics
+### 2.4 Biometrics
 - [ ] **Enrollment**: Successfully enroll a test user.
 - [ ] **Identification**: Speak as test user -> Transcript shows correct name.
 
-### 2.4 Service Resilience
+### 2.5 Service Resilience
 - [ ] **Restart policy**: All services in `docker-compose.yml` have `restart: unless-stopped`
 - [ ] **NATS isolation**: `docker-compose.yml` does NOT expose NATS ports to the host
       (verify no `ports:` block on the `nats` service)
@@ -50,7 +57,7 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 - [ ] **BalenaOS volume**: Verify `/data/nats` is mounted on the persistent volume
       (not a tmpfs or overlay-only mount); `docker inspect nats | grep Mounts`
 
-### 2.5 Persistent Data
+### 2.6 Persistent Data
 - [ ] **Data volume**: `/data/db/` contains `livestt.db` (sessions, transcripts, schedules).
       This volume MUST NOT be wiped during updates — it holds all persistent application data.
       Verify the Docker volume is named (not anonymous) and is not re-created on `docker-compose up`.

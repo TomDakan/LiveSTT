@@ -19,8 +19,9 @@ services:
       - "8000:8000"
     environment:
       - NATS_URL=nats://nats:4222
-      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH:-}
       - SITE_URL=${SITE_URL:-}
+      - NATS_LOG_FORWARDING=true
     volumes:
       - ./data/db:/data/db
     networks:
@@ -37,6 +38,7 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - AUDIO_FILE=${AUDIO_FILE:-}   # Leave blank to use live mic (ALSA)
+      - NATS_LOG_FORWARDING=true
     volumes:
       - ./tests/data:/data
     # --- USB/ALSA Passthrough (for dev E2E testing on Windows/WSL2) ---
@@ -59,6 +61,7 @@ services:
     environment:
       - NATS_URL=nats://nats:4222
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - NATS_LOG_FORWARDING=true
     networks:
       - internal_overlay
     depends_on:
@@ -88,6 +91,7 @@ services:
       - NATS_URL=nats://nats:4222
       - API_GATEWAY_URL=http://api-gateway:8000
       - SITE_TIMEZONE=${SITE_TIMEZONE:-UTC}
+      - NATS_LOG_FORWARDING=true
     networks:
       - internal_overlay
     depends_on:
@@ -102,6 +106,7 @@ services:
     restart: unless-stopped
     environment:
       - NATS_URL=nats://nats:4222
+      - NATS_LOG_FORWARDING=true
     networks:
       - internal_overlay
     depends_on:

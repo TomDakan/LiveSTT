@@ -3,12 +3,13 @@ import contextlib
 import json
 import logging
 import os
+import secrets
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
+from fastapi import Depends, FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -18,12 +19,17 @@ from nats.js.api import ConsumerConfig, DeliverPolicy
 from pydantic import BaseModel
 from sqlalchemy import select, update
 
+from api_gateway.auth import create_token, require_admin, verify_password
 from api_gateway.db import (
     Schedule,
     SessionModel,
     TranscriptSegment,
     create_engine_and_tables,
 )
+
+# Maximum number of log messages buffered per /admin/logs WebSocket client.
+# When the buffer is full, the oldest message is dropped.
+_LOG_WS_QUEUE_SIZE = 200
 
 # --- Config ---
 logging.basicConfig(level=logging.INFO)
@@ -253,10 +259,15 @@ async def _kv_connect_and_watch(
 
 
 async def _on_session_event(msg: Any) -> None:
-    """Handle session lifecycle events from audio-producer."""
+    """Handle session lifecycle events from audio-producer.
+
+    Persists session start/stop to the database. The KV watcher
+    (_kv_watch_loop) is the authoritative path for WebSocket status
+    broadcasts — the session_event broadcast was removed as it was
+    unused by all UI clients.
+    """
     try:
         data = json.loads(msg.data.decode())
-        await manager.broadcast_message({"type": "session_event", "payload": data})
         db_factory = _lifespan_db_factory
         if db_factory is not None:
             await _handle_session_db(db_factory, data)
@@ -293,6 +304,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.db_factory = db_factory
     _lifespan_db_factory = db_factory
     logger.info("Database initialized")
+
+    # JWT secret (ephemeral — tokens invalidated on restart)
+    app.state.jwt_secret = secrets.token_hex(32)
 
     try:
         await nats_client.connect(NATS_URL, connect_timeout=5)
@@ -437,21 +451,27 @@ async def session_start(
     return JSONResponse(content={"status": "ok"})
 
 
-@app.post("/session/stop")
-async def session_stop(request: Request) -> JSONResponse:
-    """
-    Stop the active session. Requires admin Bearer token.
-    # TODO(M6.5): replace with JWT validation
-    """
-    admin_token = os.getenv("ADMIN_TOKEN", "")
-    if admin_token:
-        auth_header = request.headers.get("Authorization", "")
-        token = auth_header.removeprefix("Bearer ").strip()
-        if token != admin_token:
-            return JSONResponse(status_code=401, content={"error": "unauthorized"})
-    else:
-        logger.warning("ADMIN_TOKEN not set — accepting any token (dev mode)")
+class LoginBody(BaseModel):
+    password: str
 
+
+@app.post("/admin/auth")
+async def admin_auth(request: Request, body: LoginBody) -> JSONResponse:
+    """Verify password, return short-lived JWT."""
+    if not verify_password(body.password):
+        return JSONResponse(
+            status_code=401,
+            content={"error": "invalid_password"},
+        )
+    token = create_token(request.app.state.jwt_secret)
+    return JSONResponse(content={"token": token})
+
+
+@app.post("/session/stop")
+async def session_stop(
+    request: Request, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """Stop the active session. Requires admin JWT."""
     js = request.app.state.js
     command = json.dumps({"command": "stop"}).encode()
     await js.publish("session.control", command)
@@ -473,13 +493,41 @@ async def session_status(request: Request) -> dict[str, Any]:
 # --- Admin endpoints ---
 
 
+@app.get("/admin/status")
+async def admin_status(request: Request) -> dict[str, Any]:
+    """System status: service health, NATS streams, disk usage. No auth."""
+    from api_gateway.status import get_system_status
+
+    js = request.app.state.js
+    return await get_system_status(js)
+
+
 @app.get("/admin/sessions")
-async def list_sessions(request: Request) -> list[dict[str, Any]]:
-    """List all recorded sessions with segment counts."""
+async def list_sessions(
+    request: Request, _: None = Depends(require_admin)
+) -> list[dict[str, Any]]:
+    """List all recorded sessions with segment counts.
+
+    Sessions with no stopped_at that aren't the current active session
+    are orphaned (e.g. lost during a nuke/crash) and get closed
+    automatically.
+    """
     from sqlalchemy import func
 
     db_factory = request.app.state.db_factory
     async with db_factory() as db:
+        # Close orphaned sessions (active in DB but not in NATS KV)
+        orphan_stmt = (
+            update(SessionModel)
+            .where(
+                SessionModel.stopped_at.is_(None),
+                SessionModel.id != (_active_session_id or ""),
+            )
+            .values(stopped_at="interrupted")
+        )
+        await db.execute(orphan_stmt)
+        await db.commit()
+
         stmt = (
             select(
                 SessionModel,
@@ -507,7 +555,9 @@ async def list_sessions(request: Request) -> list[dict[str, Any]]:
 
 
 @app.get("/admin/sessions/{session_id}")
-async def get_session(request: Request, session_id: str) -> JSONResponse:
+async def get_session(
+    request: Request, session_id: str, _: None = Depends(require_admin)
+) -> JSONResponse:
     """Get session details with all transcript segments."""
     db_factory = request.app.state.db_factory
     async with db_factory() as db:
@@ -556,6 +606,7 @@ async def export_session(
     request: Request,
     session_id: str,
     fmt: str = "txt",
+    _: None = Depends(require_admin),
 ) -> Response:
     """Export a session transcript as plain text or PDF."""
     from api_gateway.export import generate_pdf, generate_txt
@@ -625,7 +676,9 @@ def _validate_schedule(body: ScheduleBody) -> str | None:
 
 
 @app.post("/admin/schedules")
-async def create_schedule(request: Request, body: ScheduleBody) -> JSONResponse:
+async def create_schedule(
+    request: Request, body: ScheduleBody, _: None = Depends(require_admin)
+) -> JSONResponse:
     """Create a new recurring schedule."""
     import uuid
 
@@ -677,7 +730,10 @@ async def list_schedules(
 
 @app.put("/admin/schedules/{schedule_id}")
 async def update_schedule(
-    request: Request, schedule_id: str, body: ScheduleBody
+    request: Request,
+    schedule_id: str,
+    body: ScheduleBody,
+    _: None = Depends(require_admin),
 ) -> JSONResponse:
     """Update an existing schedule."""
     err = _validate_schedule(body)
@@ -712,7 +768,9 @@ async def update_schedule(
 
 
 @app.delete("/admin/schedules/{schedule_id}")
-async def delete_schedule(request: Request, schedule_id: str) -> JSONResponse:
+async def delete_schedule(
+    request: Request, schedule_id: str, _: None = Depends(require_admin)
+) -> JSONResponse:
     """Delete a schedule."""
     from sqlalchemy import delete as sql_delete
 
@@ -730,7 +788,7 @@ async def delete_schedule(request: Request, schedule_id: str) -> JSONResponse:
 
 
 @app.post("/admin/backup")
-async def create_backup() -> Response:
+async def create_backup(_: None = Depends(require_admin)) -> Response:
     """Create a tar.gz backup of /data/db/ (livestt.db + any future DBs)."""
     import io
     import tarfile
@@ -756,6 +814,113 @@ async def create_backup() -> Response:
     )
 
 
+class SpeakerEnrollBody(BaseModel):
+    name: str
+
+
+@app.get("/admin/speakers")
+async def list_speakers(_: None = Depends(require_admin)) -> dict[str, Any]:
+    """List enrolled speakers. Returns an empty list until identifier is wired."""
+    return {"speakers": []}
+
+
+@app.post("/admin/speakers")
+async def enroll_speaker(
+    request: Request,
+    body: SpeakerEnrollBody,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Queue a speaker enrollment command to the identifier service via NATS."""
+    nc: NATS = request.app.state.nats
+    payload = json.dumps({"command": "enroll", "name": body.name}).encode()
+    await nc.publish("identifier.command", payload)
+    return JSONResponse(content={"status": "queued"})
+
+
+@app.delete("/admin/speakers/{name}")
+async def delete_speaker(
+    request: Request,
+    name: str,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Queue a speaker delete command to the identifier service via NATS."""
+    nc: NATS = request.app.state.nats
+    payload = json.dumps({"command": "delete", "name": name}).encode()
+    await nc.publish("identifier.command", payload)
+    return JSONResponse(content={"status": "queued"})
+
+
+@app.websocket("/admin/logs")
+async def admin_logs_websocket(websocket: WebSocket) -> None:
+    """Stream structured log messages from all services to an admin client.
+
+    Subscribes to the core NATS subject ``logs.>`` (published by
+    NatsLogHandler in each service) and forwards each message as
+    ``{"type": "log", "payload": {...}}``.
+
+    Uses a bounded asyncio.Queue to decouple the NATS callback from the
+    WebSocket send loop.  When the queue is full, the oldest entry is
+    discarded rather than blocking the NATS callback.
+    """
+    await websocket.accept()
+    queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_LOG_WS_QUEUE_SIZE)
+    nc: NATS = websocket.app.state.nats
+
+    async def _on_log(msg: Any) -> None:
+        try:
+            data: dict[str, Any] = json.loads(msg.data.decode("utf-8"))
+        except Exception:
+            return
+        if queue.full():
+            # Drop the oldest entry to make room.
+            with contextlib.suppress(asyncio.QueueEmpty):
+                queue.get_nowait()
+        await queue.put(data)
+
+    sub = await nc.subscribe("logs.>", cb=_on_log)
+    try:
+        while True:
+            log_payload = await queue.get()
+            await websocket.send_json({"type": "log", "payload": log_payload})
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        await sub.unsubscribe()
+
+
+async def _replay_session_transcript(websocket: WebSocket, session_id: str) -> None:
+    """Send persisted transcript segments for the active session."""
+    if _lifespan_db_factory is None:
+        return
+    try:
+        async with _lifespan_db_factory() as db:
+            result = await db.execute(
+                select(TranscriptSegment)
+                .where(TranscriptSegment.session_id == session_id)
+                .order_by(TranscriptSegment.id)
+            )
+            segments = result.scalars().all()
+            for seg in segments:
+                await websocket.send_json(
+                    {
+                        "type": "transcript",
+                        "payload": {
+                            "text": seg.text,
+                            "speaker": seg.speaker,
+                            "is_final": True,
+                            "confidence": seg.confidence,
+                            "source": seg.source,
+                            "timestamp": seg.timestamp,
+                        },
+                    }
+                )
+        await websocket.send_json(
+            {"type": "replay_complete", "payload": {"session_id": session_id}}
+        )
+    except Exception as exc:
+        logger.warning(f"Transcript replay failed: {exc}")
+
+
 @app.websocket("/ws/transcripts")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     if len(manager.active_connections) >= MAX_WS_CONNECTIONS:
@@ -767,6 +932,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         return
     await manager.connect(websocket)
     logger.info("Client connected to WebSocket.")
+
+    # Replay current session's transcript so the client catches up.
+    if _active_session_id:
+        await websocket.send_json(
+            {"type": "replay_start", "payload": {"session_id": _active_session_id}}
+        )
+        await _replay_session_transcript(websocket, _active_session_id)
 
     try:
         while True:

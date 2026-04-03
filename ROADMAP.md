@@ -128,23 +128,27 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 ### Milestone 6.5: Admin Interface & Authentication
 **Goal**: Secure admin panel for managing enrollment, vocabulary, and system state.
 
-**Authentication**
-- [ ] Single admin token (bcrypt-hashed env var `ADMIN_PASSWORD_HASH`) + JWT issuance
-- [ ] `POST /admin/auth` → returns short-lived JWT; all `/admin/*` routes require Bearer token
-- [ ] JWT middleware in api-gateway; token expiry configurable via `ADMIN_TOKEN_TTL_S`
+**Authentication** *(ADR-0016)*
+- [x] Single admin password (bcrypt-hashed env var `ADMIN_PASSWORD_HASH`) + ephemeral JWT issuance
+- [x] `POST /admin/auth` → returns short-lived JWT; all mutating `/admin/*` routes require Bearer token
+- [x] `require_admin` FastAPI dependency; token expiry configurable via `ADMIN_TOKEN_TTL_S`
 
 **Admin UI** (separate route `/admin`, same server)
-- [ ] Admin login page (simple token form, no username)
-- [ ] Speaker enrollment panel: list enrolled speakers, upload audio sample to enroll,
-  delete voiceprint
-- [ ] System status panel: service heartbeat table (from NATS KV `service_health`),
-  NATS stream stats (message counts, bytes, consumer lag), disk usage
+- [x] Admin login page (password form, JWT stored in localStorage)
+- [x] Speaker enrollment panel: enroll by name, delete via NATS command to `identifier.command`
+  (stub — identifier does not yet consume these commands)
+- [x] System status panel: service heartbeat table (from NATS KV `service_health` with
+  30s staleness TTL), NATS stream stats, disk usage
+- [x] Current session card with live status + admin stop button (`POST /session/stop`)
 
 **Log Viewer**
-- [ ] `GET /admin/logs` WebSocket: stream structured log lines from all services in real time
-  (api-gateway subscribes to a `logs.>` NATS subject; each service publishes structured log
-  records there in addition to stdout)
-- [ ] Filter by service name and log level in the UI
+- [x] `GET /admin/logs` WebSocket: stream structured log lines from all services in real time
+  (api-gateway subscribes to `logs.>` NATS subject; each service publishes via
+  `NatsLogHandler` when `NATS_LOG_FORWARDING=true`)
+- [x] Filter by service name and log level in the UI
+
+**Future UI items**
+- [ ] Session rename/relabel (edit label of active or past session)
 
 ### Milestone 7: Vocabulary Intelligence
 **Goal**: Close the feedback loop between transcription errors and Deepgram custom vocabulary.
@@ -187,6 +191,18 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   Balena public URL)
 - [ ] Document Balena SSH workflow for live debugging in `docs/60_ops/runbooks.md`
 
+**Service management via admin UI**
+- [ ] system-manager service orchestration: enable/disable individual services from the
+  admin UI (e.g., disable `identifier` + `audio-classifier` at venues without speaker ID)
+- [ ] Docker socket backend: system-manager calls Docker Engine API to start/stop containers;
+  optional Balena Supervisor API backend when running on BalenaOS
+- [ ] Restart policy review: `restart: unless-stopped` doesn't restart after daemon restart
+  (power loss); evaluate `restart: on-failure` or `restart: always` with explicit disable
+  via Docker API stop. Needs ADR.
+- [ ] Web-based onboarding flow: first-run setup wizard (admin password, Deepgram API key,
+  timezone, optional service toggles) — the appliance should be fully configurable without
+  CLI access
+
 **Docker / Compose**
 - [ ] Add `healthcheck:` directives to all services in `docker-compose.yml` so
   `restart: unless-stopped` only kicks in after a true health failure (not a cold-start race)
@@ -206,7 +222,7 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [ ] Audio NATS data (`/data/nats`) explicitly excluded from backup — transient by design
 
 **Web-accessible status page**
-- [ ] `GET /admin/status` — read-only JSON view of service health and stream stats
+- [x] `GET /admin/status` — read-only JSON view of service health and stream stats
   (no auth required; safe to expose on local network)
 
 **Network discovery**

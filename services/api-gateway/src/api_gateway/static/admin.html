@@ -75,24 +75,142 @@
       transition: transform 0.2s;
     }
     .toggle:checked::before { transform: translateX(16px); }
+
+    /* Log viewer */
+    #log-viewer {
+      background: #111118;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 6px;
+      height: 280px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+      font-size: 0.72rem;
+      padding: 8px;
+    }
+    .log-entry {
+      display: flex;
+      gap: 8px;
+      padding: 2px 0;
+      line-height: 1.5;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+    .log-ts  { color: rgba(255,255,255,0.28); white-space: nowrap; flex-shrink: 0; }
+    .log-svc { font-weight: 700; flex-shrink: 0; min-width: 110px; }
+    .log-lvl { flex-shrink: 0; min-width: 60px; font-weight: 600; }
+    .log-msg { color: rgba(255,255,255,0.75); word-break: break-word; }
+    .lvl-DEBUG    { color: #6b7280; }
+    .lvl-INFO     { color: #6366f1; }
+    .lvl-WARNING  { color: #f59e0b; }
+    .lvl-ERROR    { color: #ef4444; }
+    .lvl-CRITICAL { color: #dc2626; font-weight: 800; }
+
+    /* Login overlay */
+    #login-overlay {
+      position: fixed;
+      inset: 0;
+      background: #0f0f13;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .login-box {
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 40px;
+      width: 340px;
+      text-align: center;
+    }
+    .login-box h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .login-box p {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.4);
+      margin-bottom: 24px;
+    }
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      box-sizing: border-box;
+    }
+    .login-box button {
+      width: 100%;
+      padding: 10px;
+      font-size: 0.85rem;
+    }
+    #login-error {
+      color: #f87171;
+      font-size: 0.8rem;
+      margin-top: 8px;
+      min-height: 1.2em;
+    }
   </style>
 </head>
 <body class="min-h-screen">
 
+  <!-- Login overlay -->
+  <div id="login-overlay">
+    <div class="login-box">
+      <h1>Admin Login</h1>
+      <p>Enter the admin password to continue.</p>
+      <input type="password" id="login-password" placeholder="Password"
+             onkeydown="if(event.key==='Enter')login()">
+      <button class="btn btn-primary" onclick="login()">Login</button>
+      <div id="login-error"></div>
+    </div>
+  </div>
+
   <!-- Header -->
-  <header class="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a]">
+  <header id="app-header" class="sticky top-0 z-10 flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-[#13131a] hidden">
     <div class="flex items-center gap-3">
       <a href="/" class="text-white/50 hover:text-white/80 text-sm">&larr; Back</a>
       <span class="font-semibold text-sm tracking-wide text-white/80">Admin</span>
     </div>
+    <button class="btn btn-secondary text-xs" onclick="logout()">Logout</button>
   </header>
 
-  <main class="max-w-4xl mx-auto px-6 py-8">
+  <main id="app-content" class="max-w-4xl mx-auto px-6 py-8 hidden">
+
+    <!-- System Status -->
+    <div class="card">
+      <div class="section-title">System Status</div>
+      <div class="grid grid-cols-1 gap-4" style="grid-template-columns: 1fr 1fr;">
+        <div>
+          <div class="text-xs text-white/40 mb-2 font-semibold">Services</div>
+          <div id="status-services" class="text-white/30 text-sm">Loading...</div>
+        </div>
+        <div>
+          <div class="text-xs text-white/40 mb-2 font-semibold">Disk</div>
+          <div id="status-disk" class="text-white/30 text-sm">Loading...</div>
+        </div>
+      </div>
+      <div class="mt-4">
+        <div class="text-xs text-white/40 mb-2 font-semibold">NATS Streams</div>
+        <table id="status-streams-table" class="hidden">
+          <thead>
+            <tr>
+              <th>Stream</th>
+              <th>Messages</th>
+              <th>Size</th>
+              <th>Consumers</th>
+            </tr>
+          </thead>
+          <tbody id="status-streams-body"></tbody>
+        </table>
+        <div id="status-streams-loading" class="text-white/30 text-sm">Loading...</div>
+      </div>
+    </div>
 
     <!-- Session History -->
     <div class="card">
       <div class="section-title">Session History</div>
-      <div id="sessions-loading" class="text-white/30 text-sm">Loading…</div>
+      <div id="sessions-loading" class="text-white/30 text-sm">Loading...</div>
       <table id="sessions-table" class="hidden">
         <thead>
           <tr>
@@ -137,8 +255,10 @@
             <label class="block text-xs text-white/40 mb-1">Stop</label>
             <input type="time" id="sched-stop" value="12:00">
           </div>
-          <div>
-            <label class="block text-xs text-white/40 mb-1">Label template</label>
+          <div style="position:relative;">
+            <label class="block text-xs text-white/40 mb-1">Label template
+              <span class="tpl-help" title="Supported variables:&#10;{date} — month and day (e.g. March 30)" style="cursor:help; color:#6366f1; font-weight:700; margin-left:2px;">?</span>
+            </label>
             <input type="text" id="sched-label" placeholder='Sunday Morning — {date}' style="width:220px">
           </div>
           <div>
@@ -154,15 +274,158 @@
       </details>
     </div>
 
+    <!-- Speaker Enrollment -->
+    <div class="card">
+      <div class="section-title">Speaker Enrollment</div>
+      <div class="text-xs text-white/40 mb-4 p-3 rounded" style="background:#1f2937; border:1px solid rgba(255,255,255,0.06);">
+        Speaker identification requires the identifier service with a compatible model.
+        Enrollment commands are queued via NATS.
+      </div>
+
+      <div class="flex gap-2 mb-4 items-end">
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Speaker name</label>
+          <input type="text" id="enroll-name" placeholder="e.g. Pastor John" style="width: 220px;"
+                 onkeydown="if(event.key==='Enter')enrollSpeaker()">
+        </div>
+        <button class="btn btn-primary" onclick="enrollSpeaker()">Enroll</button>
+        <span id="enroll-msg" class="text-xs text-red-400"></span>
+      </div>
+
+      <table id="speakers-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="speakers-body">
+          <tr><td colspan="2" class="text-white/30 text-sm">No enrolled speakers.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- System Logs -->
+    <div class="card">
+      <div class="section-title">System Logs</div>
+      <div class="flex gap-3 mb-3 items-center flex-wrap">
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Service</label>
+          <select id="log-filter-svc">
+            <option value="">All services</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-white/40 mb-1">Level</label>
+          <select id="log-filter-lvl">
+            <option value="">All levels</option>
+            <option value="DEBUG">DEBUG</option>
+            <option value="INFO">INFO</option>
+            <option value="WARNING">WARNING</option>
+            <option value="ERROR">ERROR</option>
+            <option value="CRITICAL">CRITICAL</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2" style="margin-top: 18px;">
+          <label class="flex items-center gap-1 text-xs text-white/50 cursor-pointer">
+            <input type="checkbox" id="log-autoscroll" checked style="accent-color:#6366f1;">
+            Auto-scroll
+          </label>
+        </div>
+        <button class="btn btn-secondary" style="margin-top: 18px;" onclick="clearLogs()">Clear</button>
+        <span id="log-status" class="text-xs text-white/30" style="margin-top: 18px;">Connecting...</span>
+      </div>
+      <div id="log-viewer"></div>
+    </div>
+
   </main>
 
   <script>
     const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+    // ── Auth ──────────────────────────────────────────────────────────────
+
+    function getToken() { return localStorage.getItem('admin_token'); }
+    function setToken(t) { localStorage.setItem('admin_token', t); }
+    function clearToken() { localStorage.removeItem('admin_token'); }
+
+    async function authFetch(url, opts = {}) {
+      const token = getToken();
+      if (!token) { logout(); throw new Error('no_token'); }
+      opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token };
+      const resp = await fetch(url, opts);
+      if (resp.status === 401) { logout(); throw new Error('unauthorized'); }
+      return resp;
+    }
+
+    async function login() {
+      const pw = document.getElementById('login-password').value;
+      const errEl = document.getElementById('login-error');
+      errEl.textContent = '';
+      try {
+        const resp = await fetch('/admin/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        });
+        if (!resp.ok) {
+          errEl.textContent = 'Invalid password.';
+          return;
+        }
+        const data = await resp.json();
+        setToken(data.token);
+        showApp();
+      } catch {
+        errEl.textContent = 'Connection error.';
+      }
+    }
+
+    function logout() {
+      clearToken();
+      stopStatusRefresh();
+      document.getElementById('login-overlay').style.display = 'flex';
+      document.getElementById('app-header').classList.add('hidden');
+      document.getElementById('app-content').classList.add('hidden');
+      document.getElementById('login-password').value = '';
+      document.getElementById('login-error').textContent = '';
+    }
+
+    function showApp() {
+      document.getElementById('login-overlay').style.display = 'none';
+      document.getElementById('app-header').classList.remove('hidden');
+      document.getElementById('app-content').classList.remove('hidden');
+      loadSessions();
+      loadSchedules();
+      startStatusRefresh();
+      startSessionRefresh();
+      loadSpeakers();
+      connectAdminLogs();
+    }
+
     // ── Sessions ──────────────────────────────────────────────────────────
+    let _sessionInterval = null;
+    function startSessionRefresh() {
+      _sessionInterval = setInterval(loadSessions, 5000);
+    }
+    async function stopSession(btn) {
+      btn.disabled = true;
+      btn.textContent = 'Stopping...';
+      try {
+        const resp = await authFetch('/session/stop', { method: 'POST' });
+        if (!resp.ok) {
+          btn.textContent = 'Failed';
+          setTimeout(() => { btn.textContent = 'Stop'; btn.disabled = false; }, 2000);
+          return;
+        }
+        setTimeout(loadSessions, 1000);
+      } catch {
+        btn.textContent = 'Error';
+        setTimeout(() => { btn.textContent = 'Stop'; btn.disabled = false; }, 2000);
+      }
+    }
     async function loadSessions() {
       try {
-        const resp = await fetch('/admin/sessions');
+        const resp = await authFetch('/admin/sessions');
         const sessions = await resp.json();
         const loading = document.getElementById('sessions-loading');
         const table = document.getElementById('sessions-table');
@@ -185,29 +448,53 @@
 
           let duration = '—';
           if (s.stopped_at) {
-            const secs = Math.floor((new Date(s.stopped_at) - new Date(s.started_at)) / 1000);
-            const h = Math.floor(secs / 3600);
-            const m = Math.floor((secs % 3600) / 60);
-            duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            const stopDate = new Date(s.stopped_at);
+            if (isNaN(stopDate.getTime())) {
+              duration = '<span class="text-yellow-400">Interrupted</span>';
+            } else {
+              const secs = Math.floor((stopDate - new Date(s.started_at)) / 1000);
+              const h = Math.floor(secs / 3600);
+              const m = Math.floor((secs % 3600) / 60);
+              duration = h > 0 ? `${h}h ${m}m` : `${m}m`;
+            }
           } else {
             duration = '<span class="text-green-400">Active</span>';
           }
 
+          const isActive = !s.stopped_at;
+          const actions = isActive
+            ? `<button class="btn btn-danger text-xs" onclick="stopSession(this)">Stop</button>`
+            : `<a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
+               <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>`;
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
             <td class="text-sm text-white/60">${s.label || '—'}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
-            <td class="flex gap-2">
-              <a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs">TXT</a>
-              <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs">PDF</a>
-            </td>
+            <td class="flex gap-2">${actions}</td>
           `;
           body.appendChild(tr);
         }
       } catch (e) {
+        if (e.message === 'unauthorized' || e.message === 'no_token') return;
         document.getElementById('sessions-loading').textContent = 'Failed to load sessions.';
       }
+    }
+
+    async function downloadExport(event, url) {
+      event.preventDefault();
+      try {
+        const resp = await authFetch(url);
+        const blob = await resp.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const disp = resp.headers.get('content-disposition') || '';
+        const match = disp.match(/filename="(.+)"/);
+        a.download = match ? match[1] : 'transcript';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch { /* logout handled by authFetch */ }
+      return false;
     }
 
     // ── Schedules ─────────────────────────────────────────────────────────
@@ -260,7 +547,7 @@
       };
 
       try {
-        const resp = await fetch('/admin/schedules', {
+        const resp = await authFetch('/admin/schedules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -272,30 +559,292 @@
         }
         document.getElementById('schedule-form-wrap').removeAttribute('open');
         loadSchedules();
-      } catch {
-        msg.textContent = 'Request failed.';
+      } catch (e) {
+        if (e.message !== 'unauthorized') msg.textContent = 'Request failed.';
       }
     }
 
     async function toggleSchedule(id, enabled, schedJson) {
       const sched = JSON.parse(schedJson);
       sched.enabled = enabled;
-      await fetch(`/admin/schedules/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sched),
-      });
+      try {
+        await authFetch(`/admin/schedules/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sched),
+        });
+      } catch { /* logout handled by authFetch */ }
     }
 
     async function deleteSchedule(id) {
       if (!confirm('Delete this schedule?')) return;
-      await fetch(`/admin/schedules/${id}`, { method: 'DELETE' });
-      loadSchedules();
+      try {
+        await authFetch(`/admin/schedules/${id}`, { method: 'DELETE' });
+        loadSchedules();
+      } catch { /* logout handled by authFetch */ }
     }
 
+    // ── System Status ────────────────────────────────────────────────────
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const units = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(1024));
+      return (bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0) + ' ' + units[i];
+    }
+
+    async function loadStatus() {
+      try {
+        const resp = await fetch('/admin/status');
+        const data = await resp.json();
+
+        // Services
+        const svcEl = document.getElementById('status-services');
+        if (data.services.length === 0) {
+          svcEl.innerHTML = '<span class="text-white/30">No services reporting.</span>';
+        } else {
+          svcEl.innerHTML = data.services.sort((a, b) => a.name.localeCompare(b.name)).map(s => {
+            let dot;
+            if (s.status === 'running') dot = '<span style="color:#22c55e;">&#9679;</span>';
+            else if (s.status === 'stale') dot = '<span style="color:#eab308;">&#9679;</span>';
+            else dot = '<span style="color:#ef4444;">&#9679;</span>';
+            return `<div class="flex items-center gap-2 py-1 text-sm">${dot} ${s.name}</div>`;
+          }).join('');
+        }
+
+        // Disk
+        const diskEl = document.getElementById('status-disk');
+        const d = data.disk;
+        const pct = d.total_bytes > 0 ? ((d.used_bytes / d.total_bytes) * 100).toFixed(1) : 0;
+        diskEl.innerHTML = `
+          <div class="text-sm mb-1">${formatBytes(d.used_bytes)} / ${formatBytes(d.total_bytes)} (${pct}%)</div>
+          <div style="background:#374151; border-radius:4px; height:8px; overflow:hidden;">
+            <div style="background:#6366f1; height:100%; width:${pct}%; border-radius:4px;"></div>
+          </div>
+          <div class="text-xs text-white/30 mt-1">DB: ${formatBytes(d.db_size_bytes)}</div>
+        `;
+
+        // Streams
+        const tbody = document.getElementById('status-streams-body');
+        const table = document.getElementById('status-streams-table');
+        document.getElementById('status-streams-loading').classList.add('hidden');
+        table.classList.remove('hidden');
+        tbody.innerHTML = data.streams.map(s => `
+          <tr>
+            <td class="text-sm">${s.name}</td>
+            <td class="text-sm">${s.messages.toLocaleString()}</td>
+            <td class="text-sm">${formatBytes(s.bytes)}</td>
+            <td class="text-sm">${s.consumers}</td>
+          </tr>
+        `).join('');
+      } catch { /* ignore on first load */ }
+    }
+
+    let _statusInterval = null;
+    function startStatusRefresh() {
+      loadStatus();
+      _statusInterval = setInterval(loadStatus, 5000);
+    }
+    function stopStatusRefresh() {
+      if (_statusInterval) clearInterval(_statusInterval);
+    }
+
+    // ── Speaker Enrollment ────────────────────────────────────────────────
+    async function loadSpeakers() {
+      try {
+        const resp = await authFetch('/admin/speakers');
+        const data = await resp.json();
+        renderSpeakers(data.speakers || []);
+      } catch (e) {
+        if (e.message !== 'unauthorized' && e.message !== 'no_token') {
+          document.getElementById('speakers-body').innerHTML =
+            '<tr><td colspan="2" class="text-red-400 text-sm">Failed to load speakers.</td></tr>';
+        }
+      }
+    }
+
+    function renderSpeakers(speakers) {
+      const body = document.getElementById('speakers-body');
+      if (speakers.length === 0) {
+        body.innerHTML = '<tr><td colspan="2" class="text-white/30 text-sm">No enrolled speakers.</td></tr>';
+        return;
+      }
+      body.innerHTML = '';
+      for (const name of speakers) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="text-sm">${name}</td>
+          <td><button class="btn btn-danger" onclick="deleteSpeaker(${JSON.stringify(name)})">Delete</button></td>
+        `;
+        body.appendChild(tr);
+      }
+    }
+
+    async function enrollSpeaker() {
+      const msg = document.getElementById('enroll-msg');
+      msg.textContent = '';
+      const name = document.getElementById('enroll-name').value.trim();
+      if (!name) { msg.textContent = 'Name is required.'; return; }
+      try {
+        const resp = await authFetch('/admin/speakers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name }),
+        });
+        if (!resp.ok) {
+          const err = await resp.json();
+          msg.textContent = err.error || 'Error';
+          return;
+        }
+        document.getElementById('enroll-name').value = '';
+        msg.style.color = '#4ade80';
+        msg.textContent = 'Enrollment queued.';
+        setTimeout(() => { msg.textContent = ''; msg.style.color = ''; }, 3000);
+        loadSpeakers();
+      } catch (e) {
+        if (e.message !== 'unauthorized') msg.textContent = 'Request failed.';
+      }
+    }
+
+    async function deleteSpeaker(name) {
+      if (!confirm(`Delete speaker "${name}"?`)) return;
+      try {
+        await authFetch(`/admin/speakers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        loadSpeakers();
+      } catch { /* logout handled by authFetch */ }
+    }
+
+    // ── System Logs ───────────────────────────────────────────────────────
+    const LOG_MAX_ENTRIES = 500;
+    const SERVICE_COLORS = [
+      '#6366f1', '#22c55e', '#f59e0b', '#38bdf8', '#e879f9',
+      '#fb923c', '#34d399', '#f472b6', '#a3e635', '#60a5fa',
+    ];
+    const _svcColorMap = {};
+    let _svcColorIdx = 0;
+    let _logEntries = [];      // raw log objects (up to LOG_MAX_ENTRIES)
+    let _seenServices = new Set();
+    let _logsWs = null;
+
+    function _svcColor(name) {
+      if (!_svcColorMap[name]) {
+        _svcColorMap[name] = SERVICE_COLORS[_svcColorIdx % SERVICE_COLORS.length];
+        _svcColorIdx++;
+      }
+      return _svcColorMap[name];
+    }
+
+    function _fmtTs(ts) {
+      if (!ts) return '';
+      const d = new Date(ts * 1000);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+
+    function _addService(svc) {
+      if (_seenServices.has(svc)) return;
+      _seenServices.add(svc);
+      const sel = document.getElementById('log-filter-svc');
+      const opt = document.createElement('option');
+      opt.value = svc;
+      opt.textContent = svc;
+      sel.appendChild(opt);
+    }
+
+    function _renderLogViewer() {
+      const filterSvc = document.getElementById('log-filter-svc').value;
+      const filterLvl = document.getElementById('log-filter-lvl').value;
+      const viewer = document.getElementById('log-viewer');
+      const frag = document.createDocumentFragment();
+
+      for (const entry of _logEntries) {
+        if (filterSvc && entry.service !== filterSvc) continue;
+        if (filterLvl && entry.level !== filterLvl) continue;
+        const div = document.createElement('div');
+        div.className = 'log-entry';
+        const lvlCls = 'lvl-' + (entry.level || 'INFO');
+        div.innerHTML =
+          `<span class="log-ts">${_fmtTs(entry.timestamp)}</span>` +
+          `<span class="log-svc" style="color:${_svcColor(entry.service)}">${entry.service || '?'}</span>` +
+          `<span class="log-lvl ${lvlCls}">${entry.level || ''}</span>` +
+          `<span class="log-msg">${_escHtml(entry.message || '')}</span>`;
+        frag.appendChild(div);
+      }
+
+      viewer.innerHTML = '';
+      viewer.appendChild(frag);
+
+      if (document.getElementById('log-autoscroll').checked) {
+        viewer.scrollTop = viewer.scrollHeight;
+      }
+    }
+
+    function _escHtml(s) {
+      return s
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function _appendLog(payload) {
+      _logEntries.push(payload);
+      if (_logEntries.length > LOG_MAX_ENTRIES) {
+        _logEntries.splice(0, _logEntries.length - LOG_MAX_ENTRIES);
+      }
+      _addService(payload.service);
+
+      // Only do a full re-render if not filtered; otherwise re-render anyway
+      // (inexpensive because the DOM is wiped & rebuilt, capped at 500 rows).
+      _renderLogViewer();
+    }
+
+    function clearLogs() {
+      _logEntries = [];
+      document.getElementById('log-viewer').innerHTML = '';
+    }
+
+    function connectAdminLogs() {
+      if (_logsWs) return;
+      const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/admin/logs';
+      _logsWs = new WebSocket(wsUrl);
+      document.getElementById('log-status').textContent = 'Connecting...';
+
+      _logsWs.onopen = () => {
+        document.getElementById('log-status').textContent = 'Live';
+        document.getElementById('log-status').style.color = '#22c55e';
+      };
+      _logsWs.onmessage = (evt) => {
+        try {
+          const msg = JSON.parse(evt.data);
+          if (msg.type === 'log') _appendLog(msg.payload);
+        } catch { /* ignore malformed */ }
+      };
+      _logsWs.onerror = () => {
+        document.getElementById('log-status').textContent = 'Error';
+        document.getElementById('log-status').style.color = '#ef4444';
+      };
+      _logsWs.onclose = () => {
+        _logsWs = null;
+        document.getElementById('log-status').textContent = 'Disconnected';
+        document.getElementById('log-status').style.color = '';
+        // Reconnect after 3 s when the page is still visible.
+        setTimeout(() => { if (getToken()) connectAdminLogs(); }, 3000);
+      };
+    }
+
+    // Re-render log viewer when filter dropdowns change.
+    document.getElementById('log-filter-svc').addEventListener('change', _renderLogViewer);
+    document.getElementById('log-filter-lvl').addEventListener('change', _renderLogViewer);
+
+    // Pause auto-scroll when user scrolls up manually.
+    document.getElementById('log-viewer').addEventListener('scroll', function() {
+      const atBottom = this.scrollHeight - this.scrollTop - this.clientHeight < 32;
+      document.getElementById('log-autoscroll').checked = atBottom;
+    });
+
     // ── Init ──────────────────────────────────────────────────────────────
-    loadSessions();
-    loadSchedules();
+    if (getToken()) {
+      showApp();
+    }
   </script>
 </body>
 </html>

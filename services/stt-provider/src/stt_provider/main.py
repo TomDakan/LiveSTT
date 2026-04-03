@@ -139,6 +139,27 @@ class STTProviderService(BaseService):
                 return False
         return False
 
+    async def _wait_for_audio(
+        self,
+        sub: Any,
+        stop_event: asyncio.Event,
+        source_tag: str,
+    ) -> list[Any]:
+        """Block until audio arrives on the NATS subject.
+
+        Prevents Deepgram connections while idle (no session active),
+        avoiding the idle-timeout / reconnect loop.
+        """
+        while not stop_event.is_set():
+            try:
+                return list(await sub.fetch(1, timeout=2))
+            except TimeoutError:
+                continue
+            except Exception as e:
+                self.logger.error(f"[{source_tag}] fetch error: {e}")
+                await asyncio.sleep(1)
+        return []
+
     async def _run_lane(
         self,
         js: Any,
@@ -160,6 +181,10 @@ class STTProviderService(BaseService):
             return
 
         while not stop_event.is_set():
+            first_msgs = await self._wait_for_audio(sub, stop_event, source_tag)
+            if stop_event.is_set():
+                break
+
             transcriber = await self._connect_with_retry(source_tag, stop_event)
             if transcriber is None:
                 break
@@ -173,8 +198,17 @@ class STTProviderService(BaseService):
                 self._drain_events(transcriber, source_tag, js, stop_event, dg_closed)
             )
 
+            # Send the first message(s) that triggered the connection
+            eos_received = await self._send_msgs(
+                first_msgs, transcriber, source_tag, dg_closed
+            )
+
             try:
-                while not stop_event.is_set() and not dg_closed.is_set():
+                while (
+                    not stop_event.is_set()
+                    and not dg_closed.is_set()
+                    and not eos_received
+                ):
                     try:
                         msgs = await sub.fetch(1, timeout=1)
                     except TimeoutError:
