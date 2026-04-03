@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(just qa:*)",
+      "Bash(just test:*)",
+      "Bash(just lint:*)",
+      "Bash(just type-check:*)",
+      "Bash(find /d/repos/LiveSTT -maxdepth 2 -name pyproject.toml -o -name requirements*.txt)",
+      "Bash(uv sync:*)",
+      "Bash(ls D:/repos/LiveSTT/docs/20_architecture/adr* D:/repos/LiveSTT/docs/20_architecture/ADR*)",
+      "Bash(gh pr create --title 'fix\\(stt-provider\\): sequential Deepgram connection eliminates backfill/live gap' --body ':*)"
+    ]
+  }
+}
