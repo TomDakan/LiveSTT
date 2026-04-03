@@ -149,6 +149,9 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 
 **Future UI items**
 - [ ] Session rename/relabel (edit label of active or past session)
+- [ ] Session start feedback: show a "Processing pre-roll…" indicator while
+  backfill is draining to Deepgram (~2s delay) — the greyed-out Start button
+  makes it look frozen with no visual feedback
 
 ### Milestone 7: Vocabulary Intelligence
 **Goal**: Close the feedback loop between transcription errors and Deepgram custom vocabulary.
