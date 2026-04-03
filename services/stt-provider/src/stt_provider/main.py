@@ -264,11 +264,19 @@ class STTProviderService(BaseService):
             await self._check_consumer_lag(backfill_sub, js, "backfill")
 
             dg_closed = asyncio.Event()
+            finalize_done = asyncio.Event()
             # tag_holder[0] is read dynamically by _drain_events so that
             # transcript subjects switch from "backfill" to "live" mid-stream.
             tag_holder: list[str] = ["backfill"]
             drain_task = asyncio.create_task(
-                self._drain_events(transcriber, tag_holder, js, stop_event, dg_closed)
+                self._drain_events(
+                    transcriber,
+                    tag_holder,
+                    js,
+                    stop_event,
+                    dg_closed,
+                    finalize_done,
+                )
             )
 
             try:
@@ -285,27 +293,28 @@ class STTProviderService(BaseService):
                 )
 
                 # Phase 3: live audio on the same DG connection
-                if not dg_closed.is_set() and not stop_event.is_set():
-                    if bf_eos:
-                        # Normal path: backfill finished, move to live
-                        tag_holder[0] = "live"
-                        first_live_msgs = await self._wait_for_audio(
-                            live_sub, stop_event, "live"
+                if bf_eos and not dg_closed.is_set() and not stop_event.is_set():
+                    await self._flush_backfill(
+                        transcriber,
+                        finalize_done,
+                        dg_closed,
+                        stop_event,
+                        tag_holder,
+                    )
+                    first_live_msgs = await self._wait_for_audio(
+                        live_sub, stop_event, "live"
+                    )
+                    if not stop_event.is_set():
+                        await self._fetch_phase(
+                            live_sub,
+                            transcriber,
+                            "live",
+                            dg_closed,
+                            stop_event,
+                            first_live_msgs,
+                            close_on_eos=True,
+                            session_id=session_id,
                         )
-                        if not stop_event.is_set():
-                            await self._fetch_phase(
-                                live_sub,
-                                transcriber,
-                                "live",
-                                dg_closed,
-                                stop_event,
-                                first_live_msgs,
-                                close_on_eos=True,
-                                session_id=session_id,
-                            )
-                    else:
-                        # DG dropped during backfill — no live phase this cycle
-                        pass
             finally:
                 await self._close_transcriber(transcriber, drain_task, "live")
 
@@ -314,6 +323,28 @@ class STTProviderService(BaseService):
                 pass
 
         self.logger.info("Session loop stopped.")
+
+    async def _flush_backfill(
+        self,
+        transcriber: Transcriber,
+        finalize_done: asyncio.Event,
+        dg_closed: asyncio.Event,
+        stop_event: asyncio.Event,
+        tag_holder: list[str],
+    ) -> None:
+        """Finalize Deepgram after backfill, wait for flush, switch tag."""
+        try:
+            await transcriber.finalize()
+        except Exception as e:
+            self.logger.warning(f"[backfill] finalize() failed: {e}")
+        # Wait up to 5s for Deepgram to flush backfill transcripts
+        try:
+            await asyncio.wait_for(finalize_done.wait(), timeout=5.0)
+        except TimeoutError:
+            self.logger.debug("[backfill] finalize wait timed out")
+        if not dg_closed.is_set() and not stop_event.is_set():
+            tag_holder[0] = "live"
+            self.logger.info("Switched to live phase")
 
     async def _close_transcriber(
         self,
@@ -362,6 +393,7 @@ class STTProviderService(BaseService):
         js: Any,
         stop_event: asyncio.Event,
         dg_closed: asyncio.Event,
+        finalize_done: asyncio.Event | None = None,
     ) -> None:
         assert self.nc is not None  # guaranteed after BaseService.start()
         async for event in transcriber.get_events():
@@ -370,6 +402,9 @@ class STTProviderService(BaseService):
             source_tag = tag_holder[0]
             topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
             interim_topic = f"{SUBJECT_PREFIX_TRANSCRIPT_INTERIM}.{source_tag}"
+            # Signal that finalize flush is complete
+            if finalize_done and not finalize_done.is_set() and event.is_final:
+                finalize_done.set()
             payload_obj = TranscriptPayload(
                 text=event.text,
                 is_final=event.is_final,

@@ -15,6 +15,7 @@ class MockTranscriber(Transcriber):
 
     def __init__(self, auto_respond: bool = False) -> None:
         self.connected = False
+        self.finalized = False
         self.finished = False
         self.sent_audio: list[bytes] = []
         self._queue: asyncio.Queue[TranscriptionEvent | None] = asyncio.Queue()
@@ -44,6 +45,17 @@ class MockTranscriber(Transcriber):
                         confidence=0.95,
                     )
                 )
+
+    async def finalize(self) -> None:
+        self.finalized = True
+        # Emit a final event to signal the flush, like Deepgram would
+        await self._queue.put(
+            TranscriptionEvent(
+                text="",
+                is_final=True,
+                confidence=0.0,
+            )
+        )
 
     async def finish(self) -> None:
         self.finished = True

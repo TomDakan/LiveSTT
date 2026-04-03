@@ -92,6 +92,10 @@ class DeepgramTranscriber(Transcriber):
         if self.connection:
             await self.connection.send_media(ListenV1MediaMessage(audio))
 
+    async def finalize(self) -> None:
+        if self.connection:
+            await self.connection.send_control(ListenV1ControlMessage(type="Finalize"))
+
     async def finish(self) -> None:
         if self.connection:
             await self.connection.send_control(ListenV1ControlMessage(type="Finalize"))
