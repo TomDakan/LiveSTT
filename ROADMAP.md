@@ -219,12 +219,13 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [x] `just nats-streams` — pretty-print all stream configs and current state
 
 **Backup & restore**
-- [ ] `POST /admin/backup` → streams a tar archive of `/data/db` (vocab, transcripts) and
-  `/data/lancedb` (voiceprints); downloadable via admin UI or `just backup-device <uuid>`
-- [ ] `POST /admin/restore` → accepts tar archive, restores vocab and voiceprints
+- [x] `POST /admin/backup` → tar.gz archive of `/data/db` and `/data/lancedb` (when present);
+  downloadable via admin UI button
+- [x] `POST /admin/restore` → accepts tar.gz upload, restores db and voiceprint files;
+  handles both new (`db/`, `lancedb/` prefixed) and legacy flat archive formats
+- [x] Audio NATS data (`/data/nats`) explicitly excluded from backup — transient by design
 - [ ] Reserve `BACKUP_DESTINATION` env var for future cloud backup (S3/GCS); not
   implemented in v8.0 but architecture accommodates it
-- [ ] Audio NATS data (`/data/nats`) explicitly excluded from backup — transient by design
 
 **Web-accessible status page**
 - [x] `GET /admin/status` — read-only JSON view of service health and stream stats

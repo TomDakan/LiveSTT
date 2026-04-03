@@ -305,6 +305,31 @@
       </table>
     </div>
 
+    <!-- Backup & Restore -->
+    <div class="card">
+      <div class="section-title">Backup &amp; Restore</div>
+      <div class="text-xs text-white/40 mb-4 p-3 rounded" style="background:#1f2937; border:1px solid rgba(255,255,255,0.06);">
+        Download a full backup of transcripts, sessions, schedules, and voiceprints.
+        NATS stream data (audio buffers) is excluded &mdash; it is transient by design.
+      </div>
+
+      <div class="flex gap-3 items-center flex-wrap">
+        <button class="btn btn-primary" onclick="downloadBackup()">Download Backup</button>
+        <span id="backup-msg" class="text-xs text-green-400" style="display:none;"></span>
+      </div>
+
+      <div style="margin-top:16px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.06);">
+        <div class="text-xs text-white/40 mb-2">
+          Restore from a previous backup archive. This will overwrite existing data.
+        </div>
+        <div class="flex gap-3 items-center flex-wrap">
+          <input type="file" id="restore-file" accept=".tar.gz,.gz" style="font-size:12px; color:rgba(255,255,255,0.6);">
+          <button class="btn" style="background:#b91c1c;" onclick="confirmRestore()">Restore</button>
+          <span id="restore-msg" class="text-xs" style="display:none;"></span>
+        </div>
+      </div>
+    </div>
+
     <!-- System Logs -->
     <div class="card">
       <div class="section-title">System Logs</div>
@@ -711,6 +736,73 @@
         await authFetch(`/admin/speakers/${encodeURIComponent(name)}`, { method: 'DELETE' });
         loadSpeakers();
       } catch { /* logout handled by authFetch */ }
+    }
+
+    // ── Backup & Restore ─────────────────────────────────────────────────
+    async function downloadBackup() {
+      const msg = document.getElementById('backup-msg');
+      msg.style.display = 'inline';
+      msg.textContent = 'Preparing backup...';
+      msg.className = 'text-xs text-white/50';
+      try {
+        const resp = await authFetch('/admin/backup', { method: 'POST' });
+        const blob = await resp.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const disp = resp.headers.get('content-disposition') || '';
+        const match = disp.match(/filename="(.+)"/);
+        a.download = match ? match[1] : 'livestt-backup.tar.gz';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        msg.textContent = 'Download started.';
+        msg.className = 'text-xs text-green-400';
+      } catch {
+        msg.textContent = 'Backup failed.';
+        msg.className = 'text-xs text-red-400';
+      }
+      setTimeout(() => { msg.style.display = 'none'; }, 4000);
+    }
+
+    function confirmRestore() {
+      const fileInput = document.getElementById('restore-file');
+      if (!fileInput.files || !fileInput.files.length) {
+        const msg = document.getElementById('restore-msg');
+        msg.style.display = 'inline';
+        msg.textContent = 'Select a backup file first.';
+        msg.className = 'text-xs text-red-400';
+        setTimeout(() => { msg.style.display = 'none'; }, 3000);
+        return;
+      }
+      if (!confirm('This will overwrite existing data. Continue?')) return;
+      uploadRestore(fileInput.files[0]);
+    }
+
+    async function uploadRestore(file) {
+      const msg = document.getElementById('restore-msg');
+      msg.style.display = 'inline';
+      msg.textContent = 'Restoring...';
+      msg.className = 'text-xs text-white/50';
+      try {
+        const buf = await file.arrayBuffer();
+        const resp = await authFetch('/admin/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/gzip' },
+          body: buf,
+        });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+          const r = data.restored_files || {};
+          msg.textContent = `Restored ${r.db || 0} db + ${r.lancedb || 0} voiceprint files.`;
+          msg.className = 'text-xs text-green-400';
+        } else {
+          msg.textContent = data.error || 'Restore failed.';
+          msg.className = 'text-xs text-red-400';
+        }
+      } catch {
+        msg.textContent = 'Restore failed.';
+        msg.className = 'text-xs text-red-400';
+      }
+      setTimeout(() => { msg.style.display = 'none'; }, 6000);
     }
 
     // ── System Logs ───────────────────────────────────────────────────────

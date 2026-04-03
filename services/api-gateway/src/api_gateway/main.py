@@ -787,14 +787,17 @@ async def delete_schedule(
     return JSONResponse(content={"status": "ok"})
 
 
+_DB_DIR = Path(os.getenv("DB_PATH", "/data/db/livestt.db")).parent
+_LANCEDB_DIR = Path("/data/lancedb")
+
+
 @app.post("/admin/backup")
 async def create_backup(_: None = Depends(require_admin)) -> Response:
-    """Create a tar.gz backup of /data/db/ (livestt.db + any future DBs)."""
+    """Create a tar.gz backup of /data/db/ and /data/lancedb/ (if present)."""
     import io
     import tarfile
 
-    db_dir = Path(os.getenv("DB_PATH", "/data/db/livestt.db")).parent
-    if not db_dir.is_dir():
+    if not _DB_DIR.is_dir():
         return JSONResponse(
             status_code=404,
             content={"error": "No data directory found"},
@@ -802,16 +805,81 @@ async def create_backup(_: None = Depends(require_admin)) -> Response:
 
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        for fpath in db_dir.iterdir():
+        for fpath in _DB_DIR.iterdir():
             if fpath.is_file():
-                tar.add(str(fpath), arcname=fpath.name)
+                tar.add(str(fpath), arcname=f"db/{fpath.name}")
+        if _LANCEDB_DIR.is_dir():
+            for fpath in _LANCEDB_DIR.rglob("*"):
+                if fpath.is_file():
+                    arcname = f"lancedb/{fpath.relative_to(_LANCEDB_DIR)}"
+                    tar.add(str(fpath), arcname=arcname)
     buf.seek(0)
+
+    from datetime import UTC, datetime
+
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
+    filename = f"livestt-backup-{stamp}.tar.gz"
 
     return Response(
         content=buf.getvalue(),
         media_type="application/gzip",
-        headers={"Content-Disposition": 'attachment; filename="livestt-backup.tar.gz"'},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.post("/admin/restore")
+async def restore_backup(
+    request: Request, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """Restore a previously created backup archive.
+
+    Accepts a tar.gz upload.  Files prefixed ``db/`` are extracted to
+    /data/db/ and files prefixed ``lancedb/`` to /data/lancedb/.
+    Legacy flat archives (no prefix) are treated as db files.
+    """
+    import io
+    import tarfile
+
+    body = await request.body()
+    if not body:
+        return JSONResponse(status_code=400, content={"error": "Empty request body"})
+
+    try:
+        with tarfile.open(fileobj=io.BytesIO(body), mode="r:gz") as tar:
+            restored = _extract_backup(tar)
+    except tarfile.TarError:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Invalid tar.gz archive"},
+        )
+
+    return JSONResponse(content={"status": "ok", "restored_files": restored})
+
+
+def _extract_backup(tar: Any) -> dict[str, int]:
+    restored: dict[str, int] = {"db": 0, "lancedb": 0}
+    for member in tar.getmembers():
+        if member.isdir():
+            continue
+        # Security: reject absolute paths and path traversal
+        if member.name.startswith("/") or ".." in member.name:
+            continue
+        if member.name.startswith("db/"):
+            dest = _DB_DIR / member.name.removeprefix("db/")
+        elif member.name.startswith("lancedb/"):
+            dest = _LANCEDB_DIR / member.name.removeprefix("lancedb/")
+        elif member.name.endswith((".db", ".db-wal", ".db-shm")):
+            # Legacy flat format (pre-v0.14)
+            dest = _DB_DIR / member.name
+        else:
+            continue
+        bucket = "lancedb" if member.name.startswith("lancedb/") else "db"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        src = tar.extractfile(member)
+        if src:
+            dest.write_bytes(src.read())
+            restored[bucket] += 1
+    return restored
 
 
 class SpeakerEnrollBody(BaseModel):
