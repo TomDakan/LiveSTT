@@ -1,18 +1,51 @@
+# Local development overrides — relaxed health timeouts and mounted source dirs.
+#
+# Applied automatically by `just up-dev`. To use manually:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Tip: copy this file to docker-compose.override.yml (git-ignored) if you want
+# Docker Compose to apply it automatically on every `docker compose up`.
 services:
-  nats-surveyor:
-    image: natsio/nats-surveyor:latest
-    ports:
-      - "8080:8080"
-    environment:
-      SURVEYOR_SERVERS: "nats://nats:4222"
-    profiles: ["dev"]
-    networks:
-      - internal_overlay
-
   nats:
-    command:
-      - "--debug"   # Enable debug logging in dev
-      - "--trace"   # Trace all messages
-      - "-js"       # JetStream
-      - "-sd"
-      - "/data/nats"
+    healthcheck:
+      interval: 5s
+      start_period: 2s
+
+  api-gateway:
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    # NOTE: no source mount for api-gateway — Tailwind CSS is built at image
+    # build time and a bind mount would overwrite the compiled stylesheet.
+
+  audio-producer:
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    volumes:
+      - ./services/audio-producer/src:/app/services/audio-producer/src
+      - ./libs/messaging/src:/app/libs/messaging/src
+
+  stt-provider:
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    volumes:
+      - ./services/stt-provider/src:/app/services/stt-provider/src
+      - ./libs/messaging/src:/app/libs/messaging/src
+
+  system-manager:
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    volumes:
+      - ./services/system-manager/src:/app/services/system-manager/src
+      - ./libs/messaging/src:/app/libs/messaging/src
+
+  identity-manager:
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    volumes:
+      - ./services/identity-manager/src:/app/services/identity-manager/src
+      - ./libs/messaging/src:/app/libs/messaging/src
