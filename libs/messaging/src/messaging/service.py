@@ -46,11 +46,17 @@ class NatsLogHandler(logging.Handler):
         ).encode()
         try:
             loop = asyncio.get_running_loop()
-            task = loop.create_task(self._nc.publish(self._subject, msg))
-            # Discard reference; fire-and-forget is intentional for log forwarding
+            task = loop.create_task(self._publish(msg))
             task.add_done_callback(lambda _: None)
         except RuntimeError:
             pass  # no event loop — skip
+
+    async def _publish(self, msg: bytes) -> None:
+        try:
+            await self._nc.publish(self._subject, msg)
+            await self._nc.flush()
+        except Exception:  # nosec B110
+            pass
 
 
 class BaseService(ABC):

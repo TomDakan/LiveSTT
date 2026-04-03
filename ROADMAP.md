@@ -242,6 +242,16 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   than X days (default: keep last 30 sessions); enforced by a scheduled cleanup task in
   api-gateway; prevents unbounded disk growth on long-running devices
 
+**Log persistence & admin viewer**
+- [ ] Server-side ring buffer: subscribe to `logs.>` once at api-gateway startup and keep
+  the last N messages (e.g., 500) in memory; replay on WebSocket connect so the admin
+  log viewer shows recent history instead of starting empty
+- [ ] Persistent log storage: store ERROR and CRITICAL logs to SQLite (or a dedicated
+  `logs` table) with 30-day default retention; configurable retention per level via
+  admin UI or env var (e.g., `LOG_RETENTION_DAYS_ERROR=30`, `LOG_RETENTION_INFO=7`)
+- [ ] Admin log viewer: backfill from persistent storage on page load; live-stream via
+  existing WebSocket for new entries
+
 **Log export for bug reporting**
 - [ ] `GET /admin/logs/export` — download a tar archive of recent structured log output
   from all services (bounded by time range or line count); surfaced in the admin UI as
