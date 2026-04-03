@@ -58,7 +58,7 @@ async def test_transcriber_connection_succeeds_after_failure(
         async def connect(self, **kwargs: Any) -> None:
             nonlocal attempts
             attempts += 1
-            if attempts <= 2:  # first attempt per lane fails
+            if attempts <= 1:  # first attempt fails
                 raise Exception("Temporary Error")
             await super().connect(**kwargs)
 
@@ -97,7 +97,7 @@ async def test_transcriber_connection_succeeds_after_failure(
 
     stop_event.set()
     await asyncio.wait_for(task, timeout=1.0)
-    assert attempts > 2, "Expected retries and eventual success"
+    assert attempts > 1, "Expected retries and eventual success"
 
 
 @pytest.mark.asyncio
@@ -120,7 +120,7 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
     audio_msg.data = b"\x00" * 160
     audio_msg.headers = None
     audio_msg.ack = AsyncMock()
-    first_call = [True, True]  # one per lane
+    first_call = [True]  # single sub now (sequential model)
 
     async def fetch(n: int, timeout: float) -> list[Any]:
         if first_call and first_call.pop():
@@ -135,7 +135,7 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
         task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
         await asyncio.sleep(0.05)
 
-        # Inject event into first available transcriber
+        # Inject event into the single transcriber instance
         first_transcriber = mock_transcriber_factory.instances[0]
         await first_transcriber.inject_event(
             TranscriptionEvent(text="test", is_final=True, confidence=1.0)
@@ -154,7 +154,7 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
 
 @pytest.mark.asyncio
 async def test_finish_exception_does_not_hang_run_lane() -> None:
-    """_run_lane must complete even if finish() raises and drain_task stalls."""
+    """_run_session_loop must complete even if finish() raises and drain_task stalls."""
 
     class FinishRaisingTranscriber(MockTranscriber):
         async def finish(self) -> None:
@@ -177,7 +177,7 @@ async def test_finish_exception_does_not_hang_run_lane() -> None:
     audio_msg.data = b"\x00" * 160
     audio_msg.headers = None
     audio_msg.ack = AsyncMock()
-    first_call = [True, True]  # one per lane
+    first_call = [True]  # single sub now (sequential model)
 
     async def fetch(n: int, timeout: float) -> list[Any]:
         if first_call and first_call.pop():
