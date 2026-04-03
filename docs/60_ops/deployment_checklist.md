@@ -46,7 +46,7 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
 - [ ] **Identification**: Speak as test user -> Transcript shows correct name.
 
 ### 2.5 Service Resilience
-- [ ] **Restart policy**: All services in `docker-compose.yml` have `restart: unless-stopped`
+- [ ] **Restart policy**: All services in `docker-compose.yml` have `restart: always` (ADR-0017)
 - [ ] **NATS isolation**: `docker-compose.yml` does NOT expose NATS ports to the host
       (verify no `ports:` block on the `nats` service)
 - [ ] **Audio-producer crash recovery**: Kill the `audio-producer` container mid-session
@@ -54,8 +54,9 @@ Complete this checklist before deploying Live STT (v8.0 Buffered Brain) to produ
       from NATS KV within 30 seconds
 - [ ] **API-gateway restart**: Kill `api-gateway` while WebSocket clients are connected;
       verify clients reconnect and resume receiving transcripts
-- [ ] **BalenaOS volume**: Verify `/data/nats` is mounted on the persistent volume
-      (not a tmpfs or overlay-only mount); `docker inspect nats | grep Mounts`
+- [ ] **Docker healthchecks**: `docker compose ps` shows all services as `healthy`
+- [ ] **BalenaOS volume**: Verify named volumes (`nats_data`, `db_data`) are on the
+      persistent partition (not a tmpfs or overlay-only mount)
 
 ### 2.6 Persistent Data
 - [ ] **Data volume**: `/data/db/` contains `livestt.db` (sessions, transcripts, schedules).

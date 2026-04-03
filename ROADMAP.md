@@ -188,7 +188,7 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [ ] Set `DEEPGRAM_API_KEY` and other runtime secrets via Balena Cloud fleet environment
   variables (injected at runtime — no `.env` file on device, secrets never in image/git);
   support per-device API key overrides for sites with separate Deepgram accounts
-- [x] Add `restart: unless-stopped` to all services
+- [x] Add `restart: always` to all services (ADR-0017)
 - [ ] `just deploy` — `balena push <fleet>` wrapper
 - [ ] `just deploy-check` — smoke-test a device by UUID (`curl /health`, NATS ping via
   Balena public URL)
@@ -199,16 +199,17 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   admin UI (e.g., disable `identifier` + `audio-classifier` at venues without speaker ID)
 - [ ] Docker socket backend: system-manager calls Docker Engine API to start/stop containers;
   optional Balena Supervisor API backend when running on BalenaOS
-- [ ] Restart policy review: `restart: unless-stopped` doesn't restart after daemon restart
-  (power loss); evaluate `restart: on-failure` or `restart: always` with explicit disable
-  via Docker API stop. Needs ADR.
+- [x] Restart policy review: `restart: always` selected (ADR-0017); service disable will
+  use `docker update --restart=no` or Balena Supervisor API
 - [ ] Web-based onboarding flow: first-run setup wizard (admin password, Deepgram API key,
   timezone, optional service toggles) — the appliance should be fully configurable without
   CLI access
 
 **Docker / Compose**
-- [ ] Add `healthcheck:` directives to all services in `docker-compose.yml` so
-  `restart: unless-stopped` only kicks in after a true health failure (not a cold-start race)
+- [x] Add `healthcheck:` directives to all services in `docker-compose.yml`;
+  non-HTTP services use `/tmp/healthy` marker file touched by BaseService heartbeat
+- [x] Migrate bind mounts to named volumes (`nats_data`, `db_data`) for Balena compatibility
+- [x] `depends_on` with `condition: service_healthy` for startup ordering
 - [ ] `docker-compose.override.yml` for local dev (relaxed health timeouts, mounted source dirs)
 
 **`justfile` recipes**
@@ -240,6 +241,16 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [ ] Configurable auto-purge policy: keep the last N sessions or purge segments older
   than X days (default: keep last 30 sessions); enforced by a scheduled cleanup task in
   api-gateway; prevents unbounded disk growth on long-running devices
+
+**Log persistence & admin viewer**
+- [ ] Server-side ring buffer: subscribe to `logs.>` once at api-gateway startup and keep
+  the last N messages (e.g., 500) in memory; replay on WebSocket connect so the admin
+  log viewer shows recent history instead of starting empty
+- [ ] Persistent log storage: store ERROR and CRITICAL logs to SQLite (or a dedicated
+  `logs` table) with 30-day default retention; configurable retention per level via
+  admin UI or env var (e.g., `LOG_RETENTION_DAYS_ERROR=30`, `LOG_RETENTION_INFO=7`)
+- [ ] Admin log viewer: backfill from persistent storage on page load; live-stream via
+  existing WebSocket for new entries
 
 **Log export for bug reporting**
 - [ ] `GET /admin/logs/export` — download a tar archive of recent structured log output

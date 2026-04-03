@@ -5,6 +5,7 @@ import os
 import signal
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 from messaging.nats import NatsJSManager
@@ -45,11 +46,17 @@ class NatsLogHandler(logging.Handler):
         ).encode()
         try:
             loop = asyncio.get_running_loop()
-            task = loop.create_task(self._nc.publish(self._subject, msg))
-            # Discard reference; fire-and-forget is intentional for log forwarding
+            task = loop.create_task(self._publish(msg))
             task.add_done_callback(lambda _: None)
         except RuntimeError:
             pass  # no event loop — skip
+
+    async def _publish(self, msg: bytes) -> None:
+        try:
+            await self._nc.publish(self._subject, msg)
+            await self._nc.flush()
+        except Exception:  # nosec B110
+            pass
 
 
 class BaseService(ABC):
@@ -99,6 +106,8 @@ class BaseService(ABC):
 
         self.logger.info("Heartbeat initialized")
 
+        health_file = Path("/tmp/healthy")  # nosec B108
+
         while not self.stop_event.is_set():
             try:
                 payload = json.dumps(
@@ -109,6 +118,7 @@ class BaseService(ABC):
                     }
                 ).encode()
                 await self.kv.put(self.service_name, payload)
+                health_file.touch()
                 await asyncio.sleep(2)
             except Exception as e:
                 self.logger.warning(f"Heartbeat tick failed (will retry): {e}")
