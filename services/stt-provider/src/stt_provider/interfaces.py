@@ -24,8 +24,12 @@ class Transcriber(Protocol):
         """Sends a chunk of audio for transcription."""
         ...
 
+    async def finalize(self) -> None:
+        """Flush buffered audio — forces a final transcript without closing."""
+        ...
+
     async def finish(self) -> None:
-        """Signals end of stream."""
+        """Signals end of stream and closes the connection."""
         ...
 
     def get_events(self) -> AsyncIterator[TranscriptionEvent]:

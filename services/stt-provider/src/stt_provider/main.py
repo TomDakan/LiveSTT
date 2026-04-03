@@ -57,15 +57,7 @@ class STTProviderService(BaseService):
             self.logger.critical(f"Stream verification failed: {e}")
             return
 
-        async with asyncio.TaskGroup() as tg:
-            tg.create_task(
-                self._run_lane(js, stop_event, SUBJECT_AUDIO_LIVE, _DURABLE_LIVE, "live")
-            )
-            tg.create_task(
-                self._run_lane(
-                    js, stop_event, SUBJECT_AUDIO_BACKFILL, _DURABLE_BACKFILL, "backfill"
-                )
-            )
+        await self._run_session_loop(js, stop_event)
 
     async def _connect_with_retry(
         self,
@@ -113,21 +105,40 @@ class STTProviderService(BaseService):
         except Exception as e:
             self.logger.warning(f"[{source_tag}] stt_status publish failed: {e}")
 
+    @staticmethod
+    def _session_id_from_subject(subject: str) -> str | None:
+        """Extract session ID from 'audio.{backfill|live}.<sid>'."""
+        parts = subject.rsplit(".", 1)
+        return parts[-1] if len(parts) >= 2 else None
+
     async def _send_msgs(
         self,
         msgs: list[Any],
         transcriber: "Transcriber",
         source_tag: str,
         dg_closed: asyncio.Event,
+        close_on_eos: bool = True,
+        session_id: str | None = None,
     ) -> bool:
-        """Send fetched messages to Deepgram; return True if EOS was received."""
+        """Send fetched messages to Deepgram; return True if EOS was received.
+
+        When close_on_eos is False the Deepgram connection is kept open after
+        the EOS marker — the caller switches the audio phase instead.
+        Messages from a different session are ACKed and skipped.
+        """
         for msg in msgs:
+            # Skip stale messages from a previous session
+            if session_id and hasattr(msg, "subject"):
+                msg_sid = self._session_id_from_subject(msg.subject)
+                if msg_sid and msg_sid != session_id:
+                    await msg.ack()
+                    continue
+
             if msg.headers and msg.headers.get("LiveSTT-EOS") == "true":
-                self.logger.info(
-                    f"[{source_tag}] EOS received — closing Deepgram connection"
-                )
+                self.logger.info(f"[{source_tag}] EOS received")
                 await msg.ack()
-                dg_closed.set()
+                if close_on_eos:
+                    dg_closed.set()
                 return True
             try:
                 await transcriber.send_audio(msg.data)
@@ -160,74 +171,180 @@ class STTProviderService(BaseService):
                 await asyncio.sleep(1)
         return []
 
-    async def _run_lane(
+    async def _fetch_phase(
+        self,
+        sub: Any,
+        transcriber: Transcriber,
+        source_tag: str,
+        dg_closed: asyncio.Event,
+        stop_event: asyncio.Event,
+        first_msgs: list[Any],
+        close_on_eos: bool,
+        session_id: str | None = None,
+    ) -> bool:
+        """Drain one NATS subject into the open Deepgram connection.
+
+        Returns True when EOS is received, False when the connection drops or
+        stop_event fires.
+        """
+        eos = await self._send_msgs(
+            first_msgs,
+            transcriber,
+            source_tag,
+            dg_closed,
+            close_on_eos,
+            session_id,
+        )
+        if eos or dg_closed.is_set():
+            return eos
+
+        while not stop_event.is_set() and not dg_closed.is_set():
+            try:
+                msgs = list(await sub.fetch(1, timeout=1))
+            except TimeoutError:
+                continue
+            except Exception as e:
+                self.logger.error(f"[{source_tag}] fetch error: {e}")
+                await asyncio.sleep(1)
+                continue
+
+            eos = await self._send_msgs(
+                msgs,
+                transcriber,
+                source_tag,
+                dg_closed,
+                close_on_eos,
+                session_id,
+            )
+            if eos or dg_closed.is_set():
+                return eos
+
+        return False
+
+    async def _run_session_loop(
         self,
         js: Any,
         stop_event: asyncio.Event,
-        subject: str,
-        durable: str,
-        source_tag: str,
     ) -> None:
-        """Pull-based lane: fetches audio only when Deepgram is connected.
+        """Subscribe once to both subjects and loop over sessions.
 
-        The durable consumer name ensures NATS tracks position across restarts,
-        so audio buffered during an outage is automatically replayed.
+        Each session: drain backfill → switch to live on the same Deepgram
+        connection → close when live EOS or disconnect.
         """
         try:
-            sub = await js.pull_subscribe(subject, durable=durable)
-            self.logger.info(f"[{source_tag}] Subscribed (durable={durable})")
+            backfill_sub = await js.pull_subscribe(
+                SUBJECT_AUDIO_BACKFILL, durable=_DURABLE_BACKFILL
+            )
+            self.logger.info(f"Subscribed to backfill (durable={_DURABLE_BACKFILL})")
+            live_sub = await js.pull_subscribe(SUBJECT_AUDIO_LIVE, durable=_DURABLE_LIVE)
+            self.logger.info(f"Subscribed to live (durable={_DURABLE_LIVE})")
         except Exception as e:
-            self.logger.critical(f"[{source_tag}] subscribe failed: {e}")
+            self.logger.critical(f"Subscribe failed: {e}")
             return
 
         while not stop_event.is_set():
-            first_msgs = await self._wait_for_audio(sub, stop_event, source_tag)
+            # Phase 1: wait for the first backfill message (signals a new session)
+            first_bf_msgs = await self._wait_for_audio(
+                backfill_sub, stop_event, "backfill"
+            )
             if stop_event.is_set():
                 break
 
-            transcriber = await self._connect_with_retry(source_tag, stop_event)
+            # Extract session ID from the first message's subject
+            session_id: str | None = None
+            if first_bf_msgs and hasattr(first_bf_msgs[0], "subject"):
+                session_id = self._session_id_from_subject(first_bf_msgs[0].subject)
+            self.logger.info(f"New session detected: {session_id}")
+
+            transcriber = await self._connect_with_retry("live", stop_event)
             if transcriber is None:
                 break
 
-            await self._publish_stt_status("connected", source_tag)
-            await self._check_consumer_lag(sub, js, source_tag)
+            await self._publish_stt_status("connected", "live")
+            await self._check_consumer_lag(backfill_sub, js, "backfill")
 
             dg_closed = asyncio.Event()
-            eos_received = False
+            finalize_done = asyncio.Event()
+            # tag_holder[0] is read dynamically by _drain_events so that
+            # transcript subjects switch from "backfill" to "live" mid-stream.
+            tag_holder: list[str] = ["backfill"]
             drain_task = asyncio.create_task(
-                self._drain_events(transcriber, source_tag, js, stop_event, dg_closed)
-            )
-
-            # Send the first message(s) that triggered the connection
-            eos_received = await self._send_msgs(
-                first_msgs, transcriber, source_tag, dg_closed
+                self._drain_events(
+                    transcriber,
+                    tag_holder,
+                    js,
+                    stop_event,
+                    dg_closed,
+                    finalize_done,
+                )
             )
 
             try:
-                while (
-                    not stop_event.is_set()
-                    and not dg_closed.is_set()
-                    and not eos_received
-                ):
-                    try:
-                        msgs = await sub.fetch(1, timeout=1)
-                    except TimeoutError:
-                        continue
-                    except Exception as e:
-                        self.logger.error(f"[{source_tag}] fetch error: {e}")
-                        await asyncio.sleep(1)
-                        continue
+                # Phase 2: send backfill audio; keep DG connection open on EOS
+                bf_eos = await self._fetch_phase(
+                    backfill_sub,
+                    transcriber,
+                    "backfill",
+                    dg_closed,
+                    stop_event,
+                    first_bf_msgs,
+                    close_on_eos=False,
+                    session_id=session_id,
+                )
 
-                    eos_received = await self._send_msgs(
-                        msgs, transcriber, source_tag, dg_closed
+                # Phase 3: live audio on the same DG connection
+                if bf_eos and not dg_closed.is_set() and not stop_event.is_set():
+                    await self._flush_backfill(
+                        transcriber,
+                        finalize_done,
+                        dg_closed,
+                        stop_event,
+                        tag_holder,
                     )
+                    first_live_msgs = await self._wait_for_audio(
+                        live_sub, stop_event, "live"
+                    )
+                    if not stop_event.is_set():
+                        await self._fetch_phase(
+                            live_sub,
+                            transcriber,
+                            "live",
+                            dg_closed,
+                            stop_event,
+                            first_live_msgs,
+                            close_on_eos=True,
+                            session_id=session_id,
+                        )
             finally:
-                await self._close_transcriber(transcriber, drain_task, source_tag)
+                await self._close_transcriber(transcriber, drain_task, "live")
 
-            if not eos_received and not stop_event.is_set():
-                await self._publish_stt_status("reconnecting", source_tag)
+            if not stop_event.is_set() and dg_closed.is_set():
+                # Only publish reconnecting if DG closed unexpectedly (not on EOS)
+                pass
 
-        self.logger.info(f"[{source_tag}] Lane stopped.")
+        self.logger.info("Session loop stopped.")
+
+    async def _flush_backfill(
+        self,
+        transcriber: Transcriber,
+        finalize_done: asyncio.Event,
+        dg_closed: asyncio.Event,
+        stop_event: asyncio.Event,
+        tag_holder: list[str],
+    ) -> None:
+        """Finalize Deepgram after backfill, wait for flush, switch tag."""
+        try:
+            await transcriber.finalize()
+        except Exception as e:
+            self.logger.warning(f"[backfill] finalize() failed: {e}")
+        # Wait up to 5s for Deepgram to flush backfill transcripts
+        try:
+            await asyncio.wait_for(finalize_done.wait(), timeout=5.0)
+        except TimeoutError:
+            self.logger.debug("[backfill] finalize wait timed out")
+        if not dg_closed.is_set() and not stop_event.is_set():
+            tag_holder[0] = "live"
+            self.logger.info("Switched to live phase")
 
     async def _close_transcriber(
         self,
@@ -272,17 +389,22 @@ class STTProviderService(BaseService):
     async def _drain_events(
         self,
         transcriber: Transcriber,
-        source_tag: str,
+        tag_holder: list[str],
         js: Any,
         stop_event: asyncio.Event,
         dg_closed: asyncio.Event,
+        finalize_done: asyncio.Event | None = None,
     ) -> None:
         assert self.nc is not None  # guaranteed after BaseService.start()
-        topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
-        interim_topic = f"{SUBJECT_PREFIX_TRANSCRIPT_INTERIM}.{source_tag}"
         async for event in transcriber.get_events():
             if stop_event.is_set():
                 break
+            source_tag = tag_holder[0]
+            topic = f"{SUBJECT_PREFIX_TRANSCRIPT_RAW}.{source_tag}"
+            interim_topic = f"{SUBJECT_PREFIX_TRANSCRIPT_INTERIM}.{source_tag}"
+            # Signal that finalize flush is complete
+            if finalize_done and not finalize_done.is_set() and event.is_final:
+                finalize_done.set()
             payload_obj = TranscriptPayload(
                 text=event.text,
                 is_final=event.is_final,
