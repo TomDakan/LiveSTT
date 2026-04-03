@@ -188,7 +188,7 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [ ] Set `DEEPGRAM_API_KEY` and other runtime secrets via Balena Cloud fleet environment
   variables (injected at runtime — no `.env` file on device, secrets never in image/git);
   support per-device API key overrides for sites with separate Deepgram accounts
-- [x] Add `restart: unless-stopped` to all services
+- [x] Add `restart: always` to all services (ADR-0017)
 - [ ] `just deploy` — `balena push <fleet>` wrapper
 - [ ] `just deploy-check` — smoke-test a device by UUID (`curl /health`, NATS ping via
   Balena public URL)
@@ -199,16 +199,17 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   admin UI (e.g., disable `identifier` + `audio-classifier` at venues without speaker ID)
 - [ ] Docker socket backend: system-manager calls Docker Engine API to start/stop containers;
   optional Balena Supervisor API backend when running on BalenaOS
-- [ ] Restart policy review: `restart: unless-stopped` doesn't restart after daemon restart
-  (power loss); evaluate `restart: on-failure` or `restart: always` with explicit disable
-  via Docker API stop. Needs ADR.
+- [x] Restart policy review: `restart: always` selected (ADR-0017); service disable will
+  use `docker update --restart=no` or Balena Supervisor API
 - [ ] Web-based onboarding flow: first-run setup wizard (admin password, Deepgram API key,
   timezone, optional service toggles) — the appliance should be fully configurable without
   CLI access
 
 **Docker / Compose**
-- [ ] Add `healthcheck:` directives to all services in `docker-compose.yml` so
-  `restart: unless-stopped` only kicks in after a true health failure (not a cold-start race)
+- [x] Add `healthcheck:` directives to all services in `docker-compose.yml`;
+  non-HTTP services use `/tmp/healthy` marker file touched by BaseService heartbeat
+- [x] Migrate bind mounts to named volumes (`nats_data`, `db_data`) for Balena compatibility
+- [x] `depends_on` with `condition: service_healthy` for startup ordering
 - [ ] `docker-compose.override.yml` for local dev (relaxed health timeouts, mounted source dirs)
 
 **`justfile` recipes**

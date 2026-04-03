@@ -5,6 +5,7 @@ import os
 import signal
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Any
 
 from messaging.nats import NatsJSManager
@@ -99,6 +100,8 @@ class BaseService(ABC):
 
         self.logger.info("Heartbeat initialized")
 
+        health_file = Path("/tmp/healthy")  # nosec B108
+
         while not self.stop_event.is_set():
             try:
                 payload = json.dumps(
@@ -109,6 +112,7 @@ class BaseService(ABC):
                     }
                 ).encode()
                 await self.kv.put(self.service_name, payload)
+                health_file.touch()
                 await asyncio.sleep(2)
             except Exception as e:
                 self.logger.warning(f"Heartbeat tick failed (will retry): {e}")

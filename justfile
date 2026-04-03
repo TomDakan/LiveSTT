@@ -107,12 +107,11 @@ up-dev wav_file="tests/data/test_speaker_30s.wav": scaffold
 file-test wav_file="tests/data/test_speaker.wav": scaffold
     $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d nats audio-producer
 
-# The "Nuclear Option": Stop containers, DELETE named volumes, and wipe NATS bind-mount data.
+# The "Nuclear Option": Stop containers, DELETE named volumes.
 # Required when changing NATS stream config (e.g. retention policy) — NATS refuses to
 # update an existing stream's retention policy via the API.
 nuke:
     docker compose down --volumes --remove-orphans
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue data\nats
 
 # Stop the stack
 down:

@@ -3,9 +3,15 @@ services:
     image: nats:2.10-alpine
     container_name: nats
     command: "-js -sd /data/nats"
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "nats-server", "--health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     volumes:
-      - ./data/nats:/data/nats
+      - nats_data:/data/nats
     networks:
       - internal_overlay
 
@@ -14,7 +20,13 @@ services:
       context: .
       dockerfile: services/api-gateway/Dockerfile
     container_name: api-gateway
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     ports:
       - "8000:8000"
     environment:
@@ -23,18 +35,25 @@ services:
       - SITE_URL=${SITE_URL:-}
       - NATS_LOG_FORWARDING=true
     volumes:
-      - ./data/db:/data/db
+      - db_data:/data/db
     networks:
       - internal_overlay
     depends_on:
-      - nats
+      nats:
+        condition: service_healthy
 
   audio-producer:
     build:
       context: .
       dockerfile: services/audio-producer/Dockerfile
     container_name: audio-producer
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - NATS_URL=nats://nats:4222
       - AUDIO_FILE=${AUDIO_FILE:-}   # Leave blank to use live mic (ALSA)
@@ -50,14 +69,21 @@ services:
     networks:
       - internal_overlay
     depends_on:
-      - nats
+      nats:
+        condition: service_healthy
 
   stt-provider:
     build:
       context: .
       dockerfile: services/stt-provider/Dockerfile
     container_name: stt-provider
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - NATS_URL=nats://nats:4222
       - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
@@ -65,7 +91,8 @@ services:
     networks:
       - internal_overlay
     depends_on:
-      - nats
+      nats:
+        condition: service_healthy
 
 #   identifier:
 #     build:
@@ -75,18 +102,25 @@ services:
 #     environment:
 #       - NATS_URL=nats://nats:4222
 #     volumes:
-#       - ./data/lancedb:/data/lancedb
+#       - lancedb_data:/data/lancedb
 #     networks:
 #       - internal_overlay
 #     depends_on:
-#       - nats
+#       nats:
+#         condition: service_healthy
 
   system-manager:
     build:
       context: .
       dockerfile: services/system-manager/Dockerfile
     container_name: system-manager
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - NATS_URL=nats://nats:4222
       - API_GATEWAY_URL=http://api-gateway:8000
@@ -95,22 +129,35 @@ services:
     networks:
       - internal_overlay
     depends_on:
-      - nats
-      - api-gateway
+      nats:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
 
   identity-manager:
     build:
       context: .
       dockerfile: services/identity-manager/Dockerfile
     container_name: identity-manager
-    restart: unless-stopped
+    restart: always
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
     environment:
       - NATS_URL=nats://nats:4222
       - NATS_LOG_FORWARDING=true
     networks:
       - internal_overlay
     depends_on:
-      - nats
+      nats:
+        condition: service_healthy
+
+volumes:
+  nats_data:
+  db_data:
 
 networks:
   internal_overlay:
