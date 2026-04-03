@@ -358,6 +358,7 @@
           </label>
         </div>
         <button class="btn btn-secondary" style="margin-top: 18px;" onclick="clearLogs()">Clear</button>
+        <button class="btn btn-secondary" style="margin-top: 18px;" onclick="exportLogs()">Export</button>
         <span id="log-status" class="text-xs text-white/30" style="margin-top: 18px;">Connecting...</span>
       </div>
       <div id="log-viewer"></div>
@@ -892,6 +893,23 @@
     function clearLogs() {
       _logEntries = [];
       document.getElementById('log-viewer').innerHTML = '';
+    }
+
+    async function exportLogs() {
+      try {
+        const res = await fetch('/admin/logs/export?limit=5000', {
+          headers: {'Authorization': 'Bearer ' + _token}
+        });
+        if (!res.ok) throw new Error('Export failed');
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'livestt-logs.jsonl';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      } catch (e) {
+        alert('Log export failed: ' + e.message);
+      }
     }
 
     function connectAdminLogs() {

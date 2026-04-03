@@ -209,36 +209,25 @@ async def test_admin_logs_on_log_callback_puts_payload_on_queue() -> None:
     assert received == log_payload
 
 
-def test_admin_logs_ws_nats_subscribe_subject() -> None:
-    """The /admin/logs endpoint subscribes to 'logs.>' when a client connects."""
+def test_admin_logs_ws_registers_subscriber() -> None:
+    """The /admin/logs endpoint registers a queue in _log_subscribers."""
+    from api_gateway.main import _log_subscribers, app
     from starlette.testclient import TestClient
 
-    captured_subject: list[str] = []
-
-    async def _fake_subscribe(subject: str, cb: Any) -> MagicMock:
-        captured_subject.append(subject)
-        sub = MagicMock()
-        sub.unsubscribe = AsyncMock()
-        return sub
-
-    from api_gateway.main import app
-
     old_state = dict(app.state._state)
-    mock_nc = MagicMock()
-    mock_nc.subscribe = _fake_subscribe
-    app.state.nats = mock_nc
     app.state.jwt_secret = JWT_SECRET
 
+    initial_count = len(_log_subscribers)
+
     try:
-        # TestClient runs the ASGI app in a thread with its own event loop.
-        # We disable the lifespan so the real NATS connect is skipped.
         client = TestClient(app, raise_server_exceptions=False)
         try:
             with client.websocket_connect("/admin/logs") as ws:
-                # Give the endpoint coroutine a moment to reach nc.subscribe.
                 import time
 
                 time.sleep(0.1)
+                # While connected, subscriber count should increase
+                assert len(_log_subscribers) == initial_count + 1
                 ws.close()
         except Exception:
             pass
@@ -246,7 +235,8 @@ def test_admin_logs_ws_nats_subscribe_subject() -> None:
         app.state._state.clear()
         app.state._state.update(old_state)
 
-    assert "logs.>" in captured_subject
+    # After disconnect, subscriber should be removed
+    assert len(_log_subscribers) == initial_count
 
 
 @pytest.mark.asyncio

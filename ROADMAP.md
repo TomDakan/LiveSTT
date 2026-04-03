@@ -245,19 +245,18 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   api-gateway; prevents unbounded disk growth on long-running devices
 
 **Log persistence & admin viewer**
-- [ ] Server-side ring buffer: subscribe to `logs.>` once at api-gateway startup and keep
-  the last N messages (e.g., 500) in memory; replay on WebSocket connect so the admin
+- [x] Server-side ring buffer: subscribe to `logs.>` once at api-gateway startup and keep
+  the last 500 messages in memory; replay on WebSocket connect so the admin
   log viewer shows recent history instead of starting empty
-- [ ] Persistent log storage: store ERROR and CRITICAL logs to SQLite (or a dedicated
-  `logs` table) with 30-day default retention; configurable retention per level via
-  admin UI or env var (e.g., `LOG_RETENTION_DAYS_ERROR=30`, `LOG_RETENTION_INFO=7`)
-- [ ] Admin log viewer: backfill from persistent storage on page load; live-stream via
-  existing WebSocket for new entries
+- [x] Persistent log storage: store ERROR and CRITICAL logs to SQLite `log_entries`
+  table with 30-day default retention; configurable via `LOG_PERSIST_LEVELS` and
+  `LOG_RETENTION_DAYS` env vars
+- [x] Admin log viewer: replay ring buffer on WebSocket connect; live-stream via
+  fan-out from global `_on_global_log` handler
 
 **Log export for bug reporting**
-- [ ] `GET /admin/logs/export` — download a tar archive of recent structured log output
-  from all services (bounded by time range or line count); surfaced in the admin UI as
-  a "Download logs" button for self-hosted deployments
+- [x] `GET /admin/logs/export` — download persisted log entries as JSONL (filterable by
+  level, service, limit); surfaced in the admin UI as an "Export" button
 - [ ] For managed BalenaOS fleet devices: logs are already streamed to Balena Cloud and
   accessible via `balena logs <uuid>` or the dashboard — document this in the runbook
   so fleet operators know where to look without needing the export endpoint

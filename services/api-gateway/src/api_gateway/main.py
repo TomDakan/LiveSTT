@@ -1,4 +1,5 @@
 import asyncio
+import collections
 import contextlib
 import json
 import logging
@@ -21,11 +22,21 @@ from sqlalchemy import select, update
 
 from api_gateway.auth import create_token, require_admin, verify_password
 from api_gateway.db import (
+    LogEntry,
     Schedule,
     SessionModel,
     TranscriptSegment,
     create_engine_and_tables,
 )
+
+# --- Log ring buffer & persistence config ---
+_LOG_RING_SIZE = 500  # In-memory ring buffer replayed on WebSocket connect
+_LOG_PERSIST_LEVELS = set(
+    os.getenv("LOG_PERSIST_LEVELS", "ERROR,CRITICAL").upper().split(",")
+)
+_LOG_RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS", "30"))
+_log_ring: collections.deque[dict[str, Any]] = collections.deque(maxlen=_LOG_RING_SIZE)
+_log_subscribers: list[asyncio.Queue[dict[str, Any]]] = []
 
 # Maximum number of log messages buffered per /admin/logs WebSocket client.
 # When the buffer is full, the oldest message is dropped.
@@ -284,6 +295,62 @@ async def _on_stt_status(msg: Any) -> None:
         logger.warning(f"stt_status handler error: {exc}")
 
 
+async def _on_global_log(msg: Any) -> None:
+    """Central log handler: ring buffer + persist + fan-out to WebSocket clients."""
+    try:
+        data: dict[str, Any] = json.loads(msg.data.decode("utf-8"))
+    except Exception:
+        return
+
+    # Ring buffer (always)
+    _log_ring.append(data)
+
+    # Fan-out to connected WebSocket clients
+    for q in _log_subscribers:
+        if q.full():
+            with contextlib.suppress(asyncio.QueueEmpty):
+                q.get_nowait()
+        with contextlib.suppress(asyncio.QueueFull):
+            q.put_nowait(data)
+
+    # Persist if level matches
+    level = data.get("level", "").upper()
+    if level in _LOG_PERSIST_LEVELS and _lifespan_db_factory is not None:
+        from datetime import UTC, datetime
+
+        async with _lifespan_db_factory() as db:
+            db.add(
+                LogEntry(
+                    timestamp=datetime.now(UTC).isoformat(),
+                    service=data.get("service", "unknown"),
+                    level=level,
+                    message=str(data.get("message", "")),
+                )
+            )
+            await db.commit()
+
+
+async def _log_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
+    """Purge old log entries daily based on LOG_RETENTION_DAYS."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(86400)  # Once per day
+        except asyncio.CancelledError:
+            return
+        try:
+            from datetime import UTC, datetime, timedelta
+
+            cutoff = (datetime.now(UTC) - timedelta(days=_LOG_RETENTION_DAYS)).isoformat()
+            async with db_factory() as db:
+                from sqlalchemy import delete
+
+                await db.execute(delete(LogEntry).where(LogEntry.timestamp < cutoff))
+                await db.commit()
+                logger.info("Log retention cleanup complete")
+        except Exception as exc:
+            logger.warning(f"Log retention cleanup failed: {exc}")
+
+
 # Set during lifespan so module-level handlers can access it.
 _lifespan_db_factory: Any = None
 
@@ -297,6 +364,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     stop_event = asyncio.Event()
     pull_task: asyncio.Task[None] | None = None
     kv_watch_task: asyncio.Task[None] | None = None
+    log_cleanup_task: asyncio.Task[None] | None = None
 
     # Initialize database
     db_engine, db_factory = await create_engine_and_tables()
@@ -329,6 +397,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await nats_client.subscribe("system.stt_status", cb=_on_stt_status)
         await nats_client.subscribe("transcript.interim.>", cb=_on_interim_transcript)
 
+        # Global log subscription: ring buffer + persistent storage
+        await nats_client.subscribe("logs.>", cb=_on_global_log)
+        log_cleanup_task = asyncio.create_task(
+            _log_retention_loop(db_factory, stop_event)
+        )
+
         # session_kv / config_kv start as None; _kv_connect_and_watch updates them
         app.state.nats = nats_client
         app.state.js = js
@@ -340,7 +414,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         logger.info("Shutting down... closing NATS connection.")
         stop_event.set()
-        for task in (pull_task, kv_watch_task):
+        for task in (pull_task, kv_watch_task, log_cleanup_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -922,38 +996,70 @@ async def delete_speaker(
 async def admin_logs_websocket(websocket: WebSocket) -> None:
     """Stream structured log messages from all services to an admin client.
 
-    Subscribes to the core NATS subject ``logs.>`` (published by
-    NatsLogHandler in each service) and forwards each message as
-    ``{"type": "log", "payload": {...}}``.
-
-    Uses a bounded asyncio.Queue to decouple the NATS callback from the
-    WebSocket send loop.  When the queue is full, the oldest entry is
-    discarded rather than blocking the NATS callback.
+    On connect, replays the in-memory ring buffer so the client sees
+    recent history.  Then subscribes to ``_log_subscribers`` for live
+    messages fed by the global ``_on_global_log`` handler.
     """
     await websocket.accept()
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_LOG_WS_QUEUE_SIZE)
-    nc: NATS = websocket.app.state.nats
-
-    async def _on_log(msg: Any) -> None:
-        try:
-            data: dict[str, Any] = json.loads(msg.data.decode("utf-8"))
-        except Exception:
-            return
-        if queue.full():
-            # Drop the oldest entry to make room.
-            with contextlib.suppress(asyncio.QueueEmpty):
-                queue.get_nowait()
-        await queue.put(data)
-
-    sub = await nc.subscribe("logs.>", cb=_on_log)
+    _log_subscribers.append(queue)
     try:
+        # Replay ring buffer
+        for entry in list(_log_ring):
+            await websocket.send_json({"type": "log", "payload": entry})
+
+        # Live stream
         while True:
             log_payload = await queue.get()
             await websocket.send_json({"type": "log", "payload": log_payload})
     except (WebSocketDisconnect, Exception):
         pass
     finally:
-        await sub.unsubscribe()
+        _log_subscribers.remove(queue)
+
+
+@app.get("/admin/logs/export")
+async def export_logs(
+    request: Request,
+    level: str = "",
+    service: str = "",
+    limit: int = 1000,
+    _: None = Depends(require_admin),
+) -> Response:
+    """Export persisted log entries as JSON lines.
+
+    Query params: level (comma-separated), service, limit (default 1000).
+    """
+    from sqlalchemy import desc
+
+    db_factory = request.app.state.db_factory
+    stmt = select(LogEntry).order_by(desc(LogEntry.timestamp)).limit(limit)
+    if level:
+        levels = [lv.strip().upper() for lv in level.split(",")]
+        stmt = stmt.where(LogEntry.level.in_(levels))
+    if service:
+        stmt = stmt.where(LogEntry.service == service)
+
+    async with db_factory() as db:
+        result = await db.execute(stmt)
+        rows = result.scalars().all()
+
+    lines = "\n".join(
+        json.dumps(
+            {
+                "timestamp": r.timestamp,
+                "service": r.service,
+                "level": r.level,
+                "message": r.message,
+            }
+        )
+        for r in reversed(rows)
+    )
+    return Response(
+        content=lines,
+        media_type="application/x-ndjson",
+        headers={"Content-Disposition": 'attachment; filename="livestt-logs.jsonl"'},
+    )
 
 
 async def _replay_session_transcript(websocket: WebSocket, session_id: str) -> None:
