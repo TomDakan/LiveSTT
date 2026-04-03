@@ -105,6 +105,12 @@ class STTProviderService(BaseService):
         except Exception as e:
             self.logger.warning(f"[{source_tag}] stt_status publish failed: {e}")
 
+    @staticmethod
+    def _session_id_from_subject(subject: str) -> str | None:
+        """Extract session ID from 'audio.{backfill|live}.<sid>'."""
+        parts = subject.rsplit(".", 1)
+        return parts[-1] if len(parts) >= 2 else None
+
     async def _send_msgs(
         self,
         msgs: list[Any],
@@ -112,13 +118,22 @@ class STTProviderService(BaseService):
         source_tag: str,
         dg_closed: asyncio.Event,
         close_on_eos: bool = True,
+        session_id: str | None = None,
     ) -> bool:
         """Send fetched messages to Deepgram; return True if EOS was received.
 
         When close_on_eos is False the Deepgram connection is kept open after
         the EOS marker — the caller switches the audio phase instead.
+        Messages from a different session are ACKed and skipped.
         """
         for msg in msgs:
+            # Skip stale messages from a previous session
+            if session_id and hasattr(msg, "subject"):
+                msg_sid = self._session_id_from_subject(msg.subject)
+                if msg_sid and msg_sid != session_id:
+                    await msg.ack()
+                    continue
+
             if msg.headers and msg.headers.get("LiveSTT-EOS") == "true":
                 self.logger.info(f"[{source_tag}] EOS received")
                 await msg.ack()
@@ -165,6 +180,7 @@ class STTProviderService(BaseService):
         stop_event: asyncio.Event,
         first_msgs: list[Any],
         close_on_eos: bool,
+        session_id: str | None = None,
     ) -> bool:
         """Drain one NATS subject into the open Deepgram connection.
 
@@ -172,7 +188,12 @@ class STTProviderService(BaseService):
         stop_event fires.
         """
         eos = await self._send_msgs(
-            first_msgs, transcriber, source_tag, dg_closed, close_on_eos
+            first_msgs,
+            transcriber,
+            source_tag,
+            dg_closed,
+            close_on_eos,
+            session_id,
         )
         if eos or dg_closed.is_set():
             return eos
@@ -188,7 +209,12 @@ class STTProviderService(BaseService):
                 continue
 
             eos = await self._send_msgs(
-                msgs, transcriber, source_tag, dg_closed, close_on_eos
+                msgs,
+                transcriber,
+                source_tag,
+                dg_closed,
+                close_on_eos,
+                session_id,
             )
             if eos or dg_closed.is_set():
                 return eos
@@ -224,6 +250,12 @@ class STTProviderService(BaseService):
             if stop_event.is_set():
                 break
 
+            # Extract session ID from the first message's subject
+            session_id: str | None = None
+            if first_bf_msgs and hasattr(first_bf_msgs[0], "subject"):
+                session_id = self._session_id_from_subject(first_bf_msgs[0].subject)
+            self.logger.info(f"New session detected: {session_id}")
+
             transcriber = await self._connect_with_retry("live", stop_event)
             if transcriber is None:
                 break
@@ -249,6 +281,7 @@ class STTProviderService(BaseService):
                     stop_event,
                     first_bf_msgs,
                     close_on_eos=False,
+                    session_id=session_id,
                 )
 
                 # Phase 3: live audio on the same DG connection
@@ -268,6 +301,7 @@ class STTProviderService(BaseService):
                                 stop_event,
                                 first_live_msgs,
                                 close_on_eos=True,
+                                session_id=session_id,
                             )
                     else:
                         # DG dropped during backfill — no live phase this cycle
