@@ -99,7 +99,7 @@ up-build: scaffold
 # looping WAV file so all services run without physical audio hardware.
 # Usage: just up-dev [wav_file]
 up-dev wav_file="tests/data/test_speaker_30s.wav": scaffold
-    $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d --build
+    $env:AUDIO_FILE = "/data/{{file_name(wav_file)}}"; docker compose -f docker-compose.yml -f docker-compose.dev.yml -f docker-compose.file-test.yml up -d --build
 
 # Start audio-producer + NATS using a WAV file instead of live mic.
 # Strips the /dev/snd device mount so it works without ALSA/USB hardware.
@@ -118,6 +118,14 @@ down:
     docker compose down
 
 # --- Observability ---
+
+# One-shot status: container health, NATS stream stats, volume disk usage
+status:
+    uv run python scripts/status.py
+
+# Pretty-print NATS JetStream stream configs and current state
+nats-streams:
+    uv run python scripts/nats_streams.py
 
 # Follow logs for all services
 logs:

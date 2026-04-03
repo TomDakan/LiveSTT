@@ -210,12 +210,13 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   non-HTTP services use `/tmp/healthy` marker file touched by BaseService heartbeat
 - [x] Migrate bind mounts to named volumes (`nats_data`, `db_data`) for Balena compatibility
 - [x] `depends_on` with `condition: service_healthy` for startup ordering
-- [ ] `docker-compose.override.yml` for local dev (relaxed health timeouts, mounted source dirs)
+- [x] `docker-compose.dev.yml` for local dev (relaxed health timeouts, mounted source dirs);
+  applied automatically by `just up-dev`; copy to `docker-compose.override.yml` for auto-load
 
 **`justfile` recipes**
-- [ ] `just status` — one-shot summary: container health, NATS stream stats
-  (message counts, consumer lag per service), disk usage at `/data`
-- [ ] `just nats-streams` — pretty-print all stream configs and current state
+- [x] `just status` — one-shot summary: container health, NATS stream stats
+  (message counts, consumer lag per service), disk usage
+- [x] `just nats-streams` — pretty-print all stream configs and current state
 
 **Backup & restore**
 - [ ] `POST /admin/backup` → streams a tar archive of `/data/db` (vocab, transcripts) and
