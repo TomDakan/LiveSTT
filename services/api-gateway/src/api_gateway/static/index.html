@@ -302,6 +302,8 @@
     btnStartRec.addEventListener('click', async () => {
       btnStartRec.disabled = true;
       startFormMsg.textContent = '';
+      // Immediate client-side feedback while server processes
+      applySessionStatus({ state: 'starting' });
       try {
         const resp = await fetch('/session/start', {
           method: 'POST',
@@ -310,13 +312,14 @@
         });
         if (resp.status === 409) {
           startFormMsg.textContent = 'Session already active.';
+          fetchSessionStatus();
         } else if (!resp.ok) {
           startFormMsg.textContent = `Error ${resp.status}`;
-          btnStartRec.disabled = false;
+          applySessionStatus({ state: 'idle' });
         }
       } catch (err) {
         startFormMsg.textContent = 'Request failed.';
-        btnStartRec.disabled = false;
+        applySessionStatus({ state: 'idle' });
       }
     });
 

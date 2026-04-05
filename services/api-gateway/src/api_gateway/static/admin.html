@@ -150,6 +150,14 @@
       margin-top: 8px;
       min-height: 1.2em;
     }
+    .session-label {
+      cursor: pointer;
+      border-bottom: 1px dashed rgba(255,255,255,0.15);
+    }
+    .session-label:hover {
+      color: rgba(255,255,255,0.9);
+      border-bottom-color: rgba(255,255,255,0.4);
+    }
   </style>
 </head>
 <body class="min-h-screen">
@@ -666,8 +674,7 @@
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
             <td class="text-sm text-white/60 session-label" data-sid="${s.id}"
-                title="Click to rename"
-                style="cursor:pointer;">${labelDisplay}</td>
+                title="Click to rename">${labelDisplay}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
             <td class="flex gap-2">${actions}</td>
@@ -681,6 +688,7 @@
     }
 
     // ── Inline label rename ──────────────────────────────────────────────
+    let _editingLabel = false;
     document.addEventListener('click', (e) => {
       const cell = e.target.closest('.session-label');
       if (!cell || cell.querySelector('input')) return;
@@ -695,9 +703,18 @@
       input.focus();
       input.select();
 
+      // Pause session list refresh while editing
+      _editingLabel = true;
+      if (_sessionInterval) { clearInterval(_sessionInterval); _sessionInterval = null; }
+
+      let saved = false;
       async function save() {
+        if (saved) return;
+        saved = true;
+        _editingLabel = false;
         const val = input.value.trim();
         cell.textContent = val || '\u2014';
+        startSessionRefresh();
         try {
           const resp = await authFetch(`/admin/sessions/${sid}`, {
             method: 'PATCH',
@@ -710,7 +727,12 @@
       input.addEventListener('blur', save);
       input.addEventListener('keydown', (ev) => {
         if (ev.key === 'Enter') input.blur();
-        if (ev.key === 'Escape') { cell.textContent = current; }
+        if (ev.key === 'Escape') {
+          saved = true;
+          _editingLabel = false;
+          cell.textContent = current;
+          startSessionRefresh();
+        }
       });
     });
 

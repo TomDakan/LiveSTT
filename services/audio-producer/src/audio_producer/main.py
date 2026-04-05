@@ -342,9 +342,7 @@ class AudioProducerService(BaseService):
                 ).encode()
                 await self._session_kv.put("current", kv_data)
             except Exception as e:
-                self.logger.warning(
-                    f"KV update to active failed: {e}"
-                )
+                self.logger.warning(f"KV update to active failed: {e}")
 
         self.logger.info(
             f"Pre-roll flush complete: {count} chunks → audio.backfill.{session_id}"

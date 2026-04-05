@@ -138,6 +138,7 @@ async def test_start_session_writes_kv() -> None:
 
     # Let background flush task complete (transitions to "active")
     import asyncio
+
     await asyncio.sleep(0)
 
     assert kv.put.call_count == 2

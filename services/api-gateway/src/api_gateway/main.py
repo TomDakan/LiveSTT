@@ -272,7 +272,7 @@ async def _kv_connect_and_watch(
             try:
                 entry = await session_kv.get("current")
                 kv_data = json.loads(entry.value.decode())
-                if kv_data.get("state") == "active":
+                if kv_data.get("state") in ("active", "starting"):
                     _active_session_id = kv_data.get("session_id")
                     logger.info(f"Recovered active session: {_active_session_id}")
             except Exception:  # nosec B110
