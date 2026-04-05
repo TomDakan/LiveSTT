@@ -33,8 +33,47 @@ class SystemManager(BaseService):
         self._last_fired: dict[str, str] = {}
         self._last_report: float = 0.0
 
+    async def _handle_service_control(self, msg: Any) -> None:
+        """Handle NATS request/reply for service management."""
+        try:
+            data = json.loads(msg.data.decode())
+        except Exception:
+            await msg.respond(json.dumps({"ok": False, "error": "invalid JSON"}).encode())
+            return
+
+        from system_manager.containers import (
+            disable_service,
+            enable_service,
+            list_services,
+            restart_service,
+        )
+
+        action = data.get("action", "")
+        service = data.get("service", "")
+
+        if action == "list":
+            result = {"ok": True, "services": list_services()}
+        elif action == "enable":
+            result = enable_service(service)
+        elif action == "disable":
+            result = disable_service(service)
+        elif action == "restart":
+            result = restart_service(service)
+        else:
+            result = {"ok": False, "error": f"Unknown action: {action}"}
+
+        await msg.respond(json.dumps(result).encode())
+
     async def run_business_logic(self, js: Any, stop_event: asyncio.Event) -> None:
         self.logger.info("System Manager starting...")
+
+        # Subscribe to service control requests (core NATS request/reply)
+        if self.nc is not None:
+            await self.nc.subscribe(
+                "system.service_control",
+                cb=self._handle_service_control,
+            )
+            self.logger.info("Service control handler registered")
 
         while not stop_event.is_set():
             # Stream stats (every 30 minutes)

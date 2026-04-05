@@ -58,7 +58,14 @@ async def _nats_patched_app(
     httpx 0.28 ASGITransport does not trigger the ASGI lifespan, so we skip
     the real lifespan entirely and populate app.state directly.
     """
+    from api_gateway.db import Base
     from api_gateway.main import app
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    db_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     mock_js = AsyncMock()
 
@@ -68,6 +75,7 @@ async def _nats_patched_app(
     app.state.session_kv = session_kv
     app.state.config_kv = config_kv
     app.state.jwt_secret = JWT_SECRET
+    app.state.db_factory = db_factory
 
     try:
         yield app, mock_js
@@ -75,6 +83,7 @@ async def _nats_patched_app(
         # Restore previous state (or clear it).
         app.state._state.clear()
         app.state._state.update(old_state)
+        await engine.dispose()
 
 
 def _auth_header() -> dict[str, str]:

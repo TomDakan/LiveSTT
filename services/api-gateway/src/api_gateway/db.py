@@ -61,6 +61,15 @@ class Schedule(Base):
     enabled: Mapped[int] = mapped_column(default=1)
 
 
+class AppConfig(Base):
+    """Key-value store for runtime configuration."""
+
+    __tablename__ = "app_config"
+
+    key: Mapped[str] = mapped_column(primary_key=True)
+    value: Mapped[str] = mapped_column(default="")
+
+
 class LogEntry(Base):
     __tablename__ = "log_entries"
 

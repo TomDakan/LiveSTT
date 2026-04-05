@@ -126,6 +126,8 @@ services:
       - API_GATEWAY_URL=http://api-gateway:8000
       - SITE_TIMEZONE=${SITE_TIMEZONE:-UTC}
       - NATS_LOG_FORWARDING=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - internal_overlay
     depends_on:

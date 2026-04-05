@@ -195,15 +195,18 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [ ] Document Balena SSH workflow for live debugging in `docs/60_ops/runbooks.md`
 
 **Service management via admin UI**
-- [ ] system-manager service orchestration: enable/disable individual services from the
-  admin UI (e.g., disable `identifier` + `audio-classifier` at venues without speaker ID)
-- [ ] Docker socket backend: system-manager calls Docker Engine API to start/stop containers;
-  optional Balena Supervisor API backend when running on BalenaOS
-- [x] Restart policy review: `restart: always` selected (ADR-0017); service disable will
-  use `docker update --restart=no` or Balena Supervisor API
-- [ ] Web-based onboarding flow: first-run setup wizard (admin password, Deepgram API key,
-  timezone, optional service toggles) — the appliance should be fully configurable without
-  CLI access
+- [x] system-manager service orchestration: enable/disable/restart individual services from
+  the admin UI via NATS request/reply to system-manager (Docker socket isolated from
+  network-facing api-gateway for security)
+- [x] Docker socket backend: system-manager calls Docker Engine API to start/stop containers;
+  protected services (nats, api-gateway, system-manager) excluded from management
+- [x] Restart policy review: `restart: always` selected (ADR-0017); service disable uses
+  `docker update --restart=no` then stop via system-manager
+- [x] First-run setup: `/setup/status` and `/setup` endpoints with admin UI overlay for
+  password, Deepgram API key, and timezone; `AppConfig` SQLite table for runtime config;
+  auth refactored to check DB before env var fallback
+- [ ] Full onboarding wizard with service toggles and guided walkthrough (deferred post-v8.0)
+- [ ] Optional Balena Supervisor API backend when running on BalenaOS (deferred)
 
 **Docker / Compose**
 - [x] Add `healthcheck:` directives to all services in `docker-compose.yml`;

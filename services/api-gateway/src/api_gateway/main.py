@@ -20,8 +20,14 @@ from nats.js.api import ConsumerConfig, DeliverPolicy
 from pydantic import BaseModel
 from sqlalchemy import select, update
 
-from api_gateway.auth import create_token, require_admin, verify_password
+from api_gateway.auth import (
+    create_token,
+    needs_setup,
+    require_admin,
+    verify_password,
+)
 from api_gateway.db import (
+    AppConfig,
     LogEntry,
     Schedule,
     SessionModel,
@@ -532,13 +538,57 @@ class LoginBody(BaseModel):
 @app.post("/admin/auth")
 async def admin_auth(request: Request, body: LoginBody) -> JSONResponse:
     """Verify password, return short-lived JWT."""
-    if not verify_password(body.password):
+    db_factory = request.app.state.db_factory
+    if not await verify_password(body.password, db_factory):
         return JSONResponse(
             status_code=401,
             content={"error": "invalid_password"},
         )
     token = create_token(request.app.state.jwt_secret)
     return JSONResponse(content={"token": token})
+
+
+@app.get("/setup/status")
+async def setup_status(request: Request) -> dict[str, bool]:
+    """Check whether the appliance needs first-run setup (no auth)."""
+    db_factory = request.app.state.db_factory
+    return {"needs_setup": await needs_setup(db_factory)}
+
+
+class SetupBody(BaseModel):
+    password: str
+    deepgram_api_key: str = ""
+    site_timezone: str = ""
+
+
+@app.post("/setup")
+async def first_run_setup(request: Request, body: SetupBody) -> JSONResponse:
+    """First-run setup. Only works when no admin password is configured."""
+    db_factory = request.app.state.db_factory
+    if not await needs_setup(db_factory):
+        return JSONResponse(
+            status_code=409,
+            content={"error": "setup_already_complete"},
+        )
+
+    import bcrypt
+
+    hashed = bcrypt.hashpw(body.password.encode("utf-8"), bcrypt.gensalt()).decode(
+        "utf-8"
+    )
+
+    async with db_factory() as db:
+        db.add(AppConfig(key="admin_password_hash", value=hashed))
+        db.add(AppConfig(key="setup_complete", value="true"))
+        if body.deepgram_api_key:
+            db.add(AppConfig(key="deepgram_api_key", value=body.deepgram_api_key))
+        if body.site_timezone:
+            db.add(AppConfig(key="site_timezone", value=body.site_timezone))
+        await db.commit()
+
+    logger.info("First-run setup complete")
+    token = create_token(request.app.state.jwt_secret)
+    return JSONResponse(content={"status": "ok", "token": token})
 
 
 @app.post("/session/stop")
@@ -990,6 +1040,98 @@ async def delete_speaker(
     payload = json.dumps({"command": "delete", "name": name}).encode()
     await nc.publish("identifier.command", payload)
     return JSONResponse(content={"status": "queued"})
+
+
+# --- Service management (proxied via NATS to system-manager) ---
+
+_SERVICE_CONTROL_SUBJECT = "system.service_control"
+_SERVICE_CONTROL_TIMEOUT = 10.0  # seconds
+
+
+@app.get("/admin/services")
+async def list_services(
+    request: Request, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """List all services with Docker and heartbeat status."""
+    nc: NATS = request.app.state.nats
+    try:
+        resp = await nc.request(
+            _SERVICE_CONTROL_SUBJECT,
+            json.dumps({"action": "list"}).encode(),
+            timeout=_SERVICE_CONTROL_TIMEOUT,
+        )
+        data = json.loads(resp.data.decode())
+        if not data.get("ok"):
+            return JSONResponse(
+                status_code=502,
+                content={"error": data.get("error", "unknown")},
+            )
+        return JSONResponse(content=data)
+    except TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"error": "system-manager did not respond"},
+        )
+
+
+@app.post("/admin/services/{name}/enable")
+async def enable_service(
+    request: Request, name: str, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """Enable a managed service via system-manager."""
+    nc: NATS = request.app.state.nats
+    try:
+        resp = await nc.request(
+            _SERVICE_CONTROL_SUBJECT,
+            json.dumps({"action": "enable", "service": name}).encode(),
+            timeout=_SERVICE_CONTROL_TIMEOUT,
+        )
+        return JSONResponse(content=json.loads(resp.data.decode()))
+    except TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"error": "system-manager did not respond"},
+        )
+
+
+@app.post("/admin/services/{name}/disable")
+async def disable_service(
+    request: Request, name: str, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """Disable a managed service via system-manager."""
+    nc: NATS = request.app.state.nats
+    try:
+        resp = await nc.request(
+            _SERVICE_CONTROL_SUBJECT,
+            json.dumps({"action": "disable", "service": name}).encode(),
+            timeout=_SERVICE_CONTROL_TIMEOUT,
+        )
+        return JSONResponse(content=json.loads(resp.data.decode()))
+    except TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"error": "system-manager did not respond"},
+        )
+
+
+@app.post("/admin/services/{name}/restart")
+async def restart_service(
+    request: Request, name: str, _: None = Depends(require_admin)
+) -> JSONResponse:
+    """Restart a managed service via system-manager."""
+    nc: NATS = request.app.state.nats
+    try:
+        resp = await nc.request(
+            _SERVICE_CONTROL_SUBJECT,
+            json.dumps({"action": "restart", "service": name}).encode(),
+            timeout=_SERVICE_CONTROL_TIMEOUT,
+        )
+        return JSONResponse(content=json.loads(resp.data.decode()))
+    except TimeoutError:
+        return JSONResponse(
+            status_code=504,
+            content={"error": "system-manager did not respond"},
+        )
 
 
 @app.websocket("/admin/logs")
