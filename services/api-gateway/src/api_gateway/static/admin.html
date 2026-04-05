@@ -154,6 +154,37 @@
 </head>
 <body class="min-h-screen">
 
+  <!-- First-run setup overlay -->
+  <div id="setup-overlay" style="display:none; position:fixed; inset:0; background:#0f0f13; z-index:200; align-items:center; justify-content:center;">
+    <div class="login-box" style="width:400px;">
+      <h1>First-Run Setup</h1>
+      <p>Configure your LiveSTT appliance. You can change these later.</p>
+      <div style="text-align:left; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Admin Password *</label>
+        <input type="password" id="setup-password" placeholder="Choose a password" style="width:100%; box-sizing:border-box; margin-bottom:8px;">
+        <input type="password" id="setup-password-confirm" placeholder="Confirm password" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Deepgram API Key</label>
+        <input type="text" id="setup-deepgram" placeholder="Optional — required for transcription" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Timezone</label>
+        <select id="setup-timezone" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+          <option value="">UTC (default)</option>
+          <option value="America/New_York">Eastern (America/New_York)</option>
+          <option value="America/Chicago">Central (America/Chicago)</option>
+          <option value="America/Denver">Mountain (America/Denver)</option>
+          <option value="America/Los_Angeles">Pacific (America/Los_Angeles)</option>
+          <option value="America/Anchorage">Alaska (America/Anchorage)</option>
+          <option value="Pacific/Honolulu">Hawaii (Pacific/Honolulu)</option>
+          <option value="Europe/London">London (Europe/London)</option>
+          <option value="Europe/Berlin">Berlin (Europe/Berlin)</option>
+          <option value="Asia/Tokyo">Tokyo (Asia/Tokyo)</option>
+          <option value="Australia/Sydney">Sydney (Australia/Sydney)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitSetup()">Complete Setup</button>
+      <div id="setup-error" style="color:#f87171; font-size:0.8rem; margin-top:8px; min-height:1.2em;"></div>
+    </div>
+  </div>
+
   <!-- Login overlay -->
   <div id="login-overlay">
     <div class="login-box">
@@ -471,6 +502,8 @@
     }
 
     function logout() {
+      // Guard against re-entrant calls (multiple 401s clearing password mid-type)
+      if (!getToken() && document.getElementById('login-overlay').style.display === 'flex') return;
       clearToken();
       stopStatusRefresh();
       if (_servicesInterval) { clearInterval(_servicesInterval); _servicesInterval = null; }
