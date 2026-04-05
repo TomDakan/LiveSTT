@@ -482,8 +482,8 @@
             const toggleLabel = enabled ? 'Disable' : 'Enable';
             const toggleAction = enabled ? 'disable' : 'enable';
             const toggleClass = enabled ? 'btn-danger' : 'btn-primary';
-            actions = `<button class="btn ${toggleClass}" onclick="serviceAction('${svc.name}','${toggleAction}')">${toggleLabel}</button> `;
-            actions += `<button class="btn btn-secondary" onclick="serviceAction('${svc.name}','restart')">Restart</button>`;
+            actions = `<button class="btn ${toggleClass}" onclick="serviceAction('${svc.name}','${toggleAction}',this)">${toggleLabel}</button> `;
+            actions += `<button class="btn btn-secondary" onclick="serviceAction('${svc.name}','restart',this)">Restart</button>`;
           } else {
             actions = '<span class="text-white/30 text-xs">protected</span>';
           }
@@ -502,11 +502,17 @@
       }
     }
 
-    async function serviceAction(name, action) {
+    async function serviceAction(name, action, btn) {
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = action === 'restart' ? 'Restarting...'
+        : action === 'enable' ? 'Enabling...' : 'Disabling...';
       try {
         await authFetch(`/admin/services/${name}/${action}`, { method: 'POST' });
         setTimeout(loadServices, 1000);
       } catch (e) {
+        btn.textContent = origText;
+        btn.disabled = false;
         if (e.message !== 'unauthorized' && e.message !== 'no_token') {
           alert(`Service ${action} failed: ${e.message}`);
         }
