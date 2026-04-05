@@ -154,6 +154,37 @@
 </head>
 <body class="min-h-screen">
 
+  <!-- First-run setup overlay -->
+  <div id="setup-overlay" style="display:none; position:fixed; inset:0; background:#0f0f13; z-index:200; align-items:center; justify-content:center;">
+    <div class="login-box" style="width:400px;">
+      <h1>First-Run Setup</h1>
+      <p>Configure your LiveSTT appliance. You can change these later.</p>
+      <div style="text-align:left; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Admin Password *</label>
+        <input type="password" id="setup-password" placeholder="Choose a password" style="width:100%; box-sizing:border-box; margin-bottom:8px;">
+        <input type="password" id="setup-password-confirm" placeholder="Confirm password" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Deepgram API Key</label>
+        <input type="text" id="setup-deepgram" placeholder="Optional — required for transcription" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+        <label class="block text-xs text-white/40 mb-1">Timezone</label>
+        <select id="setup-timezone" style="width:100%; box-sizing:border-box; margin-bottom:12px;">
+          <option value="">UTC (default)</option>
+          <option value="America/New_York">Eastern (America/New_York)</option>
+          <option value="America/Chicago">Central (America/Chicago)</option>
+          <option value="America/Denver">Mountain (America/Denver)</option>
+          <option value="America/Los_Angeles">Pacific (America/Los_Angeles)</option>
+          <option value="America/Anchorage">Alaska (America/Anchorage)</option>
+          <option value="Pacific/Honolulu">Hawaii (Pacific/Honolulu)</option>
+          <option value="Europe/London">London (Europe/London)</option>
+          <option value="Europe/Berlin">Berlin (Europe/Berlin)</option>
+          <option value="Asia/Tokyo">Tokyo (Asia/Tokyo)</option>
+          <option value="Australia/Sydney">Sydney (Australia/Sydney)</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitSetup()">Complete Setup</button>
+      <div id="setup-error" style="color:#f87171; font-size:0.8rem; margin-top:8px; min-height:1.2em;"></div>
+    </div>
+  </div>
+
   <!-- Login overlay -->
   <div id="login-overlay">
     <div class="login-box">
@@ -205,6 +236,24 @@
         </table>
         <div id="status-streams-loading" class="text-white/30 text-sm">Loading...</div>
       </div>
+    </div>
+
+    <!-- Service Management -->
+    <div class="card">
+      <div class="section-title">Service Management</div>
+      <div id="services-loading" class="text-white/30 text-sm">Loading...</div>
+      <div id="services-error" class="text-red-400 text-sm hidden"></div>
+      <table id="services-table" class="hidden">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Status</th>
+            <th>Restart Policy</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="services-body"></tbody>
+      </table>
     </div>
 
     <!-- Session History -->
@@ -371,6 +420,52 @@
 
     // ── Auth ──────────────────────────────────────────────────────────────
 
+    async function checkSetup() {
+      try {
+        const resp = await fetch('/setup/status');
+        const data = await resp.json();
+        if (data.needs_setup) {
+          document.getElementById('login-overlay').style.display = 'none';
+          document.getElementById('setup-overlay').style.display = 'flex';
+          return true;
+        }
+      } catch { /* server unavailable — fall through to login */ }
+      return false;
+    }
+
+    async function submitSetup() {
+      const errEl = document.getElementById('setup-error');
+      errEl.textContent = '';
+      const pw = document.getElementById('setup-password').value;
+      const pw2 = document.getElementById('setup-password-confirm').value;
+      if (!pw) { errEl.textContent = 'Password is required.'; return; }
+      if (pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+      if (pw !== pw2) { errEl.textContent = 'Passwords do not match.'; return; }
+
+      try {
+        const resp = await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: pw,
+            deepgram_api_key: document.getElementById('setup-deepgram').value,
+            site_timezone: document.getElementById('setup-timezone').value,
+          }),
+        });
+        if (!resp.ok) {
+          const data = await resp.json();
+          errEl.textContent = data.error || 'Setup failed.';
+          return;
+        }
+        const data = await resp.json();
+        setToken(data.token);
+        document.getElementById('setup-overlay').style.display = 'none';
+        showApp();
+      } catch {
+        errEl.textContent = 'Connection error.';
+      }
+    }
+
     function getToken() { return localStorage.getItem('admin_token'); }
     function setToken(t) { localStorage.setItem('admin_token', t); }
     function clearToken() { localStorage.removeItem('admin_token'); }
@@ -407,8 +502,11 @@
     }
 
     function logout() {
+      // Guard against re-entrant calls (multiple 401s clearing password mid-type)
+      if (!getToken() && document.getElementById('login-overlay').style.display === 'flex') return;
       clearToken();
       stopStatusRefresh();
+      if (_servicesInterval) { clearInterval(_servicesInterval); _servicesInterval = null; }
       document.getElementById('login-overlay').style.display = 'flex';
       document.getElementById('app-header').classList.add('hidden');
       document.getElementById('app-content').classList.add('hidden');
@@ -424,8 +522,80 @@
       loadSchedules();
       startStatusRefresh();
       startSessionRefresh();
+      loadServices();
+      _servicesInterval = setInterval(loadServices, 10000);
       loadSpeakers();
       connectAdminLogs();
+    }
+
+    // ── Services ──────────────────────────────────────────────────────────
+    let _servicesInterval = null;
+
+    async function loadServices() {
+      const loading = document.getElementById('services-loading');
+      const table = document.getElementById('services-table');
+      const errEl = document.getElementById('services-error');
+      const body = document.getElementById('services-body');
+      try {
+        const resp = await authFetch('/admin/services');
+        if (!resp.ok) {
+          const data = await resp.json();
+          loading.classList.add('hidden');
+          errEl.textContent = data.error || 'Failed to load services';
+          errEl.classList.remove('hidden');
+          return;
+        }
+        const data = await resp.json();
+        loading.classList.add('hidden');
+        errEl.classList.add('hidden');
+        table.classList.remove('hidden');
+        body.innerHTML = '';
+        for (const svc of data.services) {
+          const tr = document.createElement('tr');
+          const statusColor = svc.status === 'running' ? '#22c55e'
+            : svc.status === 'exited' ? '#ef4444'
+            : svc.status === 'not_deployed' ? '#6b7280' : '#eab308';
+          const enabled = svc.restart_policy === 'always' || svc.restart_policy === 'unless-stopped';
+          let actions = '';
+          if (svc.managed) {
+            const toggleLabel = enabled ? 'Disable' : 'Enable';
+            const toggleAction = enabled ? 'disable' : 'enable';
+            const toggleClass = enabled ? 'btn-danger' : 'btn-primary';
+            actions = `<button class="btn ${toggleClass}" onclick="serviceAction('${svc.name}','${toggleAction}',this)">${toggleLabel}</button> `;
+            actions += `<button class="btn btn-secondary" onclick="serviceAction('${svc.name}','restart',this)">Restart</button>`;
+          } else {
+            actions = '<span class="text-white/30 text-xs">protected</span>';
+          }
+          tr.innerHTML =
+            `<td>${svc.name}</td>` +
+            `<td><span style="color:${statusColor}">${svc.status}</span></td>` +
+            `<td>${svc.restart_policy || '—'}</td>` +
+            `<td>${actions}</td>`;
+          body.appendChild(tr);
+        }
+      } catch (e) {
+        if (e.message === 'unauthorized' || e.message === 'no_token') return;
+        loading.classList.add('hidden');
+        errEl.textContent = 'Could not reach service manager';
+        errEl.classList.remove('hidden');
+      }
+    }
+
+    async function serviceAction(name, action, btn) {
+      const origText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = action === 'restart' ? 'Restarting...'
+        : action === 'enable' ? 'Enabling...' : 'Disabling...';
+      try {
+        await authFetch(`/admin/services/${name}/${action}`, { method: 'POST' });
+        setTimeout(loadServices, 1000);
+      } catch (e) {
+        btn.textContent = origText;
+        btn.disabled = false;
+        if (e.message !== 'unauthorized' && e.message !== 'no_token') {
+          alert(`Service ${action} failed: ${e.message}`);
+        }
+      }
     }
 
     // ── Sessions ──────────────────────────────────────────────────────────
@@ -953,9 +1123,12 @@
     });
 
     // ── Init ──────────────────────────────────────────────────────────────
-    if (getToken()) {
-      showApp();
-    }
+    (async () => {
+      const needsSetup = await checkSetup();
+      if (!needsSetup && getToken()) {
+        showApp();
+      }
+    })();
   </script>
 </body>
 </html>

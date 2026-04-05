@@ -24,7 +24,14 @@ async def _patched_app(
     mock_nats: Any | None = None,
 ) -> AsyncGenerator[tuple[Any, Any], None]:
     """Populate app.state without triggering the real NATS lifespan."""
+    from api_gateway.db import Base
     from api_gateway.main import app
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    db_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     nc = mock_nats if mock_nats is not None else AsyncMock()
 
@@ -34,12 +41,14 @@ async def _patched_app(
     app.state.session_kv = None
     app.state.config_kv = None
     app.state.jwt_secret = JWT_SECRET
+    app.state.db_factory = db_factory
 
     try:
         yield app, nc
     finally:
         app.state._state.clear()
         app.state._state.update(old_state)
+        await engine.dispose()
 
 
 def _auth_header() -> dict[str, str]:

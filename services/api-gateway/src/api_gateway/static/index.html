@@ -180,6 +180,15 @@
 
   <script src="/static/shared.js"></script>
   <script>
+    // Redirect to admin setup if first-run
+    (async () => {
+      try {
+        const resp = await fetch('/setup/status');
+        const data = await resp.json();
+        if (data.needs_setup) { window.location.href = '/admin'; return; }
+      } catch { /* ignore */ }
+    })();
+
     // ── Elements ──────────────────────────────────────────────────────────
     const container        = document.getElementById('transcript-container');
     const statusDot        = document.getElementById('status-dot');

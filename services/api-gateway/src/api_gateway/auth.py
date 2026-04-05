@@ -8,6 +8,7 @@ from typing import Any
 import bcrypt
 import jwt
 from fastapi import HTTPException, Request
+from sqlalchemy import select
 
 logger = logging.getLogger("api-gateway")
 
@@ -15,15 +16,53 @@ ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 ADMIN_TOKEN_TTL_S = int(os.getenv("ADMIN_TOKEN_TTL_S", "3600"))
 
 
-def verify_password(plain: str) -> bool:
-    """Check plain password against ADMIN_PASSWORD_HASH env var."""
-    if not ADMIN_PASSWORD_HASH:
-        logger.warning("ADMIN_PASSWORD_HASH not set — accepting any password (dev mode)")
-        return True
-    return bcrypt.checkpw(
-        plain.encode("utf-8"),
-        ADMIN_PASSWORD_HASH.encode("utf-8"),
-    )
+async def _get_db_password_hash(db_factory: Any) -> str:
+    """Read admin_password_hash from app_config table."""
+    from api_gateway.db import AppConfig
+
+    try:
+        async with db_factory() as db:
+            result = await db.execute(
+                select(AppConfig.value).where(AppConfig.key == "admin_password_hash")
+            )
+            row = result.scalar_one_or_none()
+            return row or ""
+    except Exception:
+        return ""
+
+
+async def verify_password(plain: str, db_factory: Any = None) -> bool:
+    """Check plain password against DB config, then env var fallback."""
+    # Try DB first
+    if db_factory is not None:
+        db_hash = await _get_db_password_hash(db_factory)
+        if db_hash:
+            return bcrypt.checkpw(
+                plain.encode("utf-8"),
+                db_hash.encode("utf-8"),
+            )
+
+    # Fall back to env var
+    if ADMIN_PASSWORD_HASH:
+        return bcrypt.checkpw(
+            plain.encode("utf-8"),
+            ADMIN_PASSWORD_HASH.encode("utf-8"),
+        )
+
+    # No password configured — dev mode
+    logger.warning("No admin password configured — accepting any password (dev mode)")
+    return True
+
+
+async def needs_setup(db_factory: Any = None) -> bool:
+    """Return True if no admin password is configured anywhere."""
+    if ADMIN_PASSWORD_HASH:
+        return False
+    if db_factory is not None:
+        db_hash = await _get_db_password_hash(db_factory)
+        if db_hash:
+            return False
+    return True
 
 
 def create_token(secret: str) -> str:
