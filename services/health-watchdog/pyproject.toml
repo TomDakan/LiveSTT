@@ -1,6 +1,6 @@
 [project]
 name = "health-watchdog"
-version = "0.14.0"
+version = "0.15.0"
 description = "Health Watchdog Service"
 authors = [
     { name = "Tom Dakan", email = "tomdakan@gmail.com" },
