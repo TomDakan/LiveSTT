@@ -536,6 +536,15 @@
       connectAdminLogs();
     }
 
+    // Re-fetch data when returning via back/forward button (bfcache)
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted && localStorage.getItem('admin_token')) {
+        loadSessions();
+        loadServices();
+        loadSchedules();
+      }
+    });
+
     // ── Services ──────────────────────────────────────────────────────────
     let _servicesInterval = null;
 
