@@ -60,13 +60,9 @@ CONSUMER_DURABLE = "api_gateway"
 
 # --- Session retention ---
 # Keep the last N completed sessions (0 = unlimited).
-_SESSION_RETENTION_COUNT = int(
-    os.getenv("SESSION_RETENTION_COUNT", "30")
-)
+_SESSION_RETENTION_COUNT = int(os.getenv("SESSION_RETENTION_COUNT", "30"))
 # Or purge sessions older than N days (0 = disabled).
-_SESSION_RETENTION_DAYS = int(
-    os.getenv("SESSION_RETENTION_DAYS", "0")
-)
+_SESSION_RETENTION_DAYS = int(os.getenv("SESSION_RETENTION_DAYS", "0"))
 
 # --- NATS Setup ---
 nats_client = NATS()
@@ -346,9 +342,7 @@ async def _on_global_log(msg: Any) -> None:
             await db.commit()
 
 
-async def _session_retention_loop(
-    db_factory: Any, stop_event: asyncio.Event
-) -> None:
+async def _session_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
     """Purge old sessions and their segments based on retention policy."""
     while not stop_event.is_set():
         try:
@@ -380,23 +374,18 @@ async def _run_session_retention(db_factory: Any) -> int:
                 )
                 rows = (await db.execute(all_stmt)).scalars().all()
                 if len(rows) > _SESSION_RETENTION_COUNT:
-                    ids_to_delete.update(
-                        rows[_SESSION_RETENTION_COUNT:]
-                    )
+                    ids_to_delete.update(rows[_SESSION_RETENTION_COUNT:])
 
             # Retention by age: purge sessions older than N days
             if _SESSION_RETENTION_DAYS > 0:
                 cutoff = (
-                    datetime.now(UTC)
-                    - timedelta(days=_SESSION_RETENTION_DAYS)
+                    datetime.now(UTC) - timedelta(days=_SESSION_RETENTION_DAYS)
                 ).isoformat()
                 age_stmt = select(SessionModel.id).where(
                     SessionModel.stopped_at.is_not(None),
                     SessionModel.started_at < cutoff,
                 )
-                age_rows = (
-                    (await db.execute(age_stmt)).scalars().all()
-                )
+                age_rows = (await db.execute(age_stmt)).scalars().all()
                 ids_to_delete.update(age_rows)
 
             if not ids_to_delete:
@@ -409,15 +398,10 @@ async def _run_session_retention(db_factory: Any) -> int:
                 )
             )
             await db.execute(
-                delete(SessionModel).where(
-                    SessionModel.id.in_(ids_to_delete)
-                )
+                delete(SessionModel).where(SessionModel.id.in_(ids_to_delete))
             )
             await db.commit()
-            logger.info(
-                f"Session retention: purged {len(ids_to_delete)} "
-                f"session(s)"
-            )
+            logger.info(f"Session retention: purged {len(ids_to_delete)} session(s)")
             return len(ids_to_delete)
     except Exception as exc:
         logger.warning(f"Session retention cleanup failed: {exc}")
@@ -861,9 +845,7 @@ async def rename_session(
                 entry = await session_kv.get("current")
                 kv_data = json.loads(entry.value.decode())
                 kv_data["label"] = new_label
-                await session_kv.put(
-                    "current", json.dumps(kv_data).encode()
-                )
+                await session_kv.put("current", json.dumps(kv_data).encode())
             except Exception as e:
                 logger.warning(f"KV label update failed: {e}")
 

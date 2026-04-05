@@ -341,18 +341,15 @@ async def test_session_status_returns_active_shape() -> None:
 
 @pytest.mark.asyncio
 async def test_rename_session_updates_label() -> None:
-    from httpx import ASGITransport, AsyncClient
-
     from api_gateway.db import SessionModel
+    from httpx import ASGITransport, AsyncClient
 
     session_kv = _make_session_kv(active=False)
     config_kv = _make_config_kv()
 
     async with (
         _nats_patched_app(session_kv, config_kv) as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         # Seed a session row
         async with app.state.db_factory() as db:
@@ -385,9 +382,7 @@ async def test_rename_session_returns_404_for_missing() -> None:
 
     async with (
         _nats_patched_app(session_kv, config_kv) as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.patch(
             "/admin/sessions/nonexistent",
@@ -407,9 +402,7 @@ async def test_rename_session_requires_auth() -> None:
 
     async with (
         _nats_patched_app(session_kv, config_kv) as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.patch(
             "/admin/sessions/20260101-1000",

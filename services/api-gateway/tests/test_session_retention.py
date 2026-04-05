@@ -7,19 +7,17 @@ import pytest
 from api_gateway.db import Base, SessionModel, TranscriptSegment
 from api_gateway.main import _run_session_retention
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
-async def _make_db() -> async_sessionmaker:
+async def _make_db() -> async_sessionmaker[AsyncSession]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     return async_sessionmaker(engine, expire_on_commit=False)
 
 
-def _session(
-    sid: str, *, days_ago: int = 0, stopped: bool = True
-) -> SessionModel:
+def _session(sid: str, *, days_ago: int = 0, stopped: bool = True) -> SessionModel:
     started = datetime.now(UTC) - timedelta(days=days_ago)
     return SessionModel(
         id=sid,
@@ -63,9 +61,7 @@ async def test_retention_by_count_purges_oldest() -> None:
         assert remaining_ids == {"s0", "s1", "s2"}
 
         # Segments for purged sessions should be gone
-        segs = (
-            await db.execute(select(TranscriptSegment))
-        ).scalars().all()
+        segs = (await db.execute(select(TranscriptSegment))).scalars().all()
         seg_sids = {s.session_id for s in segs}
         assert seg_sids == {"s0", "s1", "s2"}
 
