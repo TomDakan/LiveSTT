@@ -897,9 +897,7 @@
 
     async function exportLogs() {
       try {
-        const res = await fetch('/admin/logs/export?limit=5000', {
-          headers: {'Authorization': 'Bearer ' + _token}
-        });
+        const res = await authFetch('/admin/logs/export?limit=5000');
         if (!res.ok) throw new Error('Export failed');
         const blob = await res.blob();
         const a = document.createElement('a');
