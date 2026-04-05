@@ -61,6 +61,18 @@ class Schedule(Base):
     enabled: Mapped[int] = mapped_column(default=1)
 
 
+class LogEntry(Base):
+    __tablename__ = "log_entries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    timestamp: Mapped[str] = mapped_column()  # ISO 8601
+    service: Mapped[str] = mapped_column()
+    level: Mapped[str] = mapped_column()
+    message: Mapped[str] = mapped_column()
+
+    __table_args__: Any = (Index("idx_logs_timestamp", "timestamp"),)
+
+
 async def create_engine_and_tables() -> tuple[
     AsyncEngine, async_sessionmaker[AsyncSession]
 ]:
