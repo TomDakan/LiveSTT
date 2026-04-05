@@ -389,6 +389,52 @@
 
     // ── Auth ──────────────────────────────────────────────────────────────
 
+    async function checkSetup() {
+      try {
+        const resp = await fetch('/setup/status');
+        const data = await resp.json();
+        if (data.needs_setup) {
+          document.getElementById('login-overlay').style.display = 'none';
+          document.getElementById('setup-overlay').style.display = 'flex';
+          return true;
+        }
+      } catch { /* server unavailable — fall through to login */ }
+      return false;
+    }
+
+    async function submitSetup() {
+      const errEl = document.getElementById('setup-error');
+      errEl.textContent = '';
+      const pw = document.getElementById('setup-password').value;
+      const pw2 = document.getElementById('setup-password-confirm').value;
+      if (!pw) { errEl.textContent = 'Password is required.'; return; }
+      if (pw.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; return; }
+      if (pw !== pw2) { errEl.textContent = 'Passwords do not match.'; return; }
+
+      try {
+        const resp = await fetch('/setup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password: pw,
+            deepgram_api_key: document.getElementById('setup-deepgram').value,
+            site_timezone: document.getElementById('setup-timezone').value,
+          }),
+        });
+        if (!resp.ok) {
+          const data = await resp.json();
+          errEl.textContent = data.error || 'Setup failed.';
+          return;
+        }
+        const data = await resp.json();
+        setToken(data.token);
+        document.getElementById('setup-overlay').style.display = 'none';
+        showApp();
+      } catch {
+        errEl.textContent = 'Connection error.';
+      }
+    }
+
     function getToken() { return localStorage.getItem('admin_token'); }
     function setToken(t) { localStorage.setItem('admin_token', t); }
     function clearToken() { localStorage.removeItem('admin_token'); }
