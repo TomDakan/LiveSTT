@@ -1044,9 +1044,12 @@
     });
 
     // ── Init ──────────────────────────────────────────────────────────────
-    if (getToken()) {
-      showApp();
-    }
+    (async () => {
+      const needsSetup = await checkSetup();
+      if (!needsSetup && getToken()) {
+        showApp();
+      }
+    })();
   </script>
 </body>
 </html>
