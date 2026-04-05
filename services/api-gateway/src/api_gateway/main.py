@@ -284,16 +284,37 @@ async def _kv_connect_and_watch(
 async def _on_session_event(msg: Any) -> None:
     """Handle session lifecycle events from audio-producer.
 
-    Persists session start/stop to the database. The KV watcher
-    (_kv_watch_loop) is the authoritative path for WebSocket status
-    broadcasts — the session_event broadcast was removed as it was
-    unused by all UI clients.
+    Persists session start/stop to the database AND broadcasts status
+    to WebSocket clients. This is the primary broadcast path; the KV
+    watcher (_kv_watch_loop) serves as a backup for clients that
+    connect after the event has already fired.
     """
     try:
         data = json.loads(msg.data.decode())
         db_factory = _lifespan_db_factory
         if db_factory is not None:
             await _handle_session_db(db_factory, data)
+
+        # Broadcast session status to all WebSocket clients
+        event = data.get("event")
+        if event == "started":
+            payload: dict[str, Any] = {
+                "state": "starting",
+                "session_id": data.get("session_id"),
+                "label": data.get("label", ""),
+                "started_at": data.get("started_at"),
+                "silence_timeout_s": 300,
+            }
+            await manager.broadcast_message(
+                {"type": "session_status", "payload": payload}
+            )
+        elif event == "stopped":
+            await manager.broadcast_message(
+                {
+                    "type": "session_status",
+                    "payload": {"state": "idle", "silence_timeout_s": 300},
+                }
+            )
     except Exception as exc:
         logger.warning(f"session_event handler error: {exc}")
 

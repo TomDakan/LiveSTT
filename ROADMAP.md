@@ -149,6 +149,8 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 
 **Future UI items**
 - [x] Session rename/relabel (edit label of active or past session)
+- [ ] Make session label edit more discoverable (edit icon or dedicated button —
+  current dashed-underline hover hint is subtle)
 - [x] Session start feedback: show a "Processing pre-roll…" indicator while
   backfill is draining to Deepgram (~2s delay) — the greyed-out Start button
   makes it look frozen with no visual feedback
@@ -226,6 +228,9 @@ be useful.
 - [x] `just status` — one-shot summary: container health, NATS stream stats
   (message counts, consumer lag per service), disk usage
 - [x] `just nats-streams` — pretty-print all stream configs and current state
+- [ ] `just test-integration` — run all `@pytest.mark.integration` tests across
+  services with required infrastructure (NATS port exposed to host); audit
+  existing per-service integration tests to ensure they work with Docker setup
 
 **Backup & restore**
 - [x] `POST /admin/backup` → tar.gz archive of `/data/db` and `/data/lancedb` (when present);

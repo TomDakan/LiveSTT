@@ -144,9 +144,16 @@
 
     const recDot = document.getElementById('rec-dot');
 
+    let _lastSessionPayload = {};
+
     function applySessionStatus(payload) {
       const state = payload.state || 'idle';
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+
+      if (state === 'starting' || state === 'active') {
+        _lastSessionPayload = { ..._lastSessionPayload, ...payload };
+      }
+      const p = _lastSessionPayload;
 
       if (state === 'starting') {
         sessionStartedAt = null;
@@ -154,7 +161,7 @@
         recDot.style.background = '#f59e0b';
         recElapsed.textContent = 'Starting\u2026';
       } else if (state === 'active') {
-        sessionStartedAt = payload.started_at || null;
+        sessionStartedAt = p.started_at || null;
         recIndicator.style.display = 'flex';
         recDot.style.background = '#22c55e';
         if (sessionStartedAt) {
@@ -164,6 +171,7 @@
           }, 1000);
         }
       } else {
+        _lastSessionPayload = {};
         sessionStartedAt = null;
         recIndicator.style.display = 'none';
         recDot.style.background = '#22c55e';
@@ -184,6 +192,11 @@
       containerEl: document.getElementById('transcript-container'),
       statusDotEl: document.getElementById('ws-dot'),
       onSessionStatus: applySessionStatus,
+      onFirstTranscript: () => {
+        if (recElapsed.textContent === 'Starting\u2026') {
+          applySessionStatus({ ..._lastSessionPayload, state: 'active' });
+        }
+      },
       onConnected: fetchSessionStatus,
     });
 

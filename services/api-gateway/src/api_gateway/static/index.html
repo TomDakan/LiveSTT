@@ -253,11 +253,20 @@
       if (el) el.textContent = `(${formatElapsed(sessionStartedAt)})`;
     }
 
+    let _lastSessionPayload = {};
+
     function applySessionStatus(payload) {
       const state = payload.state || 'idle';
 
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
       sessionDot.classList.remove('pulse');
+
+      // Merge with previous payload so "active" inherits label/started_at
+      // from the earlier "starting" broadcast when not provided.
+      if (state === 'starting' || state === 'active') {
+        _lastSessionPayload = { ..._lastSessionPayload, ...payload };
+      }
+      const p = _lastSessionPayload;
 
       if (state === 'starting') {
         sessionStartedAt = null;
@@ -269,16 +278,16 @@
         sessionDetails.style.display = '';
         btnStartRec.style.display = 'none';
       } else if (state === 'active') {
-        sessionStartedAt = payload.started_at || null;
+        sessionStartedAt = p.started_at || null;
         sessionDot.style.background = '#22c55e';
         sessionStateText.textContent = 'RECORDING';
         sessionStateText.style.color = '#22c55e';
 
-        let details = formatTimeHHMM(payload.started_at);
+        let details = formatTimeHHMM(p.started_at);
         if (sessionStartedAt) {
           details += ` &nbsp;<span id="session-elapsed">(${formatElapsed(sessionStartedAt)})</span>`;
         }
-        if (payload.label) details += ` &nbsp;"${payload.label}"`;
+        if (p.label) details += ` &nbsp;"${p.label}"`;
         sessionDetails.innerHTML = details;
         sessionDetails.style.display = '';
 
@@ -286,6 +295,7 @@
 
         elapsedTimer = setInterval(updateElapsed, 1000);
       } else {
+        _lastSessionPayload = {};
         sessionStartedAt = null;
         sessionDot.style.background = '#6b7280';
         sessionStateText.textContent = 'IDLE';
@@ -338,6 +348,12 @@
       statusDotEl: statusDot,
       statusTextEl: statusText,
       onSessionStatus: applySessionStatus,
+      onFirstTranscript: () => {
+        // Transition from "starting" to "recording" when first text arrives
+        if (sessionStateText.textContent === 'STARTING') {
+          applySessionStatus({ ..._lastSessionPayload, state: 'active' });
+        }
+      },
       onConnected: fetchSessionStatus,
     });
 
