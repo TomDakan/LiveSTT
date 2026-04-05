@@ -895,19 +895,22 @@
       document.getElementById('log-viewer').innerHTML = '';
     }
 
-    async function exportLogs() {
-      try {
-        const res = await authFetch('/admin/logs/export?limit=5000');
-        if (!res.ok) throw new Error('Export failed');
-        const blob = await res.blob();
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'livestt-logs.jsonl';
-        a.click();
-        URL.revokeObjectURL(a.href);
-      } catch (e) {
-        alert('Log export failed: ' + e.message);
-      }
+    function exportLogs() {
+      const filterSvc = document.getElementById('log-filter-svc').value;
+      const filterLvl = document.getElementById('log-filter-lvl').value;
+      const filtered = _logEntries.filter(e => {
+        if (filterSvc && e.service !== filterSvc) return false;
+        if (filterLvl && e.level !== filterLvl) return false;
+        return true;
+      });
+      if (!filtered.length) { alert('No log entries to export.'); return; }
+      const lines = filtered.map(e => JSON.stringify(e)).join('\n');
+      const blob = new Blob([lines], {type: 'application/x-ndjson'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'livestt-logs.jsonl';
+      a.click();
+      URL.revokeObjectURL(a.href);
     }
 
     function connectAdminLogs() {
