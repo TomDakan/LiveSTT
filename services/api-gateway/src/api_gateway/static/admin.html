@@ -662,9 +662,12 @@
             ? `<button class="btn btn-danger text-xs" onclick="stopSession(this)">Stop</button>`
             : `<a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
                <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>`;
+          const labelDisplay = s.label || '—';
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
-            <td class="text-sm text-white/60">${s.label || '—'}</td>
+            <td class="text-sm text-white/60 session-label" data-sid="${s.id}"
+                title="Click to rename"
+                style="cursor:pointer;">${labelDisplay}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
             <td class="flex gap-2">${actions}</td>
@@ -676,6 +679,40 @@
         document.getElementById('sessions-loading').textContent = 'Failed to load sessions.';
       }
     }
+
+    // ── Inline label rename ──────────────────────────────────────────────
+    document.addEventListener('click', (e) => {
+      const cell = e.target.closest('.session-label');
+      if (!cell || cell.querySelector('input')) return;
+      const sid = cell.dataset.sid;
+      const current = cell.textContent.trim();
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = current === '\u2014' ? '' : current;
+      input.className = 'text-sm bg-white/10 text-white border border-white/20 rounded px-1 w-full';
+      cell.textContent = '';
+      cell.appendChild(input);
+      input.focus();
+      input.select();
+
+      async function save() {
+        const val = input.value.trim();
+        cell.textContent = val || '\u2014';
+        try {
+          const resp = await authFetch(`/admin/sessions/${sid}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ label: val }),
+          });
+          if (!resp.ok) cell.textContent = current;
+        } catch { cell.textContent = current; }
+      }
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') input.blur();
+        if (ev.key === 'Escape') { cell.textContent = current; }
+      });
+    });
 
     async function downloadExport(event, url) {
       event.preventDefault();

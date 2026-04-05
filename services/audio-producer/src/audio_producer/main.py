@@ -48,6 +48,7 @@ class AudioProducerService(BaseService):
         self.silence_samples: int = 0
         self.silence_timeout_s: int = _DEFAULT_SILENCE_TIMEOUT_S
         self._label: str = ""
+        self._started_at: str = ""
         self._session_kv: Any | None = None
         self._config_kv: Any | None = None
         self._background_tasks: set[asyncio.Task[None]] = set()
@@ -196,7 +197,7 @@ class AudioProducerService(BaseService):
                     {
                         "session_id": session_id,
                         "started_at": started_at,
-                        "state": "active",
+                        "state": "starting",
                         "label": label,
                     }
                 ).encode()
@@ -207,6 +208,7 @@ class AudioProducerService(BaseService):
         self.session_id = session_id
         self.is_active = True
         self._label = label
+        self._started_at = started_at
 
         # Read silence timeout from config KV (default if absent)
         self.silence_timeout_s = _DEFAULT_SILENCE_TIMEOUT_S
@@ -326,6 +328,23 @@ class AudioProducerService(BaseService):
             )
         except Exception as e:
             self.logger.warning(f"Failed to publish backfill EOS: {e}")
+
+        # Transition KV from "starting" → "active"
+        if self._session_kv is not None:
+            try:
+                kv_data = json.dumps(
+                    {
+                        "session_id": session_id,
+                        "started_at": self._started_at,
+                        "state": "active",
+                        "label": self._label,
+                    }
+                ).encode()
+                await self._session_kv.put("current", kv_data)
+            except Exception as e:
+                self.logger.warning(
+                    f"KV update to active failed: {e}"
+                )
 
         self.logger.info(
             f"Pre-roll flush complete: {count} chunks → audio.backfill.{session_id}"

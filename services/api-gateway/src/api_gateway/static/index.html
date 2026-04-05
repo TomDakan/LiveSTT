@@ -94,6 +94,8 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
+    #session-dot.pulse { animation: dot-pulse 1s ease-in-out infinite; }
+    @keyframes dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
     #btn-start-recording {
       padding: 4px 12px;
@@ -255,8 +257,18 @@
       const state = payload.state || 'idle';
 
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+      sessionDot.classList.remove('pulse');
 
-      if (state === 'active') {
+      if (state === 'starting') {
+        sessionStartedAt = null;
+        sessionDot.style.background = '#f59e0b';
+        sessionDot.classList.add('pulse');
+        sessionStateText.textContent = 'STARTING';
+        sessionStateText.style.color = '#f59e0b';
+        sessionDetails.innerHTML = 'Processing pre-roll\u2026';
+        sessionDetails.style.display = '';
+        btnStartRec.style.display = 'none';
+      } else if (state === 'active') {
         sessionStartedAt = payload.started_at || null;
         sessionDot.style.background = '#22c55e';
         sessionStateText.textContent = 'RECORDING';

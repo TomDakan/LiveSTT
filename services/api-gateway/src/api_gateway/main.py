@@ -58,6 +58,16 @@ SITE_URL = os.getenv("SITE_URL", "")
 TRANSCRIPT_TOPIC = "transcript.final.>"
 CONSUMER_DURABLE = "api_gateway"
 
+# --- Session retention ---
+# Keep the last N completed sessions (0 = unlimited).
+_SESSION_RETENTION_COUNT = int(
+    os.getenv("SESSION_RETENTION_COUNT", "30")
+)
+# Or purge sessions older than N days (0 = disabled).
+_SESSION_RETENTION_DAYS = int(
+    os.getenv("SESSION_RETENTION_DAYS", "0")
+)
+
 # --- NATS Setup ---
 nats_client = NATS()
 
@@ -171,7 +181,7 @@ async def _build_status_payload(
         "state": state_data.get("state", "idle"),
         "silence_timeout_s": silence_timeout_s,
     }
-    if state_data.get("state") == "active":
+    if state_data.get("state") in ("active", "starting"):
         result["session_id"] = state_data.get("session_id")
         result["label"] = state_data.get("label", "")
         result["started_at"] = state_data.get("started_at")
@@ -336,6 +346,84 @@ async def _on_global_log(msg: Any) -> None:
             await db.commit()
 
 
+async def _session_retention_loop(
+    db_factory: Any, stop_event: asyncio.Event
+) -> None:
+    """Purge old sessions and their segments based on retention policy."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(86400)
+        except asyncio.CancelledError:
+            return
+        await _run_session_retention(db_factory)
+
+
+async def _run_session_retention(db_factory: Any) -> int:
+    """Execute session retention purge. Returns number of sessions deleted."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import delete
+
+    if _SESSION_RETENTION_COUNT <= 0 and _SESSION_RETENTION_DAYS <= 0:
+        return 0
+
+    try:
+        async with db_factory() as db:
+            ids_to_delete: set[str] = set()
+
+            # Retention by count: keep last N completed sessions
+            if _SESSION_RETENTION_COUNT > 0:
+                all_stmt = (
+                    select(SessionModel.id)
+                    .where(SessionModel.stopped_at.is_not(None))
+                    .order_by(SessionModel.started_at.desc())
+                )
+                rows = (await db.execute(all_stmt)).scalars().all()
+                if len(rows) > _SESSION_RETENTION_COUNT:
+                    ids_to_delete.update(
+                        rows[_SESSION_RETENTION_COUNT:]
+                    )
+
+            # Retention by age: purge sessions older than N days
+            if _SESSION_RETENTION_DAYS > 0:
+                cutoff = (
+                    datetime.now(UTC)
+                    - timedelta(days=_SESSION_RETENTION_DAYS)
+                ).isoformat()
+                age_stmt = select(SessionModel.id).where(
+                    SessionModel.stopped_at.is_not(None),
+                    SessionModel.started_at < cutoff,
+                )
+                age_rows = (
+                    (await db.execute(age_stmt)).scalars().all()
+                )
+                ids_to_delete.update(age_rows)
+
+            if not ids_to_delete:
+                return 0
+
+            # Delete segments first, then sessions
+            await db.execute(
+                delete(TranscriptSegment).where(
+                    TranscriptSegment.session_id.in_(ids_to_delete)
+                )
+            )
+            await db.execute(
+                delete(SessionModel).where(
+                    SessionModel.id.in_(ids_to_delete)
+                )
+            )
+            await db.commit()
+            logger.info(
+                f"Session retention: purged {len(ids_to_delete)} "
+                f"session(s)"
+            )
+            return len(ids_to_delete)
+    except Exception as exc:
+        logger.warning(f"Session retention cleanup failed: {exc}")
+        return 0
+
+
 async def _log_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
     """Purge old log entries daily based on LOG_RETENTION_DAYS."""
     while not stop_event.is_set():
@@ -371,6 +459,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     pull_task: asyncio.Task[None] | None = None
     kv_watch_task: asyncio.Task[None] | None = None
     log_cleanup_task: asyncio.Task[None] | None = None
+    session_cleanup_task: asyncio.Task[None] | None = None
 
     # Initialize database
     db_engine, db_factory = await create_engine_and_tables()
@@ -408,6 +497,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         log_cleanup_task = asyncio.create_task(
             _log_retention_loop(db_factory, stop_event)
         )
+        # Run retention once at startup, then daily in background
+        await _run_session_retention(db_factory)
+        session_cleanup_task = asyncio.create_task(
+            _session_retention_loop(db_factory, stop_event)
+        )
 
         # session_kv / config_kv start as None; _kv_connect_and_watch updates them
         app.state.nats = nats_client
@@ -420,7 +514,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         logger.info("Shutting down... closing NATS connection.")
         stop_event.set()
-        for task in (pull_task, kv_watch_task, log_cleanup_task):
+        for task in (pull_task, kv_watch_task, log_cleanup_task, session_cleanup_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -723,6 +817,57 @@ async def get_session(
             ],
         }
     )
+
+
+@app.patch("/admin/sessions/{session_id}")
+async def rename_session(
+    request: Request,
+    session_id: str,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Update a session's label."""
+    body = await request.json()
+    new_label = body.get("label")
+    if new_label is None:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "missing 'label' field"},
+        )
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(
+            select(SessionModel).where(SessionModel.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "session_not_found"},
+            )
+        await db.execute(
+            update(SessionModel)
+            .where(SessionModel.id == session_id)
+            .values(label=new_label)
+        )
+        await db.commit()
+
+    # If this is the active session, update the NATS KV so viewers
+    # see the new label in real time.
+    if session_id == _active_session_id:
+        session_kv = getattr(request.app.state, "session_kv", None)
+        if session_kv is not None:
+            try:
+                entry = await session_kv.get("current")
+                kv_data = json.loads(entry.value.decode())
+                kv_data["label"] = new_label
+                await session_kv.put(
+                    "current", json.dumps(kv_data).encode()
+                )
+            except Exception as e:
+                logger.warning(f"KV label update failed: {e}")
+
+    return JSONResponse(content={"status": "ok", "label": new_label})
 
 
 @app.get("/admin/sessions/{session_id}/export")

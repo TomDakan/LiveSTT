@@ -142,13 +142,21 @@
       return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
     }
 
+    const recDot = document.getElementById('rec-dot');
+
     function applySessionStatus(payload) {
       const state = payload.state || 'idle';
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
 
-      if (state === 'active') {
+      if (state === 'starting') {
+        sessionStartedAt = null;
+        recIndicator.style.display = 'flex';
+        recDot.style.background = '#f59e0b';
+        recElapsed.textContent = 'Starting\u2026';
+      } else if (state === 'active') {
         sessionStartedAt = payload.started_at || null;
         recIndicator.style.display = 'flex';
+        recDot.style.background = '#22c55e';
         if (sessionStartedAt) {
           recElapsed.textContent = formatElapsed(sessionStartedAt);
           elapsedTimer = setInterval(() => {
@@ -158,6 +166,7 @@
       } else {
         sessionStartedAt = null;
         recIndicator.style.display = 'none';
+        recDot.style.background = '#22c55e';
         recElapsed.textContent = '';
       }
     }

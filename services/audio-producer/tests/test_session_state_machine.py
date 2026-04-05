@@ -128,12 +128,24 @@ async def test_start_session_writes_kv() -> None:
     mock_js = _make_js()
     await svc._start_session(mock_js)
 
-    kv.put.assert_called_once()
-    key, raw = kv.put.call_args[0]
+    # First KV write is "starting" (pre-roll flush pending)
+    first_call = kv.put.call_args_list[0]
+    key, raw = first_call[0]
     assert key == "current"
     data = json.loads(raw.decode())
-    assert data["state"] == "active"
+    assert data["state"] == "starting"
     assert "session_id" in data
+
+    # Let background flush task complete (transitions to "active")
+    import asyncio
+    await asyncio.sleep(0)
+
+    assert kv.put.call_count == 2
+    second_call = kv.put.call_args_list[1]
+    key2, raw2 = second_call[0]
+    assert key2 == "current"
+    data2 = json.loads(raw2.decode())
+    assert data2["state"] == "active"
 
 
 @pytest.mark.asyncio
