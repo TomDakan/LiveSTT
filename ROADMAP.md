@@ -155,6 +155,12 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 
 ### Milestone 7: Vocabulary Intelligence
 **Goal**: Close the feedback loop between transcription errors and Deepgram custom vocabulary.
+This needs an architectural review. I recently discovered that the Nova-3 model is limited to 
+500 tokens or ~100 custom words or phrases. If we pre-populate a significant list, there 
+may not be much room for end users to add their own proper nouns. We should consider whether
+there are other ways to improve accuracy and whether we need to perform the gold and silver 
+standards tests from milestone 0.5 first to see what domain-specific keywords may actually
+be useful.
 
 - [ ] **Pre-seeded domain vocabulary**: admin can import known domain-specific word lists
   (e.g. books of the Bible, speaker names, local place names) before a single service runs;
@@ -281,16 +287,18 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 
 ## Future Roadmap (Post-v8.0)
 
-### First-Run Onboarding
-**Goal**: Replace the env-var approach to admin credentials with a guided setup wizard shown on first load, so a non-technical operator can configure the device out of the box without editing config files.
+### Admin UI Enhancements
+**Goal**: Improve admin panel usability as the number of management cards grows.
 
-Design and implementation deferred until LiveSTT is feature-complete. Considerations:
-
-- Detect "first run" state (e.g. no `ADMIN_PASSWORD_HASH` set, or a `first_run` flag in the DB/KV store)
-- Redirect all HTTP traffic to an onboarding wizard until setup is complete
-- Wizard steps: set admin password (written as bcrypt hash to persistent storage), optionally configure site name / timezone / Deepgram API key override
-- After completion, mark setup done and redirect to the normal UI
-- Must be secure against an attacker on the local network racing to complete setup before the operator (consider a device-local secret or PIN printed on the hardware label)
+- [ ] **Tabbed interface**: replace the single scrolling page with tabs (e.g. Status,
+  Sessions, Services, Schedules, Speakers, Logs, Settings) so operators can jump
+  directly to what they need without scrolling past unrelated cards
+- [ ] **Mobile navigation**: responsive hamburger menu that replaces tabs on narrow
+  viewports; slide-out drawer or bottom sheet with the same tab destinations
+- [ ] **Settings management UI**: dedicated settings tab for updating admin password,
+  Deepgram API key, site timezone, and future config values stored in the `AppConfig`
+  table — the same values captured during first-run setup, editable after the fact
+  without requiring CLI access or container restarts
 
 ### Viewer Password (v2.0)
 Current assumption: network-level access control is sufficient — organizations that want
