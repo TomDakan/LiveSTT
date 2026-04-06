@@ -151,6 +151,8 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [x] Session rename/relabel (edit label of active or past session)
 - [ ] Make session label edit more discoverable (edit icon or dedicated button —
   current dashed-underline hover hint is subtle)
+- [ ] Make interim transcripts optional (`INTERIM_RESULTS` env var on stt-provider,
+  default off — interims are requested from Deepgram but not displayed)
 - [x] Session start feedback: show a "Processing pre-roll…" indicator while
   backfill is draining to Deepgram (~2s delay) — the greyed-out Start button
   makes it look frozen with no visual feedback

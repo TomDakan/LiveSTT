@@ -55,7 +55,7 @@ logger = logging.getLogger("api-gateway")
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 MAX_WS_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "50"))
 SITE_URL = os.getenv("SITE_URL", "")
-TRANSCRIPT_TOPIC = "transcript.final.>"
+TRANSCRIPT_TOPIC = "transcript.raw.>"
 CONSUMER_DURABLE = "api_gateway"
 
 # --- Session retention ---
@@ -131,40 +131,18 @@ async def _pull_loop(sub: Any, stop_event: asyncio.Event, db_factory: Any) -> No
             logger.error(f"Pull consumer error: {e}")
 
 
-async def _kv_watch_loop(session_kv: Any, config_kv: Any) -> None:
-    """Watch session_state KV and broadcast status updates to WebSocket clients."""
-    try:
-        watcher = await session_kv.watch("current")
-        async for entry in watcher:
-            if entry is None:
-                continue
-            payload = await _build_status_payload(session_kv, config_kv, entry)
-            await manager.broadcast_message(
-                {"type": "session_status", "payload": payload}
-            )
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        logger.warning(f"KV watch loop error: {e}")
-
-
 async def _build_status_payload(
     session_kv: Any,
     config_kv: Any,
-    entry: Any | None = None,
 ) -> dict[str, Any]:
     """Build the session status payload (same shape as GET /session/status)."""
     state_data: dict[str, Any] = {"state": "idle"}
 
-    if entry is not None:
-        with contextlib.suppress(Exception):
-            state_data = json.loads(entry.value.decode())
-    else:
-        try:
-            e = await session_kv.get("current")
-            state_data = json.loads(e.value.decode())
-        except Exception:  # nosec B110
-            pass
+    try:
+        e = await session_kv.get("current")
+        state_data = json.loads(e.value.decode())
+    except Exception:  # nosec B110
+        pass
 
     silence_timeout_s = 300
     try:
@@ -177,21 +155,11 @@ async def _build_status_payload(
         "state": state_data.get("state", "idle"),
         "silence_timeout_s": silence_timeout_s,
     }
-    if state_data.get("state") in ("active", "starting"):
+    if state_data.get("state") == "active":
         result["session_id"] = state_data.get("session_id")
         result["label"] = state_data.get("label", "")
         result["started_at"] = state_data.get("started_at")
     return result
-
-
-async def _on_interim_transcript(msg: Any) -> None:
-    """Forward interim transcripts from core NATS to WebSocket clients."""
-    try:
-        data = json.loads(msg.data.decode())
-        if not data.get("is_final", True):
-            await manager.broadcast(data)
-    except Exception as exc:
-        logger.warning(f"interim transcript handler error: {exc}")
 
 
 async def _persist_segment(
@@ -251,12 +219,12 @@ async def _handle_session_db(db_factory: Any, data: dict[str, Any]) -> None:
         logger.warning(f"Failed to persist session event: {exc}")
 
 
-async def _kv_connect_and_watch(
+async def _kv_connect(
     app: FastAPI,
     js: Any,
     stop_event: asyncio.Event,
 ) -> None:
-    """Retry KV bucket connection, recover session, then watch."""
+    """Retry KV bucket connection and recover session state."""
     global _active_session_id
     while not stop_event.is_set():
         try:
@@ -268,13 +236,12 @@ async def _kv_connect_and_watch(
             try:
                 entry = await session_kv.get("current")
                 kv_data = json.loads(entry.value.decode())
-                if kv_data.get("state") in ("active", "starting"):
+                if kv_data.get("state") == "active":
                     _active_session_id = kv_data.get("session_id")
                     logger.info(f"Recovered active session: {_active_session_id}")
             except Exception:  # nosec B110
                 pass
-            logger.info("Session KV watch started")
-            await _kv_watch_loop(session_kv, config_kv)
+            logger.info("Session KV connected")
             return
         except Exception as e:
             logger.debug(f"Session KV not ready: {e}")
@@ -462,7 +429,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     stop_event = asyncio.Event()
     pull_task: asyncio.Task[None] | None = None
-    kv_watch_task: asyncio.Task[None] | None = None
+    kv_task: asyncio.Task[None] | None = None
     log_cleanup_task: asyncio.Task[None] | None = None
     session_cleanup_task: asyncio.Task[None] | None = None
 
@@ -491,11 +458,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info(f"JetStream pull consumer '{CONSUMER_DURABLE}' on {TRANSCRIPT_TOPIC}")
         pull_task = asyncio.create_task(_pull_loop(sub, stop_event, db_factory))
 
-        kv_watch_task = asyncio.create_task(_kv_connect_and_watch(app, js, stop_event))
+        kv_task = asyncio.create_task(_kv_connect(app, js, stop_event))
 
         await nats_client.subscribe("system.session", cb=_on_session_event)
         await nats_client.subscribe("system.stt_status", cb=_on_stt_status)
-        await nats_client.subscribe("transcript.interim.>", cb=_on_interim_transcript)
 
         # Global log subscription: ring buffer + persistent storage
         await nats_client.subscribe("logs.>", cb=_on_global_log)
@@ -508,7 +474,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             _session_retention_loop(db_factory, stop_event)
         )
 
-        # session_kv / config_kv start as None; _kv_connect_and_watch updates them
+        # session_kv / config_kv start as None; _kv_connect updates them
         app.state.nats = nats_client
         app.state.js = js
         app.state.session_kv = None
@@ -519,7 +485,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         logger.info("Shutting down... closing NATS connection.")
         stop_event.set()
-        for task in (pull_task, kv_watch_task, log_cleanup_task, session_cleanup_task):
+        for task in (pull_task, kv_task, log_cleanup_task, session_cleanup_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
