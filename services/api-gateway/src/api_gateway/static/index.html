@@ -94,6 +94,8 @@
       border-radius: 50%;
       flex-shrink: 0;
     }
+    #session-dot.pulse { animation: dot-pulse 1s ease-in-out infinite; }
+    @keyframes dot-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
     #btn-start-recording {
       padding: 4px 12px;
@@ -251,22 +253,41 @@
       if (el) el.textContent = `(${formatElapsed(sessionStartedAt)})`;
     }
 
+    let _lastSessionPayload = {};
+
     function applySessionStatus(payload) {
       const state = payload.state || 'idle';
 
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+      sessionDot.classList.remove('pulse');
 
-      if (state === 'active') {
-        sessionStartedAt = payload.started_at || null;
+      // Merge with previous payload so "active" inherits label/started_at
+      // from the earlier "starting" broadcast when not provided.
+      if (state === 'starting' || state === 'active') {
+        _lastSessionPayload = { ..._lastSessionPayload, ...payload };
+      }
+      const p = _lastSessionPayload;
+
+      if (state === 'starting') {
+        sessionStartedAt = null;
+        sessionDot.style.background = '#f59e0b';
+        sessionDot.classList.add('pulse');
+        sessionStateText.textContent = 'STARTING';
+        sessionStateText.style.color = '#f59e0b';
+        sessionDetails.innerHTML = 'Processing pre-roll\u2026';
+        sessionDetails.style.display = '';
+        btnStartRec.style.display = 'none';
+      } else if (state === 'active') {
+        sessionStartedAt = p.started_at || null;
         sessionDot.style.background = '#22c55e';
         sessionStateText.textContent = 'RECORDING';
         sessionStateText.style.color = '#22c55e';
 
-        let details = formatTimeHHMM(payload.started_at);
+        let details = formatTimeHHMM(p.started_at);
         if (sessionStartedAt) {
           details += ` &nbsp;<span id="session-elapsed">(${formatElapsed(sessionStartedAt)})</span>`;
         }
-        if (payload.label) details += ` &nbsp;"${payload.label}"`;
+        if (p.label) details += ` &nbsp;"${p.label}"`;
         sessionDetails.innerHTML = details;
         sessionDetails.style.display = '';
 
@@ -274,6 +295,7 @@
 
         elapsedTimer = setInterval(updateElapsed, 1000);
       } else {
+        _lastSessionPayload = {};
         sessionStartedAt = null;
         sessionDot.style.background = '#6b7280';
         sessionStateText.textContent = 'IDLE';
@@ -290,6 +312,8 @@
     btnStartRec.addEventListener('click', async () => {
       btnStartRec.disabled = true;
       startFormMsg.textContent = '';
+      // Immediate client-side feedback while server processes
+      applySessionStatus({ state: 'starting' });
       try {
         const resp = await fetch('/session/start', {
           method: 'POST',
@@ -298,13 +322,14 @@
         });
         if (resp.status === 409) {
           startFormMsg.textContent = 'Session already active.';
+          fetchSessionStatus();
         } else if (!resp.ok) {
           startFormMsg.textContent = `Error ${resp.status}`;
-          btnStartRec.disabled = false;
+          applySessionStatus({ state: 'idle' });
         }
       } catch (err) {
         startFormMsg.textContent = 'Request failed.';
-        btnStartRec.disabled = false;
+        applySessionStatus({ state: 'idle' });
       }
     });
 
@@ -323,6 +348,12 @@
       statusDotEl: statusDot,
       statusTextEl: statusText,
       onSessionStatus: applySessionStatus,
+      onFirstTranscript: () => {
+        // Transition from "starting" to "recording" when first text arrives
+        if (sessionStateText.textContent === 'STARTING') {
+          applySessionStatus({ ..._lastSessionPayload, state: 'active' });
+        }
+      },
       onConnected: fetchSessionStatus,
     });
 

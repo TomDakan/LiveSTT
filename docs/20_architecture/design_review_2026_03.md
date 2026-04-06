@@ -444,12 +444,11 @@ a production dependency before it is implemented.
 
 **[LOW-6] data-sweeper adds no enforcement — NATS `max_age` handles retention**
 
-NATS JetStream enforces retention automatically. The data-sweeper as described in the
-roadmap is purely observational reporting that duplicates what `nats server report streams`
-already provides.
+NATS JetStream enforces retention automatically. The original data-sweeper service was
+purely observational. It has since been renamed to `system-manager` and given a broader
+mandate: session scheduling, service orchestration, and NATS stream stats reporting.
 
-*Recommendation*: Either give data-sweeper a meaningful purpose (e.g. emit disk-usage
-metrics to NATS KV for the admin dashboard) or remove it from the architecture.
+*Status*: Resolved — `system-manager` now serves a meaningful purpose.
 
 ---
 

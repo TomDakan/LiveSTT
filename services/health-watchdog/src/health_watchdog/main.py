@@ -5,7 +5,8 @@ from typing import Any
 from messaging.service import BaseService
 
 _DEFAULT_MONITORED = (
-    "audio-producer,stt-provider,identity-manager,audio-classifier,api-gateway"
+    "audio-producer,stt-provider,identity-manager,"
+    "audio-classifier,api-gateway,system-manager"
 )
 MONITORED_SERVICES: list[str] = [
     s.strip()

@@ -148,8 +148,12 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
 - [x] Filter by service name and log level in the UI
 
 **Future UI items**
-- [ ] Session rename/relabel (edit label of active or past session)
-- [ ] Session start feedback: show a "Processing pre-roll…" indicator while
+- [x] Session rename/relabel (edit label of active or past session)
+- [ ] Make session label edit more discoverable (edit icon or dedicated button —
+  current dashed-underline hover hint is subtle)
+- [ ] Make interim transcripts optional (`INTERIM_RESULTS` env var on stt-provider,
+  default off — interims are requested from Deepgram but not displayed)
+- [x] Session start feedback: show a "Processing pre-roll…" indicator while
   backfill is draining to Deepgram (~2s delay) — the greyed-out Start button
   makes it look frozen with no visual feedback
 
@@ -182,8 +186,8 @@ be useful.
 
 **`data-sweeper` → `system-manager` rename** *(completed in M4.5)*
 - [x] Rename service directory, Python package, Docker image tag, and compose service name
-- [ ] Update `MONITORED_SERVICES` list in `health-watchdog` to reference `system-manager`
-- [ ] Update `docs/` and `CLAUDE.md` references
+- [x] Update `MONITORED_SERVICES` list in `health-watchdog` to reference `system-manager`
+- [x] Update `docs/` and `CLAUDE.md` references
 
 **BalenaOS deployment preparation**
 - [ ] Add `balena.yml` to repo root (`defaultDeviceType: intel-nuc`, fleet name, `version: "2.1"`)
@@ -226,6 +230,9 @@ be useful.
 - [x] `just status` — one-shot summary: container health, NATS stream stats
   (message counts, consumer lag per service), disk usage
 - [x] `just nats-streams` — pretty-print all stream configs and current state
+- [ ] `just test-integration` — run all `@pytest.mark.integration` tests across
+  services with required infrastructure (NATS port exposed to host); audit
+  existing per-service integration tests to ensure they work with Docker setup
 
 **Backup & restore**
 - [x] `POST /admin/backup` → tar.gz archive of `/data/db` and `/data/lancedb` (when present);
@@ -249,7 +256,7 @@ be useful.
   Balena Cloud, so mDNS is primarily a self-hosted quality-of-life improvement
 
 **Transcript retention**
-- [ ] Configurable auto-purge policy: keep the last N sessions or purge segments older
+- [x] Configurable auto-purge policy: keep the last N sessions or purge segments older
   than X days (default: keep last 30 sessions); enforced by a scheduled cleanup task in
   api-gateway; prevents unbounded disk growth on long-running devices
 

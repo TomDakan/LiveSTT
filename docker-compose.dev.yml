@@ -15,8 +15,20 @@ services:
     healthcheck:
       interval: 5s
       start_period: 5s
-    # NOTE: no source mount for api-gateway — Tailwind CSS is built at image
-    # build time and a bind mount would overwrite the compiled stylesheet.
+    volumes:
+      # Mount Python source and individual static files for live reload.
+      # tailwind.css is built at image time and NOT mounted — the image
+      # copy is used at runtime so the compiled stylesheet is preserved.
+      - ./services/api-gateway/src/api_gateway/main.py:/app/services/api-gateway/src/api_gateway/main.py
+      - ./services/api-gateway/src/api_gateway/auth.py:/app/services/api-gateway/src/api_gateway/auth.py
+      - ./services/api-gateway/src/api_gateway/db.py:/app/services/api-gateway/src/api_gateway/db.py
+      - ./services/api-gateway/src/api_gateway/export.py:/app/services/api-gateway/src/api_gateway/export.py
+      - ./services/api-gateway/src/api_gateway/status.py:/app/services/api-gateway/src/api_gateway/status.py
+      - ./services/api-gateway/src/api_gateway/static/index.html:/app/services/api-gateway/src/api_gateway/static/index.html
+      - ./services/api-gateway/src/api_gateway/static/admin.html:/app/services/api-gateway/src/api_gateway/static/admin.html
+      - ./services/api-gateway/src/api_gateway/static/display.html:/app/services/api-gateway/src/api_gateway/static/display.html
+      - ./services/api-gateway/src/api_gateway/static/shared.js:/app/services/api-gateway/src/api_gateway/static/shared.js
+      - ./libs/messaging/src:/app/libs/messaging/src
 
   audio-producer:
     healthcheck:

@@ -35,6 +35,7 @@ window.LiveSTT = (() => {
     statusDotEl: null,
     statusTextEl: null,
     onSessionStatus: null,
+    onFirstTranscript: null,
     onSttStatus: null,
     onConnected: null,
     autoScroll: true, // display.html forces true; index.html uses smart scroll
@@ -45,6 +46,7 @@ window.LiveSTT = (() => {
   let reconnectTimer = null;
   let backfillRendered = false;
   let separatorInserted = false;
+  let _firstTranscriptFired = false;
   let dgLaneStates = {};  // per-lane Deepgram status
   let userScrolledUp = false;
 
@@ -258,6 +260,10 @@ window.LiveSTT = (() => {
         }
         appendFinalLine(text, speaker, isBackfill);
         if (isBackfill) backfillRendered = true;
+        if (!_firstTranscriptFired && cfg.onFirstTranscript) {
+          _firstTranscriptFired = true;
+          cfg.onFirstTranscript();
+        }
         return;
       }
 
@@ -283,6 +289,7 @@ window.LiveSTT = (() => {
       if (msg.type === "session_status") {
         const p = msg.payload || {};
         if (p.session_id) _currentSessionId = p.session_id;
+        if (p.state === 'starting' || p.state === 'idle') _firstTranscriptFired = false;
         if (cfg.onSessionStatus) cfg.onSessionStatus(p);
         return;
       }

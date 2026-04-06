@@ -332,3 +332,81 @@ async def test_session_status_returns_active_shape() -> None:
     assert body["session_id"] == "20260101-1000"
     assert "started_at" in body
     assert "silence_timeout_s" in body
+
+
+# ---------------------------------------------------------------------------
+# PATCH /admin/sessions/{session_id} (rename)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_rename_session_updates_label() -> None:
+    from api_gateway.db import SessionModel
+    from httpx import ASGITransport, AsyncClient
+
+    session_kv = _make_session_kv(active=False)
+    config_kv = _make_config_kv()
+
+    async with (
+        _nats_patched_app(session_kv, config_kv) as (app, _),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        # Seed a session row
+        async with app.state.db_factory() as db:
+            db.add(
+                SessionModel(
+                    id="20260101-1000",
+                    label="Old Label",
+                    started_at="2026-01-01T10:00:00+00:00",
+                    stopped_at="2026-01-01T11:00:00+00:00",
+                )
+            )
+            await db.commit()
+
+        resp = await client.patch(
+            "/admin/sessions/20260101-1000",
+            json={"label": "New Label"},
+            headers=_auth_header(),
+        )
+
+    assert resp.status_code == 200
+    assert resp.json()["label"] == "New Label"
+
+
+@pytest.mark.asyncio
+async def test_rename_session_returns_404_for_missing() -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    session_kv = _make_session_kv(active=False)
+    config_kv = _make_config_kv()
+
+    async with (
+        _nats_patched_app(session_kv, config_kv) as (app, _),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.patch(
+            "/admin/sessions/nonexistent",
+            json={"label": "Test"},
+            headers=_auth_header(),
+        )
+
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_rename_session_requires_auth() -> None:
+    from httpx import ASGITransport, AsyncClient
+
+    session_kv = _make_session_kv(active=False)
+    config_kv = _make_config_kv()
+
+    async with (
+        _nats_patched_app(session_kv, config_kv) as (app, _),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        resp = await client.patch(
+            "/admin/sessions/20260101-1000",
+            json={"label": "Test"},
+        )
+
+    assert resp.status_code == 401

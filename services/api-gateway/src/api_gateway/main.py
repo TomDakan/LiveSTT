@@ -55,8 +55,14 @@ logger = logging.getLogger("api-gateway")
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 MAX_WS_CONNECTIONS = int(os.getenv("MAX_WS_CONNECTIONS", "50"))
 SITE_URL = os.getenv("SITE_URL", "")
-TRANSCRIPT_TOPIC = "transcript.final.>"
+TRANSCRIPT_TOPIC = "transcript.raw.>"
 CONSUMER_DURABLE = "api_gateway"
+
+# --- Session retention ---
+# Keep the last N completed sessions (0 = unlimited).
+_SESSION_RETENTION_COUNT = int(os.getenv("SESSION_RETENTION_COUNT", "30"))
+# Or purge sessions older than N days (0 = disabled).
+_SESSION_RETENTION_DAYS = int(os.getenv("SESSION_RETENTION_DAYS", "0"))
 
 # --- NATS Setup ---
 nats_client = NATS()
@@ -125,40 +131,18 @@ async def _pull_loop(sub: Any, stop_event: asyncio.Event, db_factory: Any) -> No
             logger.error(f"Pull consumer error: {e}")
 
 
-async def _kv_watch_loop(session_kv: Any, config_kv: Any) -> None:
-    """Watch session_state KV and broadcast status updates to WebSocket clients."""
-    try:
-        watcher = await session_kv.watch("current")
-        async for entry in watcher:
-            if entry is None:
-                continue
-            payload = await _build_status_payload(session_kv, config_kv, entry)
-            await manager.broadcast_message(
-                {"type": "session_status", "payload": payload}
-            )
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        logger.warning(f"KV watch loop error: {e}")
-
-
 async def _build_status_payload(
     session_kv: Any,
     config_kv: Any,
-    entry: Any | None = None,
 ) -> dict[str, Any]:
     """Build the session status payload (same shape as GET /session/status)."""
     state_data: dict[str, Any] = {"state": "idle"}
 
-    if entry is not None:
-        with contextlib.suppress(Exception):
-            state_data = json.loads(entry.value.decode())
-    else:
-        try:
-            e = await session_kv.get("current")
-            state_data = json.loads(e.value.decode())
-        except Exception:  # nosec B110
-            pass
+    try:
+        e = await session_kv.get("current")
+        state_data = json.loads(e.value.decode())
+    except Exception:  # nosec B110
+        pass
 
     silence_timeout_s = 300
     try:
@@ -176,16 +160,6 @@ async def _build_status_payload(
         result["label"] = state_data.get("label", "")
         result["started_at"] = state_data.get("started_at")
     return result
-
-
-async def _on_interim_transcript(msg: Any) -> None:
-    """Forward interim transcripts from core NATS to WebSocket clients."""
-    try:
-        data = json.loads(msg.data.decode())
-        if not data.get("is_final", True):
-            await manager.broadcast(data)
-    except Exception as exc:
-        logger.warning(f"interim transcript handler error: {exc}")
 
 
 async def _persist_segment(
@@ -245,12 +219,12 @@ async def _handle_session_db(db_factory: Any, data: dict[str, Any]) -> None:
         logger.warning(f"Failed to persist session event: {exc}")
 
 
-async def _kv_connect_and_watch(
+async def _kv_connect(
     app: FastAPI,
     js: Any,
     stop_event: asyncio.Event,
 ) -> None:
-    """Retry KV bucket connection, recover session, then watch."""
+    """Retry KV bucket connection and recover session state."""
     global _active_session_id
     while not stop_event.is_set():
         try:
@@ -267,8 +241,7 @@ async def _kv_connect_and_watch(
                     logger.info(f"Recovered active session: {_active_session_id}")
             except Exception:  # nosec B110
                 pass
-            logger.info("Session KV watch started")
-            await _kv_watch_loop(session_kv, config_kv)
+            logger.info("Session KV connected")
             return
         except Exception as e:
             logger.debug(f"Session KV not ready: {e}")
@@ -278,16 +251,37 @@ async def _kv_connect_and_watch(
 async def _on_session_event(msg: Any) -> None:
     """Handle session lifecycle events from audio-producer.
 
-    Persists session start/stop to the database. The KV watcher
-    (_kv_watch_loop) is the authoritative path for WebSocket status
-    broadcasts — the session_event broadcast was removed as it was
-    unused by all UI clients.
+    Persists session start/stop to the database AND broadcasts status
+    to WebSocket clients. This is the primary broadcast path; the KV
+    watcher (_kv_watch_loop) serves as a backup for clients that
+    connect after the event has already fired.
     """
     try:
         data = json.loads(msg.data.decode())
         db_factory = _lifespan_db_factory
         if db_factory is not None:
             await _handle_session_db(db_factory, data)
+
+        # Broadcast session status to all WebSocket clients
+        event = data.get("event")
+        if event == "started":
+            payload: dict[str, Any] = {
+                "state": "starting",
+                "session_id": data.get("session_id"),
+                "label": data.get("label", ""),
+                "started_at": data.get("started_at"),
+                "silence_timeout_s": 300,
+            }
+            await manager.broadcast_message(
+                {"type": "session_status", "payload": payload}
+            )
+        elif event == "stopped":
+            await manager.broadcast_message(
+                {
+                    "type": "session_status",
+                    "payload": {"state": "idle", "silence_timeout_s": 300},
+                }
+            )
     except Exception as exc:
         logger.warning(f"session_event handler error: {exc}")
 
@@ -336,6 +330,72 @@ async def _on_global_log(msg: Any) -> None:
             await db.commit()
 
 
+async def _session_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
+    """Purge old sessions and their segments based on retention policy."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(86400)
+        except asyncio.CancelledError:
+            return
+        await _run_session_retention(db_factory)
+
+
+async def _run_session_retention(db_factory: Any) -> int:
+    """Execute session retention purge. Returns number of sessions deleted."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import delete
+
+    if _SESSION_RETENTION_COUNT <= 0 and _SESSION_RETENTION_DAYS <= 0:
+        return 0
+
+    try:
+        async with db_factory() as db:
+            ids_to_delete: set[str] = set()
+
+            # Retention by count: keep last N completed sessions
+            if _SESSION_RETENTION_COUNT > 0:
+                all_stmt = (
+                    select(SessionModel.id)
+                    .where(SessionModel.stopped_at.is_not(None))
+                    .order_by(SessionModel.started_at.desc())
+                )
+                rows = (await db.execute(all_stmt)).scalars().all()
+                if len(rows) > _SESSION_RETENTION_COUNT:
+                    ids_to_delete.update(rows[_SESSION_RETENTION_COUNT:])
+
+            # Retention by age: purge sessions older than N days
+            if _SESSION_RETENTION_DAYS > 0:
+                cutoff = (
+                    datetime.now(UTC) - timedelta(days=_SESSION_RETENTION_DAYS)
+                ).isoformat()
+                age_stmt = select(SessionModel.id).where(
+                    SessionModel.stopped_at.is_not(None),
+                    SessionModel.started_at < cutoff,
+                )
+                age_rows = (await db.execute(age_stmt)).scalars().all()
+                ids_to_delete.update(age_rows)
+
+            if not ids_to_delete:
+                return 0
+
+            # Delete segments first, then sessions
+            await db.execute(
+                delete(TranscriptSegment).where(
+                    TranscriptSegment.session_id.in_(ids_to_delete)
+                )
+            )
+            await db.execute(
+                delete(SessionModel).where(SessionModel.id.in_(ids_to_delete))
+            )
+            await db.commit()
+            logger.info(f"Session retention: purged {len(ids_to_delete)} session(s)")
+            return len(ids_to_delete)
+    except Exception as exc:
+        logger.warning(f"Session retention cleanup failed: {exc}")
+        return 0
+
+
 async def _log_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
     """Purge old log entries daily based on LOG_RETENTION_DAYS."""
     while not stop_event.is_set():
@@ -369,8 +429,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     stop_event = asyncio.Event()
     pull_task: asyncio.Task[None] | None = None
-    kv_watch_task: asyncio.Task[None] | None = None
+    kv_task: asyncio.Task[None] | None = None
     log_cleanup_task: asyncio.Task[None] | None = None
+    session_cleanup_task: asyncio.Task[None] | None = None
 
     # Initialize database
     db_engine, db_factory = await create_engine_and_tables()
@@ -397,19 +458,23 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.info(f"JetStream pull consumer '{CONSUMER_DURABLE}' on {TRANSCRIPT_TOPIC}")
         pull_task = asyncio.create_task(_pull_loop(sub, stop_event, db_factory))
 
-        kv_watch_task = asyncio.create_task(_kv_connect_and_watch(app, js, stop_event))
+        kv_task = asyncio.create_task(_kv_connect(app, js, stop_event))
 
         await nats_client.subscribe("system.session", cb=_on_session_event)
         await nats_client.subscribe("system.stt_status", cb=_on_stt_status)
-        await nats_client.subscribe("transcript.interim.>", cb=_on_interim_transcript)
 
         # Global log subscription: ring buffer + persistent storage
         await nats_client.subscribe("logs.>", cb=_on_global_log)
         log_cleanup_task = asyncio.create_task(
             _log_retention_loop(db_factory, stop_event)
         )
+        # Run retention once at startup, then daily in background
+        await _run_session_retention(db_factory)
+        session_cleanup_task = asyncio.create_task(
+            _session_retention_loop(db_factory, stop_event)
+        )
 
-        # session_kv / config_kv start as None; _kv_connect_and_watch updates them
+        # session_kv / config_kv start as None; _kv_connect updates them
         app.state.nats = nats_client
         app.state.js = js
         app.state.session_kv = None
@@ -420,7 +485,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     finally:
         logger.info("Shutting down... closing NATS connection.")
         stop_event.set()
-        for task in (pull_task, kv_watch_task, log_cleanup_task):
+        for task in (pull_task, kv_task, log_cleanup_task, session_cleanup_task):
             if task is not None:
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -723,6 +788,55 @@ async def get_session(
             ],
         }
     )
+
+
+@app.patch("/admin/sessions/{session_id}")
+async def rename_session(
+    request: Request,
+    session_id: str,
+    _: None = Depends(require_admin),
+) -> JSONResponse:
+    """Update a session's label."""
+    body = await request.json()
+    new_label = body.get("label")
+    if new_label is None:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "missing 'label' field"},
+        )
+
+    db_factory = request.app.state.db_factory
+    async with db_factory() as db:
+        result = await db.execute(
+            select(SessionModel).where(SessionModel.id == session_id)
+        )
+        session = result.scalar_one_or_none()
+        if session is None:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "session_not_found"},
+            )
+        await db.execute(
+            update(SessionModel)
+            .where(SessionModel.id == session_id)
+            .values(label=new_label)
+        )
+        await db.commit()
+
+    # If this is the active session, update the NATS KV so viewers
+    # see the new label in real time.
+    if session_id == _active_session_id:
+        session_kv = getattr(request.app.state, "session_kv", None)
+        if session_kv is not None:
+            try:
+                entry = await session_kv.get("current")
+                kv_data = json.loads(entry.value.decode())
+                kv_data["label"] = new_label
+                await session_kv.put("current", json.dumps(kv_data).encode())
+            except Exception as e:
+                logger.warning(f"KV label update failed: {e}")
+
+    return JSONResponse(content={"status": "ok", "label": new_label})
 
 
 @app.get("/admin/sessions/{session_id}/export")
