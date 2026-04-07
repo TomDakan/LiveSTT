@@ -578,15 +578,16 @@
             const toggleLabel = enabled ? 'Disable' : 'Enable';
             const toggleAction = enabled ? 'disable' : 'enable';
             const toggleClass = enabled ? 'btn-danger' : 'btn-primary';
-            actions = `<button class="btn ${toggleClass}" onclick="serviceAction('${svc.name}','${toggleAction}',this)">${toggleLabel}</button> `;
-            actions += `<button class="btn btn-secondary" onclick="serviceAction('${svc.name}','restart',this)">Restart</button>`;
+            const eName = _escHtml(svc.name);
+            actions = `<button class="btn ${toggleClass}" onclick="serviceAction('${eName}','${toggleAction}',this)">${toggleLabel}</button> `;
+            actions += `<button class="btn btn-secondary" onclick="serviceAction('${eName}','restart',this)">Restart</button>`;
           } else {
             actions = '<span class="text-white/30 text-xs">protected</span>';
           }
           tr.innerHTML =
-            `<td>${svc.name}</td>` +
-            `<td><span style="color:${statusColor}">${svc.status}</span></td>` +
-            `<td>${svc.restart_policy || '—'}</td>` +
+            `<td>${_escHtml(svc.name)}</td>` +
+            `<td><span style="color:${statusColor}">${_escHtml(svc.status)}</span></td>` +
+            `<td>${_escHtml(svc.restart_policy || '—')}</td>` +
             `<td>${actions}</td>`;
           body.appendChild(tr);
         }
@@ -679,10 +680,10 @@
             ? `<button class="btn btn-danger text-xs" onclick="stopSession(this)">Stop</button>`
             : `<a href="/admin/sessions/${s.id}/export?fmt=txt" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">TXT</a>
                <a href="/admin/sessions/${s.id}/export?fmt=pdf" class="btn btn-secondary text-xs" onclick="return downloadExport(event, this.href)">PDF</a>`;
-          const labelDisplay = s.label || '—';
+          const labelDisplay = _escHtml(s.label || '—');
           tr.innerHTML = `
             <td class="text-sm">${dateStr} ${timeStr}</td>
-            <td class="text-sm text-white/60 session-label" data-sid="${s.id}"
+            <td class="text-sm text-white/60 session-label" data-sid="${_escHtml(s.id)}"
                 title="Click to rename">${labelDisplay}</td>
             <td class="text-sm">${duration}</td>
             <td class="text-sm text-white/40">${s.segment_count}</td>
@@ -783,9 +784,9 @@
                    onchange="toggleSchedule('${s.id}', this.checked, ${JSON.stringify(JSON.stringify(s))})">
             <div class="flex-1">
               <div class="text-sm font-medium">${days} &nbsp; ${s.start_time} – ${s.stop_time}</div>
-              <div class="text-xs text-white/40">${s.label_template || 'No label'} &nbsp;·&nbsp; ${s.stop_policy} stop</div>
+              <div class="text-xs text-white/40">${_escHtml(s.label_template || 'No label')} &nbsp;·&nbsp; ${_escHtml(s.stop_policy || 'manual')} stop</div>
             </div>
-            <button class="btn btn-danger text-xs" onclick="deleteSchedule('${s.id}')">Delete</button>
+            <button class="btn btn-danger text-xs" onclick="deleteSchedule('${_escHtml(s.id)}')">Delete</button>
           `;
           container.appendChild(div);
         }
@@ -1153,7 +1154,8 @@
 
     function connectAdminLogs() {
       if (_logsWs) return;
-      const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/admin/logs';
+      const tk = localStorage.getItem('admin_token') || '';
+      const wsUrl = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host + '/admin/logs?token=' + encodeURIComponent(tk);
       _logsWs = new WebSocket(wsUrl);
       document.getElementById('log-status').textContent = 'Connecting...';
 

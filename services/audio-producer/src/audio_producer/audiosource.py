@@ -17,9 +17,12 @@ else:
         import pyaudio as _pyaudio
     except ImportError:
         _pyaudio = None
+import logging
 import wave
 
 from .interfaces import AudioSource
+
+_logger = logging.getLogger(__name__)
 
 
 class FileSource(AudioSource):
@@ -83,14 +86,6 @@ if _pyaudio:
         sample_rate: int
 
         def __init__(self, sample_rate: int = 16000, chunk_size: int = 1536) -> None:
-            self.pyaudio_instance = _pyaudio.PyAudio()
-            self.stream_obj = self.pyaudio_instance.open(
-                format=_pyaudio.paInt16,
-                channels=1,
-                rate=sample_rate,
-                input=True,
-                frames_per_buffer=chunk_size,
-            )
             self.chunk_size = chunk_size
             self.sample_rate = sample_rate
             self.running = True
@@ -107,13 +102,20 @@ if _pyaudio:
                     )
                     yield data
                 except OSError as e:
-                    # Log the error (would ideally use a logger instance)
-                    print(f"Error reading from audio device: {e}")
+                    _logger.error("Error reading from audio device: %s", e)
                     break
 
         @override
         async def __aenter__(self) -> Self:
             """Enter the runtime context related to this object."""
+            self.pyaudio_instance = _pyaudio.PyAudio()
+            self.stream_obj = self.pyaudio_instance.open(
+                format=_pyaudio.paInt16,
+                channels=1,
+                rate=self.sample_rate,
+                input=True,
+                frames_per_buffer=self.chunk_size,
+            )
             self.running = True
             return self
 
@@ -137,11 +139,7 @@ if _alsaaudio:
         """Audio source for Linux."""
 
         def __init__(self, sample_rate: int, chunk_size: int) -> None:
-            self.inp = _alsaaudio.PCM(_alsaaudio.PCM_CAPTURE, _alsaaudio.PCM_NORMAL)
-            self.inp.setchannels(1)
-            self.inp.setrate(sample_rate)
-            self.inp.setformat(_alsaaudio.PCM_FORMAT_S16_LE)
-            self.inp.setperiodsize(chunk_size)
+            self.sample_rate = sample_rate
             self.chunk_size = chunk_size
             self.running = True
 
@@ -153,16 +151,20 @@ if _alsaaudio:
                     if length > 0:
                         yield data
                     elif length < 0:
-                        # ALSA error codes are negative
-                        print(f"ALSA Error: {_alsaaudio.PCM(length)}")
+                        _logger.error("ALSA Error: %s", length)
                         break
                 except OSError as e:
-                    print(f"Error reading from ALSA device: {e}")
+                    _logger.error("Error reading from ALSA device: %s", e)
                     break
 
         @override
         async def __aenter__(self) -> Self:
             """Enter the runtime context related to this object."""
+            self.inp = _alsaaudio.PCM(_alsaaudio.PCM_CAPTURE, _alsaaudio.PCM_NORMAL)
+            self.inp.setchannels(1)
+            self.inp.setrate(self.sample_rate)
+            self.inp.setformat(_alsaaudio.PCM_FORMAT_S16_LE)
+            self.inp.setperiodsize(self.chunk_size)
             self.running = True
             return self
 

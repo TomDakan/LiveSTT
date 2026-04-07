@@ -217,6 +217,9 @@ be useful.
   auth refactored to check DB before env var fallback
 - [ ] Full onboarding wizard with service toggles and guided walkthrough (deferred post-v8.0)
 - [ ] Optional Balena Supervisor API backend when running on BalenaOS (deferred)
+- [ ] Service-to-service auth: `GET /admin/schedules` is unauthenticated because
+  system-manager fetches it over HTTP; add an internal service token or move schedule
+  polling to NATS request/reply so the HTTP endpoint can require admin JWT
 
 **Docker / Compose**
 - [x] Add `healthcheck:` directives to all services in `docker-compose.yml`;
@@ -306,6 +309,9 @@ be useful.
   Deepgram API key, site timezone, and future config values stored in the `AppConfig`
   table — the same values captured during first-run setup, editable after the fact
   without requiring CLI access or container restarts
+- [ ] **Encrypt sensitive app_config at rest**: Deepgram API key and other secrets in
+  SQLite are stored in plaintext; encrypt with a key derived from the admin password
+  or a device-level secret so backup archives don't leak credentials
 
 ### Viewer Password (v2.0)
 Current assumption: network-level access control is sufficient — organizations that want

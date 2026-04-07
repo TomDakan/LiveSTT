@@ -111,8 +111,8 @@ async def test_start_session_sets_active_state() -> None:
 
     assert svc.is_active is True
     assert svc.session_id is not None
-    # Format: YYYYMMDD-HHMM
-    assert len(svc.session_id) == 13
+    # Format: YYYYMMDD-HHMMSS
+    assert len(svc.session_id) == 15
     assert svc._label == "Sunday Morning"
 
 

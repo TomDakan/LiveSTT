@@ -21,6 +21,8 @@ from pydantic import BaseModel
 from sqlalchemy import select, update
 
 from api_gateway.auth import (
+    MIN_PASSWORD_LENGTH,
+    check_auth_rate_limit,
     create_token,
     needs_setup,
     require_admin,
@@ -316,18 +318,21 @@ async def _on_global_log(msg: Any) -> None:
     # Persist if level matches
     level = data.get("level", "").upper()
     if level in _LOG_PERSIST_LEVELS and _lifespan_db_factory is not None:
-        from datetime import UTC, datetime
+        try:
+            from datetime import UTC, datetime
 
-        async with _lifespan_db_factory() as db:
-            db.add(
-                LogEntry(
-                    timestamp=datetime.now(UTC).isoformat(),
-                    service=data.get("service", "unknown"),
-                    level=level,
-                    message=str(data.get("message", "")),
+            async with _lifespan_db_factory() as db:
+                db.add(
+                    LogEntry(
+                        timestamp=datetime.now(UTC).isoformat(),
+                        service=data.get("service", "unknown"),
+                        level=level,
+                        message=str(data.get("message", "")),
+                    )
                 )
-            )
-            await db.commit()
+                await db.commit()
+        except Exception:
+            pass  # nosec B110 — DB failure must not disrupt log pipeline
 
 
 async def _session_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
@@ -504,7 +509,7 @@ ALLOW_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOW_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -603,6 +608,8 @@ class LoginBody(BaseModel):
 @app.post("/admin/auth")
 async def admin_auth(request: Request, body: LoginBody) -> JSONResponse:
     """Verify password, return short-lived JWT."""
+    client_ip = request.client.host if request.client else "unknown"
+    check_auth_rate_limit(client_ip)
     db_factory = request.app.state.db_factory
     if not await verify_password(body.password, db_factory):
         return JSONResponse(
@@ -634,6 +641,13 @@ async def first_run_setup(request: Request, body: SetupBody) -> JSONResponse:
         return JSONResponse(
             status_code=409,
             content={"error": "setup_already_complete"},
+        )
+    if len(body.password) < MIN_PASSWORD_LENGTH:
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": f"password must be at least {MIN_PASSWORD_LENGTH} characters"
+            },
         )
 
     import bcrypt
@@ -1255,7 +1269,20 @@ async def admin_logs_websocket(websocket: WebSocket) -> None:
     On connect, replays the in-memory ring buffer so the client sees
     recent history.  Then subscribes to ``_log_subscribers`` for live
     messages fed by the global ``_on_global_log`` handler.
+
+    Requires a valid JWT via ``?token=`` query parameter.
     """
+    token = websocket.query_params.get("token", "")
+    if not token:
+        await websocket.close(code=4001, reason="missing_token")
+        return
+    try:
+        from api_gateway.auth import decode_token
+
+        decode_token(token, websocket.app.state.jwt_secret)
+    except Exception:
+        await websocket.close(code=4001, reason="invalid_token")
+        return
     await websocket.accept()
     queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(maxsize=_LOG_WS_QUEUE_SIZE)
     _log_subscribers.append(queue)

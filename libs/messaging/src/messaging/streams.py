@@ -24,6 +24,7 @@ PREROLL_STREAM_CONFIG: dict[str, Any] = {
     "retention": RetentionPolicy.LIMITS,
     "max_msg_size": 8192,  # 8KB - Safely holds 1600 bytes + headers
     "max_bytes": 64 * 1024 * 1024,  # 64MB Buffer (~10 mins 16kHz)
+    "max_age": 6 * 60,  # 6 minutes — evict stale pre-roll data
 }
 
 # Configuration for the Persistent Audio Stream (File Limits)
