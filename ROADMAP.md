@@ -62,6 +62,16 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] Connection status indicator in the viewer UI: clearly distinguish live/active,
   degraded (Deepgram reconnecting), and idle/paused states — audience should never be
   left wondering if the system is working
+- [ ] **Session status overhaul**: session state currently lives in three places (NATS KV,
+  SQLite DB, client-side) with no single authoritative source, causing status to not
+  survive page refresh or WebSocket reconnect for scheduled sessions. Known issues:
+  - `GET /session/status` reads from NATS KV which may not be connected (`session_kv is
+    None` returns idle); should fall back to DB query (`stopped_at IS NULL`)
+  - WebSocket connect replays transcript segments but does not send a `session_status`
+    message — reconnecting clients see transcript text but the status bar stays "IDLE"
+  - Proposed fix: use SQLite as single source of truth for session state; `GET
+    /session/status` queries DB; WebSocket connect sends current status alongside replay;
+    KV becomes optional optimization for inter-service communication only
 
 **Viewer UX**
 - [x] Font size controls (A- / A+) on the transcript page — church audiences skew older;
@@ -89,6 +99,19 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] Admin UI: schedule list with enable/disable toggle and next-run preview
 - [ ] Admin UI: edit existing schedules (day, time, label template, stop policy)
   — currently schedules can only be created or deleted, not modified
+- [ ] **Timezone consistency**: all user-facing timestamps (session start/stop, schedule
+  times, log entries, transcript exports) should display in the configured local timezone;
+  internal storage and inter-service communication stay UTC. The schedule form should show
+  the active timezone. Depends on the unified config system (Milestone 8) so
+  system-manager reads `site_timezone` from DB rather than env var
+- [ ] **Timezone consistency**: the setup wizard stores `site_timezone` in the `app_config`
+  DB table but system-manager reads `SITE_TIMEZONE` from the env var (default UTC) — these
+  are disconnected, so schedules fire in UTC regardless of what the user configured. Broader
+  audit needed: all user-facing timestamps (session started/stopped, schedule times, log
+  entries in admin, transcript exports) should display in the configured local timezone.
+  Internal storage and inter-service communication can stay UTC, but the UI must convert
+  for display. The schedule form should show the active timezone, and system-manager must
+  read it from the DB or a shared config endpoint rather than an env var
 - [x] **Design decision (resolved)**: schedule end-time precedence — per-schedule
   `stop_policy` field: *soft* (default, rely on silence timeout), *hard* (exact time),
   or *grace_N* (delay N minutes then hard stop)
@@ -294,6 +317,21 @@ be useful.
 **Goal**: Deployment Ready
 
 ### Milestone 8: Full System Integration
+- [ ] **Unified config system**: the setup wizard writes `deepgram_api_key`,
+  `site_timezone`, and `admin_password_hash` to the `app_config` DB table, but only
+  auth.py reads from the DB (with env var fallback). stt-provider reads
+  `DEEPGRAM_API_KEY` from env only; system-manager reads `SITE_TIMEZONE` from env only
+  — the DB values from onboarding are dead writes for those services. Build a shared
+  config resolution layer: check DB first, fall back to env var / Balena secrets.
+  Expose via a `GET /config/{key}` internal endpoint or NATS KV config bucket so all
+  services use the same pattern without duplicated branching logic. Current state:
+
+  | Config | DB (setup wizard) | Who consumes | Read from |
+  |--------|:-:|-------------|----|
+  | `admin_password_hash` | Yes | api-gateway auth.py | DB → env fallback (correct) |
+  | `deepgram_api_key` | Yes | stt-provider | Env only (DB ignored) |
+  | `site_timezone` | Yes | system-manager | Env only (DB ignored) |
+
 - [ ] End-to-end test: Mic → NATS → Deepgram + Identifier → UI with speaker labels
 - [ ] 7-Day Burn-in Test on ASRock NUC N97
 - [ ] Word Error Rate (WER) benchmark against gold-standard recordings from Milestone 0.5
