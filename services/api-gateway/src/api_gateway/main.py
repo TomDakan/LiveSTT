@@ -401,6 +401,72 @@ async def _run_session_retention(db_factory: Any) -> int:
         return 0
 
 
+async def _session_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
+    """Purge old sessions and their segments based on retention policy."""
+    while not stop_event.is_set():
+        try:
+            await asyncio.sleep(86400)
+        except asyncio.CancelledError:
+            return
+        await _run_session_retention(db_factory)
+
+
+async def _run_session_retention(db_factory: Any) -> int:
+    """Execute session retention purge. Returns number of sessions deleted."""
+    from datetime import UTC, datetime, timedelta
+
+    from sqlalchemy import delete
+
+    if _SESSION_RETENTION_COUNT <= 0 and _SESSION_RETENTION_DAYS <= 0:
+        return 0
+
+    try:
+        async with db_factory() as db:
+            ids_to_delete: set[str] = set()
+
+            # Retention by count: keep last N completed sessions
+            if _SESSION_RETENTION_COUNT > 0:
+                all_stmt = (
+                    select(SessionModel.id)
+                    .where(SessionModel.stopped_at.is_not(None))
+                    .order_by(SessionModel.started_at.desc())
+                )
+                rows = (await db.execute(all_stmt)).scalars().all()
+                if len(rows) > _SESSION_RETENTION_COUNT:
+                    ids_to_delete.update(rows[_SESSION_RETENTION_COUNT:])
+
+            # Retention by age: purge sessions older than N days
+            if _SESSION_RETENTION_DAYS > 0:
+                cutoff = (
+                    datetime.now(UTC) - timedelta(days=_SESSION_RETENTION_DAYS)
+                ).isoformat()
+                age_stmt = select(SessionModel.id).where(
+                    SessionModel.stopped_at.is_not(None),
+                    SessionModel.started_at < cutoff,
+                )
+                age_rows = (await db.execute(age_stmt)).scalars().all()
+                ids_to_delete.update(age_rows)
+
+            if not ids_to_delete:
+                return 0
+
+            # Delete segments first, then sessions
+            await db.execute(
+                delete(TranscriptSegment).where(
+                    TranscriptSegment.session_id.in_(ids_to_delete)
+                )
+            )
+            await db.execute(
+                delete(SessionModel).where(SessionModel.id.in_(ids_to_delete))
+            )
+            await db.commit()
+            logger.info(f"Session retention: purged {len(ids_to_delete)} session(s)")
+            return len(ids_to_delete)
+    except Exception as exc:
+        logger.warning(f"Session retention cleanup failed: {exc}")
+        return 0
+
+
 async def _log_retention_loop(db_factory: Any, stop_event: asyncio.Event) -> None:
     """Purge old log entries daily based on LOG_RETENTION_DAYS."""
     while not stop_event.is_set():
