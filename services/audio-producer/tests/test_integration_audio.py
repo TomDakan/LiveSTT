@@ -1,5 +1,6 @@
 import asyncio
 import os
+from typing import Any
 
 import pytest
 from audio_producer.main import AudioProducerService
@@ -22,7 +23,7 @@ async def test_audio_producer_integration() -> None:
 
     received_chunks = []
 
-    async def msg_handler(msg):
+    async def msg_handler(msg: Any) -> None:
         received_chunks.append(msg.data)
 
     # v8.0 Architecture: Default stream is preroll.audio

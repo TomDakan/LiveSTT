@@ -187,7 +187,7 @@ class AudioProducerService(BaseService):
                 await self._handle_control_message(js, msg)
 
     async def _start_session(self, js: Any, label: str = "") -> None:
-        session_id = datetime.now(UTC).strftime("%Y%m%d-%H%M")
+        session_id = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
         started_at = datetime.now(UTC).isoformat()
 
         if self._session_kv is not None:

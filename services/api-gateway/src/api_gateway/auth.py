@@ -1,7 +1,9 @@
 """Admin authentication: bcrypt password verification + JWT tokens."""
 
+import collections
 import logging
 import os
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -14,6 +16,30 @@ logger = logging.getLogger("api-gateway")
 
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 ADMIN_TOKEN_TTL_S = int(os.getenv("ADMIN_TOKEN_TTL_S", "3600"))
+MIN_PASSWORD_LENGTH = 8
+
+# --- Rate limiting for /admin/auth ---
+_AUTH_MAX_ATTEMPTS = 5
+_AUTH_WINDOW_S = 60
+_auth_attempts: dict[str, collections.deque[float]] = {}
+
+
+def check_auth_rate_limit(client_ip: str) -> None:
+    """Raise 429 if the IP has exceeded auth attempt limits."""
+    now = time.monotonic()
+    attempts = _auth_attempts.get(client_ip)
+    if attempts is None:
+        attempts = collections.deque()
+        _auth_attempts[client_ip] = attempts
+    # Evict old entries
+    while attempts and attempts[0] < now - _AUTH_WINDOW_S:
+        attempts.popleft()
+    if len(attempts) >= _AUTH_MAX_ATTEMPTS:
+        raise HTTPException(
+            status_code=429,
+            detail="too_many_attempts",
+        )
+    attempts.append(now)
 
 
 async def _get_db_password_hash(db_factory: Any) -> str:

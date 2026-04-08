@@ -30,7 +30,6 @@ class NatsJSManager:
     async def close(self) -> None:
         """Gracefully closes the connection."""
         await self.nc.drain()
-        await self.nc.close()
         logger.info("NATS Connection closed")
 
     async def ensure_stream(self, name: str, subjects: list[str], **kwargs: Any) -> None:

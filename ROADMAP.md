@@ -87,6 +87,8 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] `system-manager` reads schedule config and fires `session.control` start/stop
   commands via NATS at the configured times — no operator action required
 - [x] Admin UI: schedule list with enable/disable toggle and next-run preview
+- [ ] Admin UI: edit existing schedules (day, time, label template, stop policy)
+  — currently schedules can only be created or deleted, not modified
 - [x] **Design decision (resolved)**: schedule end-time precedence — per-schedule
   `stop_policy` field: *soft* (default, rely on silence timeout), *hard* (exact time),
   or *grace_N* (delay N minutes then hard stop)
@@ -153,6 +155,9 @@ via api-gateway's HTTP API. One persistence backend, one backup path, one volume
   current dashed-underline hover hint is subtle)
 - [ ] Make interim transcripts optional (`INTERIM_RESULTS` env var on stt-provider,
   default off — interims are requested from Deepgram but not displayed)
+- [ ] QR code improvements: suppress console 404 when `SITE_URL` is unset (use JS-only
+  insertion instead of `<img src>`); surface QR code functionality in onboarding/settings
+  so admins know to set `SITE_URL` and understand the QR feature exists for audience access
 - [x] Session start feedback: show a "Processing pre-roll…" indicator while
   backfill is draining to Deepgram (~2s delay) — the greyed-out Start button
   makes it look frozen with no visual feedback
@@ -217,6 +222,9 @@ be useful.
   auth refactored to check DB before env var fallback
 - [ ] Full onboarding wizard with service toggles and guided walkthrough (deferred post-v8.0)
 - [ ] Optional Balena Supervisor API backend when running on BalenaOS (deferred)
+- [ ] Service-to-service auth: `GET /admin/schedules` is unauthenticated because
+  system-manager fetches it over HTTP; add an internal service token or move schedule
+  polling to NATS request/reply so the HTTP endpoint can require admin JWT
 
 **Docker / Compose**
 - [x] Add `healthcheck:` directives to all services in `docker-compose.yml`;
@@ -302,10 +310,15 @@ be useful.
   directly to what they need without scrolling past unrelated cards
 - [ ] **Mobile navigation**: responsive hamburger menu that replaces tabs on narrow
   viewports; slide-out drawer or bottom sheet with the same tab destinations
+- [ ] **Mobile layout fixes**: text within cards overflows card edges on narrow
+  viewports; tables, labels, and buttons need `overflow-wrap` / responsive sizing
 - [ ] **Settings management UI**: dedicated settings tab for updating admin password,
   Deepgram API key, site timezone, and future config values stored in the `AppConfig`
   table — the same values captured during first-run setup, editable after the fact
   without requiring CLI access or container restarts
+- [ ] **Encrypt sensitive app_config at rest**: Deepgram API key and other secrets in
+  SQLite are stored in plaintext; encrypt with a key derived from the admin password
+  or a device-level secret so backup archives don't leak credentials
 
 ### Viewer Password (v2.0)
 Current assumption: network-level access control is sufficient — organizations that want

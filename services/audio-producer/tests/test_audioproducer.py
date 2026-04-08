@@ -4,12 +4,11 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from audio_producer.audiosource import FileSource
 from audio_producer.main import AudioProducerService
-
-from tests.mocks import MockAudioSource
+from mocks import MockAudioSource
 
 
 @pytest.mark.asyncio
-async def test_get_audio_source_file_override(monkeypatch) -> None:
+async def test_get_audio_source_file_override(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify FileSource is selected when AUDIO_FILE is set."""
     monkeypatch.setenv("AUDIO_FILE", "test.wav")
     service = AudioProducerService()

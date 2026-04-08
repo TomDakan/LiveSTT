@@ -140,17 +140,29 @@ class SystemManager(BaseService):
 
         fire_key = f"{sched_id}:{now.strftime('%Y%m%d')}"
 
-        if current_hhmm == sched["start_time"]:
+        if self._within_window(current_hhmm, sched["start_time"]):
             start_key = f"start:{fire_key}"
             if start_key not in self._last_fired:
                 await self._fire_start(js, sched, now)
                 self._last_fired[start_key] = current_hhmm
 
-        if current_hhmm == sched["stop_time"]:
+        if self._within_window(current_hhmm, sched["stop_time"]):
             stop_key = f"stop:{fire_key}"
             if stop_key not in self._last_fired:
                 await self._fire_stop(js, sched)
                 self._last_fired[stop_key] = current_hhmm
+
+    @staticmethod
+    def _within_window(
+        current_hhmm: str, target_hhmm: str, window_minutes: int = 2
+    ) -> bool:
+        """Check if current time is within [target, target + window)."""
+        ch, cm = int(current_hhmm[:2]), int(current_hhmm[3:])
+        th, tm = int(target_hhmm[:2]), int(target_hhmm[3:])
+        current_min = ch * 60 + cm
+        target_min = th * 60 + tm
+        diff = current_min - target_min
+        return 0 <= diff < window_minutes
 
     async def _fire_start(self, js: Any, sched: dict[str, Any], now: datetime) -> None:
         """Publish a scheduled session start command."""
