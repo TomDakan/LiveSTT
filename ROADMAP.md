@@ -256,6 +256,12 @@ be useful.
 - [x] `depends_on` with `condition: service_healthy` for startup ordering
 - [x] `docker-compose.dev.yml` for local dev (relaxed health timeouts, mounted source dirs);
   applied automatically by `just up-dev`; copy to `docker-compose.override.yml` for auto-load
+- [ ] Add `health-watchdog` and `audio-classifier` to `docker-compose.yml` — both have
+  Dockerfiles and code but are not deployed; `audio-classifier` creates a NATS stream
+  with no producer. Either add them or remove the stream creation
+- [ ] Reconcile `containers.py` `MANAGED_SERVICES` / `ALL_SERVICES` sets with services
+  actually defined in docker-compose.yml (e.g. `identifier` is commented out in compose
+  but absent from the allow-lists)
 
 **`justfile` recipes**
 - [x] `just status` — one-shot summary: container health, NATS stream stats
@@ -264,6 +270,10 @@ be useful.
 - [ ] `just test-integration` — run all `@pytest.mark.integration` tests across
   services with required infrastructure (NATS port exposed to host); audit
   existing per-service integration tests to ensure they work with Docker setup
+- [ ] Add unit tests for `system-manager/containers.py` (Docker container management) —
+  currently zero coverage; mock Docker client for enable/disable/restart/list
+- [ ] Update `docs/api.md` — currently documents v7 endpoints (`/v1/transcription/start`,
+  `/v1/admin/phrases`) that no longer exist; needs full rewrite for current API surface
 
 **Backup & restore**
 - [x] `POST /admin/backup` → tar.gz archive of `/data/db` and `/data/lancedb` (when present);
@@ -368,6 +378,11 @@ auth) can be added in v2.0 if demand warrants it.
 Configurable site title and logo so self-hosted deployments aren't all labelled "LiveSTT".
 Likely a small set of env vars (`SITE_NAME`, `LOGO_URL`) rendered into the UI at build
 or serve time. Low effort when the time comes, but not worth designing around now.
+
+### Code Quality
+- [ ] **api-gateway globals refactor**: `nats_client`, `_active_session_id`, `manager`,
+  and `_lifespan_db_factory` are module-level globals mutated at runtime; move into
+  `app.state` consistently to reduce test fragility and enable parallel test execution
 
 ### Q2 2026: Enterprise Features
 - [ ] LDAP/SSO Integration
