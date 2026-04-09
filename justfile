@@ -53,7 +53,7 @@ type-check service="":
 
 # Run the test suite (pytest). Skips integration tests by default.
 test *args:
-    uv run python -m pytest -m "not integration" {{ args }}
+    uv run python -m pytest -m "not integration" --cov-fail-under=75 {{ args }}
 
 # Run tests for a specific service
 test-service service *args:

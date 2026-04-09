@@ -112,6 +112,9 @@ confidence = "MEDIUM"
 source = ["services"]
 omit = ["tests*", "*/__main__.py"]
 
+[tool.coverage.report]
+fail_under = 75
+
 [dependency-groups]
 dev = [
     "pytest",

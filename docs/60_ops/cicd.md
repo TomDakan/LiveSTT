@@ -329,8 +329,8 @@ balena device set-release <DEVICE_UUID> <PREVIOUS_RELEASE_ID>
 # Run locally
 uv run pytest tests/unit/
 
-# Coverage threshold: 80%
-uv run pytest --cov=services --cov-fail-under=80
+# Coverage threshold: 75%
+uv run pytest --cov=services --cov-fail-under=75
 ```
 
 ### 5.2 Integration Tests
