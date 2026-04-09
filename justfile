@@ -59,6 +59,10 @@ test *args:
 test-service service *args:
     uv run python -m pytest services/{{service}} {{args}}
 
+# Run per-service integration tests (requires NATS on localhost:4222).
+test-integration *args:
+    uv run python -m pytest -m integration --no-cov services/*/tests {{ args }}
+
 # E2E smoke test: file audio → NATS → Deepgram → identity-manager → WebSocket.
 # Requires: DEEPGRAM_API_KEY in .env, Docker running.
 # Containers are left running after the test so you can inspect logs with: just logs
