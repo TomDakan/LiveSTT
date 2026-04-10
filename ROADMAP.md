@@ -99,19 +99,6 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] Admin UI: schedule list with enable/disable toggle and next-run preview
 - [ ] Admin UI: edit existing schedules (day, time, label template, stop policy)
   — currently schedules can only be created or deleted, not modified
-- [ ] **Timezone consistency**: all user-facing timestamps (session start/stop, schedule
-  times, log entries, transcript exports) should display in the configured local timezone;
-  internal storage and inter-service communication stay UTC. The schedule form should show
-  the active timezone. Depends on the unified config system (Milestone 8) so
-  system-manager reads `site_timezone` from DB rather than env var
-- [ ] **Timezone consistency**: the setup wizard stores `site_timezone` in the `app_config`
-  DB table but system-manager reads `SITE_TIMEZONE` from the env var (default UTC) — these
-  are disconnected, so schedules fire in UTC regardless of what the user configured. Broader
-  audit needed: all user-facing timestamps (session started/stopped, schedule times, log
-  entries in admin, transcript exports) should display in the configured local timezone.
-  Internal storage and inter-service communication can stay UTC, but the UI must convert
-  for display. The schedule form should show the active timezone, and system-manager must
-  read it from the DB or a shared config endpoint rather than an env var
 - [x] **Design decision (resolved)**: schedule end-time precedence — per-schedule
   `stop_policy` field: *soft* (default, rely on silence timeout), *hard* (exact time),
   or *grace_N* (delay N minutes then hard stop)
