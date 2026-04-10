@@ -185,6 +185,40 @@ async def test_protected_route_with_valid_token_succeeds() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Expired JWT — ADR-0016 requirement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_expired_token_returns_401() -> None:
+    """A JWT created with TTL=-1 is already expired and must be rejected."""
+    import api_gateway.auth as auth_module
+    from httpx import ASGITransport, AsyncClient
+
+    kv = _make_idle_kv()
+    async with (
+        _patched_app(kv, _make_idle_kv()) as (app, _),
+        AsyncClient(
+            transport=ASGITransport(app=app), base_url="http://test"
+        ) as client,
+    ):
+        original_ttl = auth_module.ADMIN_TOKEN_TTL_S
+        auth_module.ADMIN_TOKEN_TTL_S = -1
+        try:
+            expired_token = create_token(JWT_SECRET)
+        finally:
+            auth_module.ADMIN_TOKEN_TTL_S = original_ttl
+
+        resp = await client.post(
+            "/session/stop",
+            headers={"Authorization": f"Bearer {expired_token}"},
+        )
+
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "invalid_token"
+
+
+# ---------------------------------------------------------------------------
 # GET /admin/status — smoke test
 # ---------------------------------------------------------------------------
 

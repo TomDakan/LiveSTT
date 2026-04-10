@@ -20,14 +20,15 @@ import httpx
 import pytest
 import websockets
 
-HEALTH_URL = os.getenv("GATEWAY_URL", "http://localhost:8000") + "/health"
+_GATEWAY_BASE = os.getenv("GATEWAY_URL", "http://localhost:8000")
+HEALTH_URL = f"{_GATEWAY_BASE}/health"
 WS_URL = os.getenv("WS_URL", "ws://localhost:8000/ws/transcripts")
 
 _HEALTH_TIMEOUT_S = 30  # wait for api-gateway to be ready
 _TRANSCRIPT_TIMEOUT_S = 90  # wait for first final transcript from Deepgram
 
 
-@pytest.mark.integration
+@pytest.mark.e2e
 @pytest.mark.asyncio
 async def test_e2e_transcript_reaches_websocket() -> None:
     """
@@ -40,7 +41,10 @@ async def test_e2e_transcript_reaches_websocket() -> None:
     # 1. Wait for api-gateway to be healthy
     _wait_for_gateway()
 
-    # 2. Connect WebSocket and wait for a final transcript
+    # 2. Start a session so audio-producer begins publishing
+    _start_session()
+
+    # 3. Connect WebSocket and wait for a final transcript
     try:
         async with websockets.connect(WS_URL) as ws:  # type: ignore[attr-defined]
             final = await asyncio.wait_for(
@@ -75,6 +79,18 @@ async def _first_final_transcript(ws: websockets.WebSocketClientProtocol) -> dic
             return payload
 
     pytest.fail("WebSocket closed before a final transcript arrived")
+
+
+def _start_session() -> None:
+    """POST /session/start to trigger audio publishing."""
+    resp = httpx.post(
+        f"{_GATEWAY_BASE}/session/start",
+        json={"label": "E2E smoke test"},
+        timeout=5,
+    )
+    # 409 means a session is already active — that's fine
+    if resp.status_code not in (200, 409):
+        pytest.fail(f"Failed to start session: {resp.status_code} {resp.text}")
 
 
 def _wait_for_gateway() -> None:

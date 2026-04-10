@@ -51,24 +51,24 @@ lint *args:
 type-check service="":
     uv run scripts/type_check.py {{ service }}
 
-# Run the test suite (pytest). Skips integration tests by default.
+# Run the test suite (pytest). Skips integration and e2e tests by default.
 test *args:
-    uv run python -m pytest -m "not integration" --cov-fail-under=75 {{ args }}
+    uv run python -m pytest -m "not integration and not e2e" --cov-fail-under=75 {{ args }}
 
 # Run tests for a specific service
 test-service service *args:
     uv run python -m pytest services/{{service}} {{args}}
 
-# Run per-service integration tests (requires NATS on localhost:4222).
+# Run per-service integration tests (spins up NATS, runs tests, tears down).
 test-integration *args:
-    uv run python -m pytest -m integration --no-cov services/*/tests {{ args }}
+    uv run python scripts/run_integration_tests.py {{ args }}
 
 # E2E smoke test: file audio → NATS → Deepgram → identity-manager → WebSocket.
 # Requires: DEEPGRAM_API_KEY in .env, Docker running.
 # Containers are left running after the test so you can inspect logs with: just logs
 e2e: scaffold
     $env:AUDIO_FILE = "/data/test_speaker_30s.wav"; docker compose -f docker-compose.yml -f docker-compose.file-test.yml up -d --build nats api-gateway stt-provider identity-manager audio-producer
-    uv run python -m pytest tests/integration/test_e2e_container.py -v -s -m integration
+    uv run python -m pytest tests/integration/test_e2e_container.py -v -s -m e2e
 
 # Placeholder for deployment tasks.
 deploy *args:
