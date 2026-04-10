@@ -153,6 +153,83 @@ async def test_publish_failure(mock_transcriber_factory: Any) -> None:
 
 
 @pytest.mark.asyncio
+async def test_buffer_then_catchup_flow() -> None:
+    """After 3 connection failures, the transcriber succeeds and all
+    buffered audio is eventually delivered.
+    """
+    connect_attempts = 0
+    sent_chunks: list[bytes] = []
+
+    class FailThreeTimesTranscriber(MockTranscriber):
+        async def connect(self, **kwargs: Any) -> None:
+            nonlocal connect_attempts
+            connect_attempts += 1
+            if connect_attempts <= 3:
+                raise ConnectionError(f"attempt {connect_attempts}")
+            await super().connect(**kwargs)
+
+        async def send_audio(self, audio: bytes) -> None:
+            sent_chunks.append(audio)
+            await super().send_audio(audio)
+
+    service = STTProviderService(transcriber_factory=FailThreeTimesTranscriber)
+    service.nats_manager = MagicMock()
+    service.nats_manager.ensure_stream = AsyncMock()
+    service.nc = AsyncMock()
+
+    mock_js = AsyncMock()
+    stop_event = asyncio.Event()
+    mock_sub = AsyncMock()
+    mock_js.pull_subscribe.return_value = mock_sub
+
+    # Pre-buffer 5 audio messages, then an EOS
+    buffered_msgs: list[Any] = []
+    for i in range(5):
+        m = MagicMock()
+        m.data = f"chunk-{i}".encode()
+        m.headers = None
+        m.subject = "audio.backfill.test-session"
+        m.ack = AsyncMock()
+        buffered_msgs.append(m)
+
+    eos_msg = MagicMock()
+    eos_msg.data = b""
+    eos_msg.headers = {"LiveSTT-EOS": "true"}
+    eos_msg.subject = "audio.backfill.test-session"
+    eos_msg.ack = AsyncMock()
+    buffered_msgs.append(eos_msg)
+
+    call_idx = 0
+
+    async def fetch(n: int, timeout: float) -> list[Any]:
+        nonlocal call_idx
+        if call_idx < len(buffered_msgs):
+            msg = buffered_msgs[call_idx]
+            call_idx += 1
+            return [msg]
+        # After all messages delivered, wait for stop
+        with contextlib.suppress(TimeoutError):
+            await asyncio.wait_for(stop_event.wait(), timeout=timeout)
+        raise TimeoutError
+
+    mock_sub.fetch.side_effect = fetch
+
+    with patch("stt_provider.main._RECONNECT_INITIAL_DELAY_S", 0.01):
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
+        await asyncio.sleep(1.0)
+
+    stop_event.set()
+    await asyncio.wait_for(task, timeout=2.0)
+
+    assert connect_attempts == 4, (
+        f"Expected 3 failures + 1 success, got {connect_attempts}"
+    )
+    assert len(sent_chunks) == 5, (
+        f"All 5 buffered chunks should be delivered, got {len(sent_chunks)}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_finish_exception_does_not_hang_run_lane() -> None:
     """_run_session_loop must complete even if finish() raises and drain_task stalls."""
 

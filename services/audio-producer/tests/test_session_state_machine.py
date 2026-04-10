@@ -308,3 +308,155 @@ async def test_kv_recovery_does_not_flush_preroll() -> None:
     await svc._recover_session()
 
     assert not flush_called, "_flush_preroll must not be called during KV recovery"
+
+
+# ---------------------------------------------------------------------------
+# _start_session edge cases — KV unavailable, nc is None
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_start_session_without_kv_still_activates() -> None:
+    """Session must start even if KV buckets are unavailable."""
+    svc = _make_service()
+    svc._session_kv = None
+    svc._config_kv = None
+    svc.nc = AsyncMock()
+
+    mock_js = _make_js()
+    await svc._start_session(mock_js, label="No KV")
+
+    assert svc.is_active is True
+    assert svc.session_id is not None
+    assert svc._label == "No KV"
+    # Default silence timeout when config KV is absent
+    assert svc.silence_timeout_s == 300
+
+
+@pytest.mark.asyncio
+async def test_start_session_kv_write_failure_still_activates() -> None:
+    """KV write failure is non-fatal — session still starts."""
+    svc = _make_service()
+    kv = AsyncMock()
+    kv.put.side_effect = Exception("NATS timeout")
+    svc._session_kv = kv
+    svc._config_kv = AsyncMock()
+    svc._config_kv.get.side_effect = Exception("not found")
+    svc.nc = AsyncMock()
+
+    mock_js = _make_js()
+    await svc._start_session(mock_js)
+
+    assert svc.is_active is True
+    assert svc.session_id is not None
+
+
+@pytest.mark.asyncio
+async def test_start_session_without_nc_skips_event() -> None:
+    """When nc is None, session lifecycle event is skipped gracefully."""
+    svc = _make_service()
+    svc._session_kv = None
+    svc._config_kv = None
+    svc.nc = None
+
+    mock_js = _make_js()
+    await svc._start_session(mock_js, label="No NATS")
+
+    assert svc.is_active is True
+    # No exception raised — nc=None path handled
+
+
+@pytest.mark.asyncio
+async def test_start_session_publishes_lifecycle_event() -> None:
+    """Verify the system.session started event is published on core NATS."""
+    svc = _make_service()
+    svc._session_kv = None
+    svc._config_kv = None
+    svc.nc = AsyncMock()
+
+    mock_js = _make_js()
+    await svc._start_session(mock_js, label="Sunday")
+
+    svc.nc.publish.assert_called_once()
+    subject, payload = svc.nc.publish.call_args[0]
+    assert subject == "system.session"
+    data = json.loads(payload.decode())
+    assert data["event"] == "started"
+    assert data["label"] == "Sunday"
+    assert data["session_id"] == svc.session_id
+
+
+@pytest.mark.asyncio
+async def test_start_session_reads_silence_timeout_from_config() -> None:
+    """Silence timeout should be read from config KV when available."""
+    svc = _make_service()
+    svc._session_kv = None
+    config_kv = AsyncMock()
+    entry = MagicMock()
+    entry.value = b"120"
+    config_kv.get.return_value = entry
+    svc._config_kv = config_kv
+    svc.nc = AsyncMock()
+
+    mock_js = _make_js()
+    await svc._start_session(mock_js)
+
+    assert svc.silence_timeout_s == 120
+
+
+# ---------------------------------------------------------------------------
+# _stop_session edge cases — KV unavailable, nc is None
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_stop_session_without_nc_skips_event() -> None:
+    """When nc is None, lifecycle event is skipped gracefully."""
+    svc = _make_service()
+    svc.is_active = True
+    svc.session_id = "20260101-1000"
+    svc._session_kv = None
+    svc.nc = None
+
+    mock_js = AsyncMock()
+    await svc._stop_session(mock_js)
+
+    assert svc.is_active is False
+    assert svc.session_id is None
+
+
+@pytest.mark.asyncio
+async def test_stop_session_kv_delete_failure_still_stops() -> None:
+    """KV delete failure is non-fatal — session still stops."""
+    svc = _make_service()
+    svc.is_active = True
+    svc.session_id = "20260101-1000"
+    kv = AsyncMock()
+    kv.delete.side_effect = Exception("NATS timeout")
+    svc._session_kv = kv
+    svc.nc = AsyncMock()
+
+    mock_js = AsyncMock()
+    await svc._stop_session(mock_js)
+
+    assert svc.is_active is False
+
+
+@pytest.mark.asyncio
+async def test_stop_session_publishes_lifecycle_event() -> None:
+    """Verify the system.session stopped event is published on core NATS."""
+    svc = _make_service()
+    svc.is_active = True
+    svc.session_id = "20260101-1000"
+    svc._session_kv = None
+    svc.nc = AsyncMock()
+
+    mock_js = AsyncMock()
+    await svc._stop_session(mock_js)
+
+    svc.nc.publish.assert_called_once()
+    subject, payload = svc.nc.publish.call_args[0]
+    assert subject == "system.session"
+    data = json.loads(payload.decode())
+    assert data["event"] == "stopped"
+    assert data["session_id"] == "20260101-1000"

@@ -30,12 +30,12 @@ async def test_audio_producer_integration() -> None:
     await sub_nc.subscribe("preroll.audio", cb=msg_handler)
 
     # 2. Setup Audio Producer with FileSource override
-    # We use env var to trigger the FileSource logic in _get_audio_source
-    os.environ["AUDIO_FILE"] = "tests/data/test_audio.wav"
-
-    # Ensure test file exists
     test_file = "tests/data/test_audio.wav"
-    assert os.path.exists(test_file), "Test audio file not found"
+    if not os.path.exists(test_file):
+        await sub_nc.close()
+        pytest.skip(f"Test audio fixture not found: {test_file}")
+
+    os.environ["AUDIO_FILE"] = test_file
 
     service = AudioProducerService()
     # Override NATS URL if needed, though BaseService default is usually fine for local

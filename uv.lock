@@ -70,7 +70,7 @@ wheels = [
 
 [[package]]
 name = "api-gateway"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/api-gateway" }
 dependencies = [
     { name = "aiofiles" },
@@ -129,7 +129,7 @@ wheels = [
 
 [[package]]
 name = "audio-classifier"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/audio-classifier" }
 dependencies = [
     { name = "nats-py" },
@@ -146,7 +146,7 @@ requires-dist = [
 
 [[package]]
 name = "audio-producer"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/audio-producer" }
 dependencies = [
     { name = "messaging" },
@@ -894,7 +894,7 @@ wheels = [
 
 [[package]]
 name = "health-watchdog"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/health-watchdog" }
 dependencies = [
     { name = "messaging" },
@@ -962,7 +962,7 @@ wheels = [
 
 [[package]]
 name = "identifier"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/identifier" }
 dependencies = [
     { name = "lancedb", marker = "sys_platform == 'linux'" },
@@ -990,7 +990,7 @@ wheels = [
 
 [[package]]
 name = "identity-manager"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/identity-manager" }
 dependencies = [
     { name = "messaging" },
@@ -1147,7 +1147,7 @@ wheels = [
 
 [[package]]
 name = "live-stt-monorepo"
-version = "0.15.0"
+version = "0.17.0"
 source = { virtual = "." }
 dependencies = [
     { name = "nats-py" },
@@ -1333,7 +1333,7 @@ wheels = [
 
 [[package]]
 name = "messaging"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "libs/messaging" }
 dependencies = [
     { name = "nats-py" },
@@ -2564,7 +2564,7 @@ wheels = [
 
 [[package]]
 name = "stt-provider"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/stt-provider" }
 dependencies = [
     { name = "asyncio" },
@@ -2597,7 +2597,7 @@ wheels = [
 
 [[package]]
 name = "system-manager"
-version = "0.15.0"
+version = "0.17.0"
 source = { editable = "services/system-manager" }
 dependencies = [
     { name = "docker" },

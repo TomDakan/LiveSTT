@@ -62,6 +62,16 @@ This document outlines the development roadmap for Live STT (v8.0 Buffered Brain
 - [x] Connection status indicator in the viewer UI: clearly distinguish live/active,
   degraded (Deepgram reconnecting), and idle/paused states — audience should never be
   left wondering if the system is working
+- [ ] **Session status overhaul**: session state currently lives in three places (NATS KV,
+  SQLite DB, client-side) with no single authoritative source, causing status to not
+  survive page refresh or WebSocket reconnect for scheduled sessions. Known issues:
+  - `GET /session/status` reads from NATS KV which may not be connected (`session_kv is
+    None` returns idle); should fall back to DB query (`stopped_at IS NULL`)
+  - WebSocket connect replays transcript segments but does not send a `session_status`
+    message — reconnecting clients see transcript text but the status bar stays "IDLE"
+  - Proposed fix: use SQLite as single source of truth for session state; `GET
+    /session/status` queries DB; WebSocket connect sends current status alongside replay;
+    KV becomes optional optimization for inter-service communication only
 
 **Viewer UX**
 - [x] Font size controls (A- / A+) on the transcript page — church audiences skew older;
@@ -233,6 +243,12 @@ be useful.
 - [x] `depends_on` with `condition: service_healthy` for startup ordering
 - [x] `docker-compose.dev.yml` for local dev (relaxed health timeouts, mounted source dirs);
   applied automatically by `just up-dev`; copy to `docker-compose.override.yml` for auto-load
+- [ ] Add `health-watchdog` and `audio-classifier` to `docker-compose.yml` — both have
+  Dockerfiles and code but are not deployed; `audio-classifier` creates a NATS stream
+  with no producer. Either add them or remove the stream creation
+- [ ] Reconcile `containers.py` `MANAGED_SERVICES` / `ALL_SERVICES` sets with services
+  actually defined in docker-compose.yml (e.g. `identifier` is commented out in compose
+  but absent from the allow-lists)
 
 **`justfile` recipes**
 - [x] `just status` — one-shot summary: container health, NATS stream stats
@@ -241,6 +257,10 @@ be useful.
 - [ ] `just test-integration` — run all `@pytest.mark.integration` tests across
   services with required infrastructure (NATS port exposed to host); audit
   existing per-service integration tests to ensure they work with Docker setup
+- [ ] Add unit tests for `system-manager/containers.py` (Docker container management) —
+  currently zero coverage; mock Docker client for enable/disable/restart/list
+- [ ] Update `docs/api.md` — currently documents v7 endpoints (`/v1/transcription/start`,
+  `/v1/admin/phrases`) that no longer exist; needs full rewrite for current API surface
 
 **Backup & restore**
 - [x] `POST /admin/backup` → tar.gz archive of `/data/db` and `/data/lancedb` (when present);
@@ -294,6 +314,21 @@ be useful.
 **Goal**: Deployment Ready
 
 ### Milestone 8: Full System Integration
+- [ ] **Unified config system**: the setup wizard writes `deepgram_api_key`,
+  `site_timezone`, and `admin_password_hash` to the `app_config` DB table, but only
+  auth.py reads from the DB (with env var fallback). stt-provider reads
+  `DEEPGRAM_API_KEY` from env only; system-manager reads `SITE_TIMEZONE` from env only
+  — the DB values from onboarding are dead writes for those services. Build a shared
+  config resolution layer: check DB first, fall back to env var / Balena secrets.
+  Expose via a `GET /config/{key}` internal endpoint or NATS KV config bucket so all
+  services use the same pattern without duplicated branching logic. Current state:
+
+  | Config | DB (setup wizard) | Who consumes | Read from |
+  |--------|:-:|-------------|----|
+  | `admin_password_hash` | Yes | api-gateway auth.py | DB → env fallback (correct) |
+  | `deepgram_api_key` | Yes | stt-provider | Env only (DB ignored) |
+  | `site_timezone` | Yes | system-manager | Env only (DB ignored) |
+
 - [ ] End-to-end test: Mic → NATS → Deepgram + Identifier → UI with speaker labels
 - [ ] 7-Day Burn-in Test on ASRock NUC N97
 - [ ] Word Error Rate (WER) benchmark against gold-standard recordings from Milestone 0.5
@@ -330,6 +365,11 @@ auth) can be added in v2.0 if demand warrants it.
 Configurable site title and logo so self-hosted deployments aren't all labelled "LiveSTT".
 Likely a small set of env vars (`SITE_NAME`, `LOGO_URL`) rendered into the UI at build
 or serve time. Low effort when the time comes, but not worth designing around now.
+
+### Code Quality
+- [ ] **api-gateway globals refactor**: `nats_client`, `_active_session_id`, `manager`,
+  and `_lifespan_db_factory` are module-level globals mutated at runtime; move into
+  `app.state` consistently to reduce test fragility and enable parallel test execution
 
 ### Q2 2026: Enterprise Features
 - [ ] LDAP/SSO Integration

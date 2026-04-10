@@ -1,244 +1,246 @@
+"""End-to-end integration tests for the audio → transcript pipeline.
+
+Requires a running NATS server (started by ``scripts/run_integration_tests.py``).
+Uses ``MockTranscriber`` so **no Deepgram key is needed**.
+
+Flow tested:
+    publish audio chunks → NATS AUDIO_STREAM →
+    stt-provider (MockTranscriber) → NATS TRANSCRIPTION_STREAM
+"""
+
+from __future__ import annotations
+
 import asyncio
+import contextlib
 import json
 import os
-import subprocess
-import sys
-import time
+from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
-import websockets
-from audio_producer.main import AudioProducerService
-from httpx import AsyncClient
 from messaging.nats import NatsJSManager
 from messaging.streams import (
     AUDIO_STREAM_CONFIG,
+    SUBJECT_PREFIX_AUDIO_BACKFILL,
+    SUBJECT_PREFIX_AUDIO_LIVE,
     TRANSCRIPTION_STREAM_CONFIG,
 )
+from stt_provider.interfaces import Transcriber, TranscriptionEvent
 from stt_provider.main import STTProviderService
 
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+SESSION_ID = "20260409-1000"
+AUDIO_CHUNK = b"\x00" * 3072  # 1536 samples x 2 bytes (16-bit PCM)
 
 
-class MockTranscriber:
+# ---------------------------------------------------------------------------
+# Inline MockTranscriber (test dirs have no __init__.py so we can't import)
+# ---------------------------------------------------------------------------
+
+
+class _MockTranscriber(Transcriber):
+    """Minimal mock: emits one final event per 5 audio chunks."""
+
     def __init__(self) -> None:
-        self.total_bytes = 0
         self.connected = False
+        self._queue: asyncio.Queue[TranscriptionEvent | None] = asyncio.Queue()
+        self._chunk_count = 0
 
-    async def connect(self) -> None:
+    async def connect(self, **kwargs: Any) -> None:
         self.connected = True
 
+    async def send_audio(self, audio: bytes) -> None:
+        self._chunk_count += 1
+        if self._chunk_count % 5 == 0:
+            await self._queue.put(
+                TranscriptionEvent(
+                    text=f"sentence {self._chunk_count // 5}",
+                    is_final=True,
+                    confidence=0.95,
+                )
+            )
+
+    async def finalize(self) -> None:
+        await self._queue.put(TranscriptionEvent(text="", is_final=True, confidence=0.0))
+
     async def finish(self) -> None:
-        self.connected = False
+        await self._queue.put(None)
 
-    async def send_audio(self, data: bytes) -> None:
-        self.total_bytes += len(data)
-
-    async def get_events(self):  # type: ignore[override]
-        # Yield nothing, just keep connection open
-        while self.connected:
-            await asyncio.sleep(0.1)
-
-            class MockEvent:
-                text = "dummy"
-                is_final = True
-                confidence = 1.0
-
-            yield MockEvent()
+    async def get_events(self) -> AsyncIterator[TranscriptionEvent]:
+        while True:
+            event = await self._queue.get()
+            if event is None:
+                break
+            yield event
 
 
-# NOTE: Renamed to disable automatic collection due to flakiness (ConnectionClosedOK)
-# Pending rewrite for v8.0 API (AudioProducerService, STTProviderService).
-@pytest.mark.integration
-@pytest.mark.skip(reason="Pending rewrite for v8.0 BaseService API")
-@pytest.mark.asyncio
-async def _test_e2e_flow() -> None:
-    """
-    End-to-End Integration Test — PENDING REWRITE for v8.0 BaseService API.
-    Verifies: Audio File -> Producer -> NATS -> STT -> NATS -> Gateway -> WebSocket
-    """
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
-    if not os.getenv("DEEPGRAM_API_KEY"):
-        pytest.skip("DEEPGRAM_API_KEY not set")
 
-    # 1. Start API Gateway in a Subprocess
-    port = 8001
-    host = "127.0.0.1"
-
-    # Start uvicorn process
-    proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "uvicorn",
-            "api_gateway.main:app",
-            "--host",
-            host,
-            "--port",
-            str(port),
-        ],
-        cwd=os.getcwd(),
-        env={**os.environ, "NATS_URL": NATS_URL},
+async def _publish_audio_session(
+    js: Any,
+    *,
+    subject_prefix: str,
+    num_chunks: int = 10,
+) -> None:
+    """Publish ``num_chunks`` audio messages then an EOS marker."""
+    subject = f"{subject_prefix}.{SESSION_ID}"
+    for _ in range(num_chunks):
+        await js.publish(subject, AUDIO_CHUNK)
+    await js.publish(
+        subject,
+        b"",
+        headers={"LiveSTT-EOS": "true"},
     )
 
-    try:
-        # Wait for server to start
-        base_url = f"http://{host}:{port}"
-        ws_url = f"ws://{host}:{port}/ws/transcripts"
 
-        # Poll health check
-        started = False
-        async with AsyncClient(base_url=base_url) as client:
-            start_time = time.time()
-            while time.time() - start_time < 10:
-                try:
-                    resp = await client.get("/health")
-                    if resp.status_code == 200:
-                        started = True
-                        break
-                except Exception:
-                    await asyncio.sleep(0.5)
+async def _collect_transcripts(
+    sub: Any,
+    timeout_s: float = 15.0,
+    min_count: int = 1,
+) -> list[dict[str, Any]]:
+    """Drain a pre-created subscription for final transcripts."""
+    results: list[dict[str, Any]] = []
+    deadline = asyncio.get_event_loop().time() + timeout_s
+    while asyncio.get_event_loop().time() < deadline:
+        remaining = deadline - asyncio.get_event_loop().time()
+        if remaining <= 0:
+            break
+        try:
+            msg = await sub.next_msg(timeout=min(remaining, 1.0))
+            data = json.loads(msg.data.decode())
+            if data.get("is_final"):
+                results.append(data)
+                if len(results) >= min_count:
+                    break
+        except TimeoutError:
+            continue
+    await sub.unsubscribe()
+    return results
 
-        if not started:
-            pytest.fail("API Gateway failed to start")
 
-        # 2. Setup STT Provider
-        stt_nats = NatsJSManager()
-        await stt_nats.connect(NATS_URL)
-        await stt_nats.ensure_stream(**TRANSCRIPTION_STREAM_CONFIG)
-
-        stt_service = STTProviderService()
-        stt_task = asyncio.create_task(stt_service.start())
-        await asyncio.sleep(1.0)
-
-        # 3. Setup Audio Producer
-        prod_nats = NatsJSManager()
-        await prod_nats.connect(NATS_URL)
-        await prod_nats.ensure_stream(**AUDIO_STREAM_CONFIG)
-
-        test_file = "tests/data/test_audio.wav"
-        if not os.path.exists(test_file):
-            pytest.fail(f"Test file {test_file} missing")
-
-        # Instead of NatsAudioPublisher, we use the service itself
-        # We set AUDIO_FILE to test_audio.wav
-        os.environ["AUDIO_FILE"] = test_file
-        producer = AudioProducerService()
-
-        # 4. Execute Flow
-        async with websockets.connect(ws_url) as websocket:  # type: ignore
-            # Wait for subscription
-            await asyncio.sleep(0.5)
-
-            # Start Producer
-            producer_task = asyncio.create_task(producer.start())
-
-            # Wait for producer
-            try:
-                await asyncio.wait_for(producer_task, timeout=5.0)
-            except TimeoutError:
-                producer_task.cancel()
-
-            # Receive message (expecting at least one)
-            try:
-                message = await asyncio.wait_for(websocket.recv(), timeout=5.0)
-                print(f"Received: {message}")
-                _data = json.loads(message)  # type: ignore
-                assert _data["type"] == "transcript"
-            except TimeoutError:
-                # If audio is silence, maybe no transcript. But we verified connection.
-                print(
-                    "No transcript received (could be silence), but WebSocket connected."
-                )
-                pass
-
-        # Cleanup Tasks
-        await stt_service.stop()
-        await stt_task
-        await prod_nats.close()
-        await stt_nats.close()
-
-    finally:
-        proc.terminate()
-        proc.wait()
+# ---------------------------------------------------------------------------
+# Tests
+# ---------------------------------------------------------------------------
 
 
 @pytest.mark.integration
-@pytest.mark.skip(reason="Pending rewrite for v8.0 BaseService API")
 @pytest.mark.asyncio
-async def test_e2e_persistence() -> None:
-    """
-    Verifies Data Persistence (JetStream) — PENDING REWRITE for v8.0 BaseService API.
-    Scenario: Producer publishes data; STT Provider starts late and catches up.
-    """
-    if not os.getenv("DEEPGRAM_API_KEY"):
-        pytest.skip("DEEPGRAM_API_KEY not set")
+async def test_audio_to_transcript_via_nats() -> None:
+    """Full pipeline: audio chunks → NATS → stt-provider → transcript on NATS."""
+    # 1. Setup NATS streams
+    mgr = NatsJSManager()
+    nc, js = await mgr.connect(NATS_URL)
 
-    # 1. Setup Audio Producer & Publish Data
-    prod_nats = NatsJSManager()
-    await prod_nats.connect(NATS_URL)
-    # Create stream with explicit retention
-    await prod_nats.ensure_stream(**AUDIO_STREAM_CONFIG)
+    await mgr.ensure_stream(**AUDIO_STREAM_CONFIG)
+    await mgr.ensure_stream(**TRANSCRIPTION_STREAM_CONFIG)
 
-    test_file = "tests/data/test_audio.wav"
-    if not os.path.exists(test_file):
-        pytest.fail(f"Test file {test_file} missing")
+    # Purge stale data from prior test runs
+    with contextlib.suppress(Exception):
+        await js.purge_stream("AUDIO_STREAM")
+    with contextlib.suppress(Exception):
+        await js.purge_stream("TRANSCRIPTION_STREAM")
+    for durable in ("stt_backfill", "stt_live"):
+        with contextlib.suppress(Exception):
+            await js.delete_consumer("AUDIO_STREAM", durable)
 
-    # Use service to publish (it handles its own source)
-    os.environ["AUDIO_FILE"] = test_file
-    producer = AudioProducerService()
+    # 2. Subscribe to transcripts BEFORE publishing audio (avoids race)
+    transcript_sub = await nc.subscribe("transcript.raw.>")
 
-    # Publish all data
-    print("Publishing data...")
+    # 3. Start stt-provider with mock transcriber
+    service = STTProviderService(transcriber_factory=_MockTranscriber)
+    service.nats_url = NATS_URL
+    svc_task = asyncio.create_task(service.start())
+
+    # Give service time to connect and subscribe
+    await asyncio.sleep(2.0)
+
+    # 4. Publish backfill audio (10 chunks -> 2 final transcripts)
+    await _publish_audio_session(
+        js, subject_prefix=SUBJECT_PREFIX_AUDIO_BACKFILL, num_chunks=10
+    )
+
+    # Small delay then publish live audio
+    await asyncio.sleep(0.5)
+    await _publish_audio_session(
+        js, subject_prefix=SUBJECT_PREFIX_AUDIO_LIVE, num_chunks=10
+    )
+
+    # 5. Collect transcripts
+    transcripts = await _collect_transcripts(transcript_sub, timeout_s=15.0, min_count=2)
+
+    # 6. Stop service
+    service.stop_event.set()
     try:
-        # We need a way to stop it after one file loop
-        # For E2E, maybe just run it for a few seconds
-        background_tasks = set()
-        task = asyncio.create_task(producer.start())
-        background_tasks.add(task)
-        await asyncio.sleep(2.0)
-        await producer.stop()
-        task.cancel()
-    except Exception as e:
-        print(f"Producer error: {e}")
+        await asyncio.wait_for(svc_task, timeout=5.0)
+    except (TimeoutError, asyncio.CancelledError):
+        svc_task.cancel()
+
+    await mgr.close()
+
+    # 7. Assertions
+    assert len(transcripts) >= 2, (
+        f"Expected at least 2 final transcripts, got {len(transcripts)}"
+    )
+    for t in transcripts:
+        assert "text" in t
+        assert t["is_final"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_late_consumer_catches_up() -> None:
+    """Publish audio first, then start stt-provider — JetStream replays."""
+    # 1. Setup NATS streams
+    mgr = NatsJSManager()
+    nc, js = await mgr.connect(NATS_URL)
+
+    await mgr.ensure_stream(**AUDIO_STREAM_CONFIG)
+    await mgr.ensure_stream(**TRANSCRIPTION_STREAM_CONFIG)
+
+    # Purge any leftover messages from previous tests
+    try:
+        await js.purge_stream("AUDIO_STREAM")
+        await js.purge_stream("TRANSCRIPTION_STREAM")
+    except Exception:
         pass
 
-    print("Data published.")
-    await prod_nats.close()
+    # Delete stale durable consumers so the new service starts fresh
+    for durable in ("stt_backfill", "stt_live"):
+        with contextlib.suppress(Exception):
+            await js.delete_consumer("AUDIO_STREAM", durable)
 
-    # 2. Start STT Provider (Delayed)
-    print("Starting STT Provider...")
-    stt_nats = NatsJSManager()
-    await stt_nats.connect(NATS_URL)
-    # Ensure text stream exists for output
-    await stt_nats.ensure_stream(**TRANSCRIPTION_STREAM_CONFIG)
+    # 2. Subscribe to transcripts BEFORE publishing (avoids race)
+    transcript_sub = await nc.subscribe("transcript.raw.>")
 
-    # Note: Mocking transcriber in the service is tricker now.
-    # We'll check if the service publishes something or use Deepgram if available.
-    # For now, let's keep it simple and just start the service.
-    stt_service = STTProviderService()
+    # 3. Publish audio BEFORE the consumer exists
+    await _publish_audio_session(
+        js, subject_prefix=SUBJECT_PREFIX_AUDIO_BACKFILL, num_chunks=10
+    )
+    await _publish_audio_session(
+        js, subject_prefix=SUBJECT_PREFIX_AUDIO_LIVE, num_chunks=10
+    )
 
-    # Start service in background
-    stt_task = asyncio.create_task(stt_service.start())
+    # 4. Now start stt-provider — it should catch up via JetStream replay
+    service = STTProviderService(transcriber_factory=_MockTranscriber)
+    service.nats_url = NATS_URL
+    svc_task = asyncio.create_task(service.start())
 
-    # Wait for catch-up
-    # We check if messages were processed by checking the transcript.raw stream
-    messages_received = False
-    for _ in range(20):
-        await asyncio.sleep(0.5)
-        # Check if any messages exist in TRANSCRIPTION_STREAM
-        try:
-            # We can use a ephemeral consumer to check if messages were published
-            sub = await stt_nats.js.subscribe("transcript.raw.backfill")
-            msg = await sub.next_msg(timeout=0.5)
-            if msg:
-                messages_received = True
-                print(
-                    "Catch-up successful! Revealed messages in transcript.raw.backfill."
-                )
-                break
-        except Exception:
-            continue
+    # 5. Collect transcripts
+    transcripts = await _collect_transcripts(transcript_sub, timeout_s=15.0, min_count=2)
 
-    await stt_service.stop()
-    await stt_task
-    assert messages_received, "STT Provider did not publish backfilled data!"
+    # 6. Cleanup
+    service.stop_event.set()
+    try:
+        await asyncio.wait_for(svc_task, timeout=5.0)
+    except (TimeoutError, asyncio.CancelledError):
+        svc_task.cancel()
+
+    await mgr.close()
+
+    # 7. Verify catch-up worked
+    assert len(transcripts) >= 2, (
+        f"Late consumer should catch up; got {len(transcripts)} transcripts"
+    )

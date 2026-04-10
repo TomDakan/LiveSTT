@@ -185,6 +185,38 @@ async def test_protected_route_with_valid_token_succeeds() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Expired JWT — ADR-0016 requirement
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_expired_token_returns_401() -> None:
+    """A JWT created with TTL=-1 is already expired and must be rejected."""
+    import api_gateway.auth as auth_module
+    from httpx import ASGITransport, AsyncClient
+
+    kv = _make_idle_kv()
+    async with (
+        _patched_app(kv, _make_idle_kv()) as (app, _),
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
+    ):
+        original_ttl = auth_module.ADMIN_TOKEN_TTL_S
+        auth_module.ADMIN_TOKEN_TTL_S = -1
+        try:
+            expired_token = create_token(JWT_SECRET)
+        finally:
+            auth_module.ADMIN_TOKEN_TTL_S = original_ttl
+
+        resp = await client.post(
+            "/session/stop",
+            headers={"Authorization": f"Bearer {expired_token}"},
+        )
+
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "invalid_token"
+
+
+# ---------------------------------------------------------------------------
 # GET /admin/status — smoke test
 # ---------------------------------------------------------------------------
 
@@ -252,3 +284,87 @@ async def test_admin_status_returns_expected_structure() -> None:
     assert "free_bytes" in disk
     assert "used_bytes" in disk
     assert "db_size_bytes" in disk
+
+
+# ---------------------------------------------------------------------------
+# _build_status_payload — pure data transformation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_build_status_payload_idle() -> None:
+    """When session KV has no 'current' key, payload shows idle."""
+    from api_gateway.main import _build_status_payload
+
+    session_kv = _make_idle_kv()
+    config_kv = _make_idle_kv()
+
+    result = await _build_status_payload(session_kv, config_kv)
+
+    assert result["state"] == "idle"
+    assert result["silence_timeout_s"] == 300  # default
+    assert "session_id" not in result
+    assert "label" not in result
+    assert "started_at" not in result
+
+
+@pytest.mark.asyncio
+async def test_build_status_payload_active() -> None:
+    """When session KV has an active session, payload includes all fields."""
+    from api_gateway.main import _build_status_payload
+
+    session_kv = AsyncMock()
+    entry = MagicMock()
+    entry.value = json.dumps(
+        {
+            "state": "active",
+            "session_id": "20260101-1000",
+            "label": "Sunday Morning",
+            "started_at": "2026-01-01T10:00:00+00:00",
+        }
+    ).encode()
+    session_kv.get.return_value = entry
+
+    config_kv = _make_idle_kv()
+
+    result = await _build_status_payload(session_kv, config_kv)
+
+    assert result["state"] == "active"
+    assert result["session_id"] == "20260101-1000"
+    assert result["label"] == "Sunday Morning"
+    assert result["started_at"] == "2026-01-01T10:00:00+00:00"
+    assert result["silence_timeout_s"] == 300
+
+
+@pytest.mark.asyncio
+async def test_build_status_payload_custom_silence_timeout() -> None:
+    """When config KV has a silence_timeout_s, it overrides the default."""
+    from api_gateway.main import _build_status_payload
+
+    session_kv = _make_idle_kv()
+
+    config_kv = AsyncMock()
+    cfg_entry = MagicMock()
+    cfg_entry.value = b"120"
+    config_kv.get.return_value = cfg_entry
+
+    result = await _build_status_payload(session_kv, config_kv)
+
+    assert result["silence_timeout_s"] == 120
+
+
+@pytest.mark.asyncio
+async def test_build_status_payload_both_kvs_error() -> None:
+    """When both KV reads fail, payload falls back to defaults."""
+    from api_gateway.main import _build_status_payload
+
+    session_kv = AsyncMock()
+    session_kv.get.side_effect = Exception("NATS down")
+
+    config_kv = AsyncMock()
+    config_kv.get.side_effect = Exception("NATS down")
+
+    result = await _build_status_payload(session_kv, config_kv)
+
+    assert result["state"] == "idle"
+    assert result["silence_timeout_s"] == 300
