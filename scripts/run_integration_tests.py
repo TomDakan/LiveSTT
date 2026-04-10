@@ -16,8 +16,8 @@ NATS_PORT = 4222
 HEALTH_TIMEOUT_S = 15
 
 
-def _run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, text=True, capture_output=True, **kwargs)  # type: ignore[arg-type]
+def _run(cmd: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(cmd, text=True, capture_output=True)
 
 
 def _nats_up() -> None:

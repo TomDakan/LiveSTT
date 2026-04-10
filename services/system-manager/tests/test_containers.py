@@ -6,7 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from docker.errors import NotFound
+from docker.errors import NotFound  # type: ignore[import-untyped]
 from system_manager.containers import (
     ALL_SERVICES,
     MANAGED_SERVICES,
