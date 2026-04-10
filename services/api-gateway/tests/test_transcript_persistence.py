@@ -20,9 +20,7 @@ async def _db_factory() -> AsyncGenerator[async_sessionmaker[Any], None]:
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    factory: async_sessionmaker[Any] = async_sessionmaker(
-        engine, expire_on_commit=False
-    )
+    factory: async_sessionmaker[Any] = async_sessionmaker(engine, expire_on_commit=False)
     try:
         yield factory
     finally:
@@ -67,9 +65,7 @@ async def test_persist_segment_writes_row() -> None:
         )
 
         async with factory() as db:
-            rows = (
-                await db.execute(select(TranscriptSegment))
-            ).scalars().all()
+            rows = (await db.execute(select(TranscriptSegment))).scalars().all()
             assert len(rows) == 1
             seg = rows[0]
             assert seg.session_id == "20260409-1000"
@@ -90,9 +86,7 @@ async def test_persist_segment_defaults() -> None:
         )
 
         async with factory() as db:
-            seg = (
-                await db.execute(select(TranscriptSegment))
-            ).scalar_one()
+            seg = (await db.execute(select(TranscriptSegment))).scalar_one()
             assert seg.speaker == "Unknown"
             assert seg.confidence == pytest.approx(0.0)
             assert seg.source == "live"
@@ -114,9 +108,7 @@ async def test_persist_segment_db_error_logged(
     with caplog.at_level(logging.WARNING):
         await _persist_segment(bad_factory, "sess-1", {"text": "hi"})
 
-    assert any(
-        "Failed to persist segment" in r.message for r in caplog.records
-    )
+    assert any("Failed to persist segment" in r.message for r in caplog.records)
 
 
 # -------------------------------------------------------------------
@@ -141,9 +133,7 @@ async def test_handle_session_db_started() -> None:
         async with factory() as db:
             row = (
                 await db.execute(
-                    select(SessionModel).where(
-                        SessionModel.id == "20260409-1000"
-                    )
+                    select(SessionModel).where(SessionModel.id == "20260409-1000")
                 )
             ).scalar_one()
             assert row.label == "Morning"
@@ -174,9 +164,7 @@ async def test_handle_session_db_stopped() -> None:
         async with factory() as db:
             row = (
                 await db.execute(
-                    select(SessionModel).where(
-                        SessionModel.id == "20260409-1000"
-                    )
+                    select(SessionModel).where(SessionModel.id == "20260409-1000")
                 )
             ).scalar_one()
             assert row.stopped_at == "2026-04-09T11:00:00+00:00"
@@ -195,9 +183,7 @@ async def test_handle_session_db_idempotent_start() -> None:
         await _handle_session_db(factory, data)
 
         async with factory() as db:
-            rows = (
-                await db.execute(select(SessionModel))
-            ).scalars().all()
+            rows = (await db.execute(select(SessionModel))).scalars().all()
             assert len(rows) == 1
 
 
@@ -207,7 +193,5 @@ async def test_handle_session_db_no_session_id_noop() -> None:
         await _handle_session_db(factory, {"event": "started"})
 
         async with factory() as db:
-            rows = (
-                await db.execute(select(SessionModel))
-            ).scalars().all()
+            rows = (await db.execute(select(SessionModel))).scalars().all()
             assert len(rows) == 0

@@ -81,13 +81,9 @@ async def test_backup_creates_valid_targz(tmp_path: Path) -> None:
 
     async with (
         _patched_app(tmp_path) as app,
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
-        resp = await client.post(
-            "/admin/backup", headers=_auth_header()
-        )
+        resp = await client.post("/admin/backup", headers=_auth_header())
 
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/gzip"
@@ -105,13 +101,9 @@ async def test_backup_no_data_returns_404(tmp_path: Path) -> None:
     # Don't create the db directory
     async with (
         _patched_app(tmp_path) as app,
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
-        resp = await client.post(
-            "/admin/backup", headers=_auth_header()
-        )
+        resp = await client.post("/admin/backup", headers=_auth_header())
 
     assert resp.status_code == 404
 
@@ -132,14 +124,10 @@ async def test_restore_roundtrip(tmp_path: Path) -> None:
 
     async with (
         _patched_app(tmp_path) as app,
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         # Backup
-        backup_resp = await client.post(
-            "/admin/backup", headers=_auth_header()
-        )
+        backup_resp = await client.post("/admin/backup", headers=_auth_header())
         assert backup_resp.status_code == 200
         archive = backup_resp.content
 
@@ -183,9 +171,7 @@ async def test_restore_blocks_path_traversal(tmp_path: Path) -> None:
 
     async with (
         _patched_app(tmp_path) as app,
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
             "/admin/restore",
@@ -221,9 +207,7 @@ async def test_restore_legacy_flat_format(tmp_path: Path) -> None:
 
     async with (
         _patched_app(tmp_path) as app,
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
             "/admin/restore",

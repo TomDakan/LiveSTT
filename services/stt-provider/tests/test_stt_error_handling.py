@@ -172,9 +172,7 @@ async def test_buffer_then_catchup_flow() -> None:
             sent_chunks.append(audio)
             await super().send_audio(audio)
 
-    service = STTProviderService(
-        transcriber_factory=FailThreeTimesTranscriber
-    )
+    service = STTProviderService(transcriber_factory=FailThreeTimesTranscriber)
     service.nats_manager = MagicMock()
     service.nats_manager.ensure_stream = AsyncMock()
     service.nc = AsyncMock()
@@ -217,9 +215,7 @@ async def test_buffer_then_catchup_flow() -> None:
     mock_sub.fetch.side_effect = fetch
 
     with patch("stt_provider.main._RECONNECT_INITIAL_DELAY_S", 0.01):
-        task = asyncio.create_task(
-            service.run_business_logic(mock_js, stop_event)
-        )
+        task = asyncio.create_task(service.run_business_logic(mock_js, stop_event))
         await asyncio.sleep(1.0)
 
     stop_event.set()

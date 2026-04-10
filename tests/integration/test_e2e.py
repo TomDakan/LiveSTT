@@ -43,9 +43,7 @@ class _MockTranscriber(Transcriber):
 
     def __init__(self) -> None:
         self.connected = False
-        self._queue: asyncio.Queue[TranscriptionEvent | None] = (
-            asyncio.Queue()
-        )
+        self._queue: asyncio.Queue[TranscriptionEvent | None] = asyncio.Queue()
         self._chunk_count = 0
 
     async def connect(self, **kwargs: Any) -> None:
@@ -63,9 +61,7 @@ class _MockTranscriber(Transcriber):
             )
 
     async def finalize(self) -> None:
-        await self._queue.put(
-            TranscriptionEvent(text="", is_final=True, confidence=0.0)
-        )
+        await self._queue.put(TranscriptionEvent(text="", is_final=True, confidence=0.0))
 
     async def finish(self) -> None:
         await self._queue.put(None)
@@ -173,9 +169,7 @@ async def test_audio_to_transcript_via_nats() -> None:
     )
 
     # 5. Collect transcripts
-    transcripts = await _collect_transcripts(
-        transcript_sub, timeout_s=15.0, min_count=2
-    )
+    transcripts = await _collect_transcripts(transcript_sub, timeout_s=15.0, min_count=2)
 
     # 6. Stop service
     service.stop_event.set()
@@ -235,9 +229,7 @@ async def test_late_consumer_catches_up() -> None:
     svc_task = asyncio.create_task(service.start())
 
     # 5. Collect transcripts
-    transcripts = await _collect_transcripts(
-        transcript_sub, timeout_s=15.0, min_count=2
-    )
+    transcripts = await _collect_transcripts(transcript_sub, timeout_s=15.0, min_count=2)
 
     # 6. Cleanup
     service.stop_event.set()

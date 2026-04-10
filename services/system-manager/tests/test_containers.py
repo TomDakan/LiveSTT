@@ -44,9 +44,7 @@ def _patch_client() -> Any:
 
 
 def test_list_services_all_running() -> None:
-    containers = {
-        name: _mock_container(name) for name in sorted(ALL_SERVICES)
-    }
+    containers = {name: _mock_container(name) for name in sorted(ALL_SERVICES)}
     with _patch_client() as mock_fn:
         client = MagicMock()
         mock_fn.return_value = client
@@ -138,9 +136,7 @@ def test_disable_service_success() -> None:
 
     assert result["ok"] is True
     assert result["action"] == "disable"
-    container.update.assert_called_once_with(
-        restart_policy={"Name": "no"}
-    )
+    container.update.assert_called_once_with(restart_policy={"Name": "no"})
     container.stop.assert_called_once_with(timeout=10)
     client.close.assert_called_once()
 
@@ -179,9 +175,7 @@ def test_enable_service_success() -> None:
 
     assert result["ok"] is True
     assert result["action"] == "enable"
-    container.update.assert_called_once_with(
-        restart_policy={"Name": "always"}
-    )
+    container.update.assert_called_once_with(restart_policy={"Name": "always"})
     container.start.assert_called_once()
     client.close.assert_called_once()
 

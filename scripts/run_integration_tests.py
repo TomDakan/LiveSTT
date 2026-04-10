@@ -45,9 +45,7 @@ def _nats_up() -> None:
     # Wait for NATS to be ready
     deadline = time.monotonic() + HEALTH_TIMEOUT_S
     while time.monotonic() < deadline:
-        check = _run(
-            ["docker", "exec", CONTAINER_NAME, "nats-server", "--health"]
-        )
+        check = _run(["docker", "exec", CONTAINER_NAME, "nats-server", "--health"])
         if check.returncode == 0:
             print(f"NATS ready on localhost:{NATS_PORT}")
             return

@@ -71,9 +71,7 @@ async def test_setup_status_needs_setup_initially() -> None:
 
     async with (
         _patched_app() as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.get("/setup/status")
 
@@ -92,9 +90,7 @@ async def test_setup_creates_admin_and_returns_token() -> None:
 
     async with (
         _patched_app() as (app, db_factory),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
             "/setup",
@@ -109,9 +105,7 @@ async def test_setup_creates_admin_and_returns_token() -> None:
         async with db_factory() as db:
             row = (
                 await db.execute(
-                    select(AppConfig.value).where(
-                        AppConfig.key == "admin_password_hash"
-                    )
+                    select(AppConfig.value).where(AppConfig.key == "admin_password_hash")
                 )
             ).scalar_one()
             assert row.startswith("$2b$")
@@ -123,9 +117,7 @@ async def test_setup_rejects_short_password() -> None:
 
     async with (
         _patched_app() as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         resp = await client.post(
             "/setup",
@@ -142,20 +134,14 @@ async def test_setup_twice_returns_409() -> None:
 
     async with (
         _patched_app() as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         # First setup succeeds
-        resp1 = await client.post(
-            "/setup", json={"password": "validpass123"}
-        )
+        resp1 = await client.post("/setup", json={"password": "validpass123"})
         assert resp1.status_code == 200
 
         # Second setup fails
-        resp2 = await client.post(
-            "/setup", json={"password": "anotherpass"}
-        )
+        resp2 = await client.post("/setup", json={"password": "anotherpass"})
         assert resp2.status_code == 409
         assert resp2.json()["error"] == "setup_already_complete"
 
@@ -166,9 +152,7 @@ async def test_setup_stores_deepgram_key() -> None:
 
     async with (
         _patched_app() as (app, db_factory),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         await client.post(
             "/setup",
@@ -181,9 +165,7 @@ async def test_setup_stores_deepgram_key() -> None:
         async with db_factory() as db:
             row = (
                 await db.execute(
-                    select(AppConfig.value).where(
-                        AppConfig.key == "deepgram_api_key"
-                    )
+                    select(AppConfig.value).where(AppConfig.key == "deepgram_api_key")
                 )
             ).scalar_one()
             assert row == "sk-test-key"
@@ -199,18 +181,12 @@ async def test_auth_works_after_setup() -> None:
 
     async with (
         _patched_app() as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         # Setup
-        await client.post(
-            "/setup", json={"password": "validpass123"}
-        )
+        await client.post("/setup", json={"password": "validpass123"})
 
         # Now authenticate with the same password
-        resp = await client.post(
-            "/admin/auth", json={"password": "validpass123"}
-        )
+        resp = await client.post("/admin/auth", json={"password": "validpass123"})
         assert resp.status_code == 200
         assert "token" in resp.json()

@@ -28,18 +28,11 @@ def test_source_no_key_in_log_calls() -> None:
     """Static scan: no log/print statement references ``api_key``."""
     src_dir = Path(__file__).resolve().parents[1] / "src"
     # Matches logger.xxx(...api_key...) or print(...api_key...)
-    pattern = re.compile(
-        r"(logger\.\w+|print)\s*\(.*\bapi_key\b", re.IGNORECASE
-    )
+    pattern = re.compile(r"(logger\.\w+|print)\s*\(.*\bapi_key\b", re.IGNORECASE)
     violations: list[str] = []
     for py_file in src_dir.rglob("*.py"):
-        for i, line in enumerate(
-            py_file.read_text(encoding="utf-8").splitlines(), 1
-        ):
+        for i, line in enumerate(py_file.read_text(encoding="utf-8").splitlines(), 1):
             if pattern.search(line):
                 violations.append(f"{py_file.name}:{i}: {line.strip()}")
 
-    assert violations == [], (
-        "Found api_key in log/print calls:\n"
-        + "\n".join(violations)
-    )
+    assert violations == [], "Found api_key in log/print calls:\n" + "\n".join(violations)

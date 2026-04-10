@@ -198,9 +198,7 @@ async def test_expired_token_returns_401() -> None:
     kv = _make_idle_kv()
     async with (
         _patched_app(kv, _make_idle_kv()) as (app, _),
-        AsyncClient(
-            transport=ASGITransport(app=app), base_url="http://test"
-        ) as client,
+        AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client,
     ):
         original_ttl = auth_module.ADMIN_TOKEN_TTL_S
         auth_module.ADMIN_TOKEN_TTL_S = -1
