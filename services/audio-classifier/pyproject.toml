@@ -1,6 +1,6 @@
 [project]
 name = "audio-classifier"
-version = "0.18.0"
+version = "0.19.0"
 description = "Audio Classifier Service"
 requires-python = ">=3.12"
 dependencies = [
