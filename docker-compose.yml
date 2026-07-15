@@ -94,20 +94,29 @@ services:
       nats:
         condition: service_healthy
 
-#   identifier:
-#     build:
-#       context: .
-#       dockerfile: services/identifier/Dockerfile
-#     container_name: identifier
-#     environment:
-#       - NATS_URL=nats://nats:4222
-#     volumes:
-#       - lancedb_data:/data/lancedb
-#     networks:
-#       - internal_overlay
-#     depends_on:
-#       nats:
-#         condition: service_healthy
+  identifier:
+    profiles: ["gpu"]
+    build:
+      context: .
+      dockerfile: services/identifier/Dockerfile
+    container_name: identifier
+    restart: always
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/healthy"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+    environment:
+      - NATS_URL=nats://nats:4222
+      - NATS_LOG_FORWARDING=true
+    volumes:
+      - lancedb_data:/data/lancedb
+    networks:
+      - internal_overlay
+    depends_on:
+      nats:
+        condition: service_healthy
 
   system-manager:
     build:
@@ -160,6 +169,7 @@ services:
 volumes:
   nats_data:
   db_data:
+  lancedb_data:
 
 networks:
   internal_overlay:

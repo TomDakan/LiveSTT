@@ -61,3 +61,12 @@ services:
     volumes:
       - ./services/identity-manager/src:/app/services/identity-manager/src
       - ./libs/messaging/src:/app/libs/messaging/src
+
+  identifier:
+    profiles: ["gpu"]
+    healthcheck:
+      interval: 5s
+      start_period: 5s
+    volumes:
+      - ./services/identifier/src:/app/services/identifier/src
+      - ./libs/messaging/src:/app/libs/messaging/src
