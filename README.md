@@ -1,9 +1,11 @@
 # Live STT
 
-**Resilient, offline-first, real-time transcription appliance for church environments.**
+**Resilient, offline-first, real-time transcription appliance optimized for high-availability edge deployments.**
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![Status: Development](https://img.shields.io/badge/Status-Development-yellow)](https://github.com/yourusername/live-stt)
+[![Status: Development](https://img.shields.io/badge/Status-Development-yellow)](https://github.com/TomDakan/LiveSTT)
+
+LiveSTT is an event-driven, microservices-based speech-to-text platform designed to handle real-time streaming audio with zero data loss, even during temporary network partition events.
 
 ---
 
@@ -18,116 +20,145 @@ Full documentation is available in the `docs/` directory:
 
 ---
 
+## 🧬 System Architecture
+
+The core pipeline utilizes a **Buffered Split-Brain (Store-and-Forward)** pattern, decoupling real-time ingestion from transcription and speaker identification via **NATS Jetstream** to guarantee complete tolerance against network latency spikes or transient API disconnects.
+
+```mermaid
+graph TD
+    Audio[Audio Input / ALSA] -->|Stream Chunks| Producer[audio-producer]
+    Producer -->|Publish Raw Audio| NATS{NATS Jetstream}
+    NATS -->|Subscribe| STT[stt-provider]
+    NATS -->|Subscribe| ID[identifier]
+
+    STT -->|Deepgram Nova-3 API| Transcripts[Transcripts Topic]
+    ID -->|OpenVINO Biometrics| Speaker[Biometric Events]
+
+    Transcripts -->|Event Correlation| Mgr[identity-manager]
+    Speaker -->|Event Correlation| Mgr
+
+    Mgr -->|Store State| DB[(LanceDB Vector DB)]
+    Mgr -->|Publish Synced Text| Gateway[api-gateway]
+    Gateway -->|WebSockets| WebUI[Client UI]
+
+```
+
 ## 🌟 Features
 
-- **Buffered Split-Brain**: Store-and-Forward architecture with Pre-Roll buffers.
-- **Deepgram Nova-3**: Industry-leading transcription accuracy and speed.
-- **Hybrid Tagging**: Zero-drift speaker identification using local biometrics.
-- **Industrial Reliability**: Fanless x86 hardware with Power Loss Protection (PLP).
-- **Offline-First**: "Black Box" loopback filesystem ensures zero data loss during outages.
+- Buffered Split-Brain Architecture: Features custom pre-roll buffers and automated retry policies to handle cloud API disconnects gracefully.
+- Deepgram Nova-3 Integration: High-accuracy, low-latency cloud speech-to-text streaming.
+- Local Biometric Speaker Tagging: Integrates OpenVINO on the edge for real-time speaker identification without sending biometric voiceprints to third-party APIs.
+- Monorepo Workspace Engineering: Formatted as a unified workspace managed by uv for lightning-fast environment syncs and lock-step internal versioning.
+- Automated QA Safeguards: Standardized via pre-commit hooks and GitHub Actions utilizing Ruff, Basedpyright, MyPy, and security scanners (bandit and safety).
 
----
+## 🖥️ Target Hardware Tiers
+
+LiveSTT is engineered to target specific hardware configurations, adapting its resource footprint depending on whether localized biometrics (OpenVINO) are running:
+
+| Tier | Hardware Context | Target Engine Profile | Core Use Case |
+|------|------------------|-----------------------|---------------|
+| Tier 1 | Industrial NUC (Intel N97) | `gpu` Docker Profile | Standalone edge appliance with Local Speaker ID |
+| Tier 2 | Desktop w/ Dedicated GPU | `gpu` Docker Profile | Complete developme  nt environment with AI acceleration |
+| Tier 3 | CPU-Only (Laptops / CI) | `cpu` Docker Profile | Core pipeline testing, API integrations, Web UI development |
 
 ## 🚀 Quick Start (Docker)
 
-1. **Clone & Setup**:
-   ```bash
-   git clone https://github.com/yourusername/live-stt.git
-   cd live-stt
-   cp .env.example .env
-   # Add your DEEPGRAM_API_KEY to .env
-   ```
+1. Clone & Setup:
 
-2. **Run**:
-   ```bash
-   docker compose up
-   ```
+```bash
+git clone https://github.com/TomDakan/LiveSTT.git
+cd LiveSTT
+cp .env.example .env
 
-3. **Access**:
-   - Web UI: `http://localhost:8000`
-   - API Docs: `http://localhost:8000/docs`
+# Add your DEEPGRAM_API_KEY to .env
+```
 
----
+1. Spin Up default services (CPU Mode):
+
+```Bash
+docker compose up
+```
+
+3.Access Services:
+
+- Web UI: <http://localhost:8000API>
+- Schema Docs: <http://localhost:8000/docs>
 
 ## 💻 Local Development Setup
 
-### Prerequisites
+ Prerequisites
 
-- **Python**: 3.12+ (managed by uv)
-- **Package Manager**: [uv](https://github.com/astral-sh/uv)
-- **Task Runner**: [just](https://github.com/casey/just) (optional but recommended)
-- **Docker**: Required for NATS and LanceDB
+- Python: 3.12+ (managed via uv)
+- Package Manager: uv (for workspace management)
+- Tool Manager: mise (for runtime tools)
+- Task Runner: just
+- Docker & Compose: To run containerized infrastructure dependencies
 
-### Setup
+ Setup
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/yourusername/live-stt.git
-   cd live-stt
-   ```
+  1. Clone & Initialize Runtimes:
 
-2. **Install dependencies**:
-   ```bash
-   mise install
-   just install
-   ```
+  ``` Bash
+  git clone https://github.com/TomDakan/LiveSTT.git
+  cd LiveSTT
+  mise install   # Automatically configures local tools (uv, just, jq)
+  just install   # Syncs monorepo workspace dependencies via uv
+  ```
 
-3. **Configure environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your DEEPGRAM_API_KEY
-   ```
+  1. Configure Environment
 
-### Running Services
+  ``` Bash
+  cp .env.example .env
 
-This is a **monorepo** with multiple microservices. Run individual services for development:
+  # Add your DEEPGRAM_API_KEY
+  ```
 
-```bash
-# 1. Start Infrastructure (NATS + LanceDB)
+## Running the Monorepo Architecture
+
+For localized service development, you can spin up the supporting infrastructure and run individual microservices in separate shell windows:
+
+```Bash
+# 1. Start core data/message brokering layers
 docker compose up -d nats lancedb
 
-# 2. Run Services (in separate terminals)
+# 2. Run target services (in isolated terminals)
+
 just start api-gateway
 just start stt-provider
 just start identity-manager
 ```
 
-### Development Commands
+## Dev Shell Commands
 
-We use [Just](https://github.com/casey/just) for common tasks:
+We use just to automate development tasks. These ensure your code passes our strict automated CI/CD gating:
 
-```bash
-just qa              # Run full QA suite (format, lint, type-check, test, security)
-just format          # Auto-format code with Ruff
-just type-check      # Run MyPy type checking
-just test            # Run pytest
-just nats-cli        # Open NATS CLI shell
-just nats-spy        # Watch all NATS messages
+```Bash
+just qa              # Run complete QA suite (Format, Lint, Type-Check, Tests, Security)
+just format          # Format files using Ruff
+just type-check      # Enforce strict types via Pyright/Mypy
+just test            # Execute pytest suites
+just nats-spy        # Watch raw JSON frames crossing the NATS broker
 ```
 
-### Project Structure
+## 📂 Project Directory Breakdown
 
 ```
 live-stt/
-├── services/           # Microservices
-│   ├── api-gateway/    # FastAPI REST + WebSocket server
-│   ├── stt-provider/   # Deepgram STT integration
-│   ├── identifier/     # OpenVINO Biometrics
-│   └── identity-manager/ # Hybrid Tagging Logic
-├── src/live_stt/       # Shared library code
-├── docs/               # Architecture & Ops docs
-├── justfile            # Task runner commands
-└── pyproject.toml      # Monorepo config
+├── services/             # Microservices Ecosystem
+│   ├── api-gateway/      # FastAPI REST and WS endpoints
+│   ├── stt-provider/     # Deepgram API ingestion pipeline
+│   ├── identifier/       # Local OpenVINO-driven Biometrics engine
+│   └── identity-manager/ # Multi-source event-driven transcription correlator
+├── src/live_stt/         # Shared libraries & utilities
+├── docs/                 # Architecture Decision Records (ADRs) and HBOM specs
+├── justfile              # System utility commands
+└── pyproject.toml        # Shared uv monorepo configuration
 ```
-
----
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
----
+Contributions are welcome! Please review the strict workspace versioning, conventional commits guidelines, and Docker multi-architecture profiles in CONTRIBUTING.md.
 
 ## 📄 License
 
-This project is licensed under the **GNU General Public License v3.0**. See [LICENSE](LICENSE) for details.
+This project is licensed under the GNU General Public License v3.0. See the LICENSE file for the full license text.
